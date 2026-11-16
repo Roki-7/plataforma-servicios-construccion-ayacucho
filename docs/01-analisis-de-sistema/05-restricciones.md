@@ -20,4 +20,4 @@ Las restricciones son condiciones y límites que deben respetarse durante el des
 | RC14 | **Tratamiento de datos personales** | La recopilación, uso y conservación de datos personales deben ajustarse a la Ley N.º 29733, Ley de Protección de Datos Personales del Perú, y a su reglamento. Los documentos privados y las direcciones exactas solo estarán disponibles para usuarios autorizados. |
 | RC15 | **Documentos de contratación** | Los documentos se prepararán a partir de las condiciones acordadas por las partes. Antes de utilizarlos con clientes reales deberán definirse y revisarse las plantillas y el mecanismo de aceptación o firma. |
 
-La base de datos y los proveedores de IA, notificaciones y mapas todavía no están seleccionados. Su elección se justificará en las decisiones arquitectónicas.
+La base de datos seleccionada es PostgreSQL, según el [README](../../README.md) y [ADR-013](07-decisiones-arquitectonicas.md). Los proveedores de IA, notificaciones y mapas se elegirán al implementar cada integración y su elección se justificará en las decisiones arquitectónicas.

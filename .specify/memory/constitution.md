@@ -1,19 +1,19 @@
 <!--
 Sync Impact Report — material temporal de revisión; retirar antes del commit.
-Cambio de versión: sin versión (plantilla sin completar) → 1.0.0.
-Motivo: primera formalización de decisiones existentes; no se sustituyen ADR.
-Principios modificados: ninguno preexistente; los cinco espacios genéricos de la
-plantilla se reemplazan por los doce principios I–XII documentados en SDD.
-Secciones añadidas/completadas: Core Principles (I–XII), Alcance y restricciones
-transversales, Flujo de desarrollo y verificación, Governance.
-Secciones eliminadas: ninguna normativa; se retiran los ejemplos de plantilla.
-Dependencias: no se modifican plantillas, comandos, documentación ni aplicación.
-Pendientes:
-- TODO(RATIFICATION_DATE): confirmar la fecha de adopción formal; no está documentada.
-- TODO(DOC_DB): el párrafo final de docs/01-analisis-de-sistema/05-restricciones.md
-  dice que la base de datos no está seleccionada; README y ADR-013 eligen
-  PostgreSQL. El usuario confirmó el 2026-11-16 conservar PostgreSQL y registrar
-  la discrepancia pendiente. Este flujo no modifica ese documento.
+Cambio de versión: 1.0.0 → 1.0.1.
+Motivo: corrección documental y de metadatos sin cambios normativos.
+Principios modificados: ninguno; se conservan los doce principios I–XII.
+Secciones añadidas: ninguna.
+Secciones eliminadas: ninguna.
+Sección actualizada: Governance y metadatos de ratificación.
+Documento sincronizado: docs/01-analisis-de-sistema/05-restricciones.md ahora
+reconoce PostgreSQL como base de datos seleccionada según README y ADR-013.
+Pendientes resueltos:
+- Fecha de ratificación: 2026-11-16, confirmada por el usuario.
+- Discrepancia sobre la base de datos: corregida en restricciones; se conserva
+  PostgreSQL y la selección futura de proveedores de IA, notificaciones y mapas.
+Pendientes restantes: ninguno.
+No se modifican plantillas, comandos ni código de la aplicación.
 -->
 
 # Plataforma de servicios de construcción civil en Ayacucho Constitution
@@ -316,13 +316,8 @@ identificar desviaciones, justificación y aprobación. Si las fuentes se contra
 el asistente DEBE señalar la contradicción y consultar antes de resolverla;
 NO DEBE decidir su precedencia silenciosamente.
 
-Discrepancia registrada: el párrafo final de `05-restricciones.md` dice que la base
-de datos no está seleccionada; README y ADR-013 eligen PostgreSQL. Por confirmación
-del usuario del 2026-11-16, esta constitución conserva PostgreSQL.
-TODO(DOC_DB): armonizar ese párrafo en una tarea documental posterior; el documento
-de restricciones queda fuera del alcance de esta actualización.
+La constitución fue ratificada el 2026-11-16. La selección de PostgreSQL está
+documentada en README, ADR-013 y `05-restricciones.md`; la discrepancia documental
+anterior quedó corregida el 2026-11-16.
 
-TODO(RATIFICATION_DATE): confirmar la fecha de adopción formal; no existe una fecha
-de ratificación documentada en las fuentes consultadas.
-
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-11-16
+**Version**: 1.0.1 | **Ratified**: 2026-11-16 | **Last Amended**: 2026-11-16
