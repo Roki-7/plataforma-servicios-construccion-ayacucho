@@ -1,0 +1,65 @@
+name: ayacucho-001-validacion
+services:
+  postgres:
+    image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+    environment:
+      POSTGRES_DB: ayacucho_001_validacion
+      POSTGRES_USER: ayacucho_validacion
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ejecute dev:prepare antes de arrancar Compose}
+    ports: ["127.0.0.1:54329:5432"]
+    volumes: ["postgres-datos:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ayacucho_validacion -d ayacucho_001_validacion"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:63799:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  correo:
+    image: axllent/mailpit:latest@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+    environment:
+      MP_MAX_MESSAGES: 100
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  objetos:
+    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Ejecute dev:prepare}
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY_ID:?Ejecute dev:prepare}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:?Ejecute dev:prepare}
+      GARAGE_DEFAULT_BUCKET: usuarios-validacion
+      RUST_LOG: warn
+    ports: ["127.0.0.1:3900:3900"]
+    volumes:
+      - ./infra/garage.toml:/etc/garage.toml:ro
+      - objetos-meta:/var/lib/garage/meta
+      - objetos-datos:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  proxy:
+    image: caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    profiles: ["web"]
+    ports: ["127.0.0.1:8443:8443"]
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.local/tls:/certs:ro
+    extra_hosts: ["host.docker.internal:host-gateway"]
+volumes:
+  postgres-datos:
+  objetos-meta:
+  objetos-datos:

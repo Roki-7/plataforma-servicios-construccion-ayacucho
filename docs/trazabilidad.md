@@ -39,6 +39,14 @@ Documentos de origen: [HU](01-analisis-de-sistema/02-historias-de-usuario.md) ·
 
 Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y ADR-013 (stack).
 
+La funcionalidad 001 dispone de su fundación técnica en `tecnologia/backend`
+y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
+vincula T001–T023 con archivos y verificaciones. Sus pruebas técnicas no acreditan
+todavía los 32 requisitos locales ni los 53 escenarios funcionales: las historias
+US1–US7 y sus pruebas permanecen pendientes. T007 pasó sus nueve proyectos en
+Linux aislado y en Windows nativo con TLS activo y rechazo de certificados no
+confiables; la instalación y retirada de la CA local quedan documentadas.
+
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
 | Elemento C4 | Nivel | Requisitos y drivers que lo justifican |

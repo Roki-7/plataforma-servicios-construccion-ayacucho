@@ -1,21 +1,22 @@
 # Guía de validación — 001 Usuarios y acceso
 
-**Estado actual**: solo diseño. No existen aún backend, frontend, compose, scripts
-npm ni tests de la aplicación. Los comandos siguientes son el contrato de ejecución
-que deberá entregar la implementación después de `$speckit-tasks`; no se han
-ejecutado ni se deben presentar como comandos disponibles hoy.
-El ejemplo vacío de Contrataciones no sustituye esa implementación.
+**Estado actual**: preparación y fundación implementadas en `tecnologia/backend`
+y `tecnologia/frontend`. Están disponibles Compose, scripts y pruebas técnicas;
+el único endpoint entregado es GET `/api/v1/salud`. Las historias T024–T119 y
+los 53 escenarios de aceptación siguen pendientes. Consultar los resultados y
+bloqueos de esta ejecución en [implementation-status.md](implementation-status.md).
+Los recorridos funcionales de las secciones 4 en adelante siguen siendo futuros.
 
 ## Referencias y prerrequisitos
 
 - [Plan](plan.md), [modelo](data-model.md), [contrato](contracts/openapi.json),
   [flujos de API](contracts/README.md) y [matriz de 53 escenarios](test-matrix.md).
 - Node.js 24 LTS >=24.15, Docker con Compose y npm compatible.
-- La futura implementación debe incluir manifiestos y lockfiles independientes
-  en `tecnologia/backend` y `tecnologia/frontend`.
+- Los manifiestos y lockfiles son independientes en `tecnologia/backend` y
+  `tecnologia/frontend`; ambos paquetes son privados y requieren Node 24.
 - El backend debe entregar `tecnologia/backend/Dockerfile` y `.dockerignore`
   (T001); construcción/arranque inicial en T023 después de existir T022 y repetición
-  de la imagen final de las siete historias en T116. Son artefactos futuros.
+  de la imagen final de las siete historias en T116. La receta fundacional existe.
 - Entorno de validación aislado, con cuentas y correos ficticios; SMTP se captura
   en Mailpit, no se envía a personas. No usar credenciales de producción.
 - Origen común HTTPS local `https://localhost:8443`, certificado local confiable
@@ -23,15 +24,15 @@ El ejemplo vacío de Contrataciones no sustituye esa implementación.
 - Catálogo de contraseñas de prueba determinista solo en modo de validación;
   producción debe usar el snapshot completo aprobado y no puede iniciar en modo fixture.
 
-## 1. Preparación prevista
+## 1. Preparación de la fundación
 
-Desde la raíz del repositorio, una vez que existan los artefactos de implementación:
+Desde la raíz, con Node 24.15 o superior dentro de la línea 24 y Docker Linux activo:
 
 ```powershell
 npm --prefix tecnologia/backend ci
 npm --prefix tecnologia/frontend ci
-docker compose -f tecnologia/compose.yaml up -d postgres redis correo objetos
 npm --prefix tecnologia/backend run dev:prepare -- --validation
+docker compose -f tecnologia/compose.yaml up -d --wait postgres redis correo objetos
 npm --prefix tecnologia/backend run db:migrate
 npm --prefix tecnologia/backend run storage:init
 npm --prefix tecnologia/backend run security:catalog:prepare -- --fixture
@@ -41,7 +42,23 @@ npm --prefix tecnologia/backend run test:seed
 `dev:prepare --validation` debe generar configuración local y claves efímeras
 ignoradas por Git, preparar TLS local y comprobar dependencias sin tocar un entorno
 productivo. Los seeds solo aceptan una DB de validación identificada; no borran
-ni reinicializan datos reales. Ninguno de esos scripts se escribe en esta fase.
+ni reinicializan datos reales. Ejecutar `dev:prepare` antes de Compose: genera
+las variables requeridas en `tecnologia/.env` y `tecnologia/.local/backend.env`.
+No mostrar ni versionar esos archivos. El script TLS incluido requiere Windows,
+PowerShell y OpenSSL (incluido con Git para Windows).
+
+Si el Node global es anterior, se puede usar la herramienta local ignorada:
+
+```powershell
+npm.cmd install --prefix tecnologia/.local/toolchain --no-save --package-lock=false node@24.15.0
+powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local.ps1 --prefix tecnologia/backend run typecheck
+```
+
+El wrapper admite los mismos argumentos de npm, usa el Node local si existe y
+configura la CA explícita para clientes Node y la carpeta local de navegadores.
+No instala confianza en Windows ni desactiva la validación TLS. La instalación
+de navegadores se hace desde `tecnologia/frontend` con `npx playwright install
+chromium firefox webkit`, usando el mismo Node 24.
 
 | Dependencia | Comprobación esperada |
 |---|---|
@@ -52,14 +69,14 @@ ni reinicializan datos reales. Ninguno de esos scripts se escribe en esta fase.
 | Catálogo fixture | Manifiesto y checksum conocidos; caso común/comprometido y control permitido reproducibles. |
 | TLS/proxy | Mismo origen HTTPS; certificado confiable; cookies conservan Secure y Path. |
 
-## 2. Arranque previsto
+## 2. Arranque fundacional
 
 En terminales independientes:
 
 ```powershell
 npm --prefix tecnologia/backend run start:validation
 npm --prefix tecnologia/frontend run dev -- --host 127.0.0.1
-docker compose -f tecnologia/compose.yaml up -d proxy
+docker compose -f tecnologia/compose.yaml --profile web up -d proxy
 ```
 
 El backend de validación escucha internamente en 3000 y Vite en 5173; el proxy
@@ -71,11 +88,42 @@ no proceso/cola Redis independiente.
 curl.exe --cacert tecnologia/.local/tls/ca.crt https://localhost:8443/api/v1/salud
 ```
 
-Resultado esperado tras implementar:200 con estado disponible y sin secretos.
+Resultado fundacional:200 con estado disponible y sin secretos. Para comprobar
+también web, límites y cabeceras con CA explícita y validación TLS activa:
+
+```powershell
+npm --prefix tecnologia/backend run test:proxy
+```
+
+Este control no acredita confianza de los navegadores. El diagnóstico y la
+configuración de confianza se describen en [TLS-PRUEBAS.md](../../tecnologia/frontend/TLS-PRUEBAS.md).
+La importación visible de la CA en CurrentUser/Root ya fue aceptada y verificada;
+Windows nativo pasó sus nueve proyectos con controles TLS negativos. En otro
+entorno, seguir primero la identificación e importación visible de TLS-PRUEBAS.md.
+Ejecutar la matriz nativa con:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local.ps1 --prefix tecnologia/frontend run test:e2e:windows
+```
+
+Existe además un ejecutor Linux efímero
+que instala solo la CA pública en sus almacenes y conserva TLS y el origen
+`https://localhost:8443`, sin cambiar la confianza de Windows:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/diagnosticar-tls.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local.ps1 --prefix tecnologia/frontend run test:e2e:container
+```
+
+Mantener la web y API anteriores arrancadas. El ejecutor se conecta al proxy de
+Compose; los nueve proyectos comprueban la aplicación real y rechazan además un
+certificado de control no confiable. Ver resultados por plataforma en el informe
+de implementación. No usar `-k`, opciones que ignoren certificados ni desactivar TLS.
+
 Preparación falla si PostgreSQL o el catálogo requerido no están listos; una caída
 de Redis no hace fallar001. Un200 local no demuestra disponibilidad mensual EQ-02.
 
-## 3. Controles automatizados previstos
+## 3. Controles automatizados
 
 ```powershell
 npm --prefix tecnologia/backend run lint
@@ -101,7 +149,11 @@ Chromium/Firefox/WebKit. Registrar nombres y versiones de navegadores.
 `test:coverage:001` debe contrastar los CA implementados/ejecutados con los 53 IDs
 de spec y matriz; falla por ID sin prueba o por resultado fallido. No confundir
 declarar cobertura con aprobar escenarios. Guardar JUnit/HTML, commit, entorno
-y versión del corpus. Los scripts y reportes son futuros; hoy no existen.
+y versión del corpus. Las suites actuales son técnicas de fundación; no llevan
+IDs CA ni acreditan las historias. `test:coverage:001` termina con error indicando
+T115 pendiente: todavía no existe la comprobación funcional de los 53 CA.
+JUnit, Playwright y las comprobaciones Docker/proxy escriben evidencia ignorada
+en `tecnologia/.local/evidencia/001/`.
 
 Después de preparar DB/corpus y de disponer del entrypoint compilado, T023 debe
 entregar esta comprobación adicional, también repetida por CI en T116:
@@ -110,7 +162,7 @@ entregar esta comprobación adicional, también repetida por CI en T116:
 npm --prefix tecnologia/backend run test:container
 ```
 
-El script futuro construye la imagen Linux multietapa desde el Dockerfile de
+El script entregado construye la imagen Linux multietapa desde el Dockerfile de
 T001 y la arranca con dependencias y configuración aisladas. Verifica usuario
 sin privilegios, carga de Argon2 nativo, salud 200 con dependencias listas y
 503 al configurar DB/corpus no disponibles en instancias separadas de prueba,

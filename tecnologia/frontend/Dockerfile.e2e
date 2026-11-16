@@ -1,0 +1,22 @@
+FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS node
+FROM mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/frontend /app/.local/evidencia/001 \
+    && chown -R pwuser:pwuser /app
+WORKDIR /app/frontend
+USER pwuser
+COPY --chown=pwuser:pwuser package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY --chown=pwuser:pwuser src ./src
+COPY --chown=pwuser:pwuser test ./test
+COPY --chown=pwuser:pwuser scripts ./scripts
+COPY --chown=pwuser:pwuser tsconfig.json playwright.config.ts ./
+USER root
+ENV NODE_EXTRA_CA_CERTS=/validacion/ca.crt \
+    E2E_EXTERNAL_WEB=true \
+    E2E_TLS_NEGATIVAS=true \
+    E2E_EVIDENCIA=/app/.local/evidencia/001/e2e-linux \
+    MAILPIT_API=http://correo:8025
+ENTRYPOINT ["/bin/bash", "/app/frontend/scripts/confianza-e2e.sh"]
