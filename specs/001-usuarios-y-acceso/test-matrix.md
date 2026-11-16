@@ -127,6 +127,41 @@ replicar la misma aserción superficial en cada nivel.
   additionalProperties=false, propiedades de contraseña completas, versión e
   Idempotency-Key obligatorios donde proceden; solo login/refresh/cierre cambian
   la cookie de renovación.
+  En T113, las 17 operaciones declaran y prueban 413 CUERPO_DEMASIADO_GRANDE
+  sobre el transporte ordinario de 65536 bytes (14000000 para registro con foto
+  y carga), también si se envía cuerpo inesperado. En rutas sin requestBody,
+  cuerpo no vacío dentro del límite produce 400 DATOS_INVALIDOS, sin admitirlo.
+  Foto decodificada >10000000 bytes produce 413 ARCHIVO_DEMASIADO_GRANDE.
+  Origin ausente en las 13 mutaciones produce 400 CABECERA_REQUERIDA,
+  malformado 400 DATOS_INVALIDOS y origen ajeno 403 ORIGEN_NO_ADMITIDO.
+  No exigir Origin en GET; conservar 401 para credenciales y 403 para CSRF.
+  Añadir JSON/MIME/codificación, UUID/token malformados y propiedades extra
+  con 400, recurso ajeno/no visible con 404, conflicto/replay con 409, política
+  o desafío semánticamente rechazado con 422, y 429/503 donde correspondan.
+  Probar límites exactos y exceso de un byte con controles válidos, una condición
+  alterada por variante y enum de código correspondiente al HTTP; no modificar
+  la cuenta protegida ni exponer secretos. Tabla normativa en contracts/README.md.
+
+## Dependencias de validación corregidas
+
+La proyección compartible usada por CA-PER-04/CA-PER-06 se implementa en T069
+(US5) antes de ejecutar su cierre T076. CA-AUT-06 conserva sus pruebas U/C en
+T077/T079 y la integración transversal T082 (US4), reutilizando esa implementación.
+No hay dependencia de US5 sobre la finalización de US4.
+
+La regresión conjunta recuperación/perfil se añade en T110, con dependencia
+explícita de T062 (cierre US3) y T076 (cierre US5), en las suites futuras
+`tecnologia/backend/test/integration/usuarios-acceso/recuperacion-perfil.spec.ts`
+y `tecnologia/frontend/test/e2e/usuarios-acceso/recuperacion-perfil.spec.ts`.
+Variantes: datos editados conservados tras reset, sesión revocada sin lectura/edición
+y nueva autenticación habilitando al titular; reutilizar CA-REC-08, CA-PER-02 y
+CA-AUT-01, sin sumar escenarios ni sustituir las suites originales de las 53 filas.
+
+T001 entrega Dockerfile/.dockerignore, T023 verifica construcción/arranque Linux
+tras T022 y preparación de DB/corpus, y T116 repite con las siete historias y
+conserva digest/evidencia CI. Son comprobaciones técnicas de entrega, no nuevos CA.
+La planificación conserva 119 tareas y 152 asociaciones CA/nivel de las filas
+originales; las variantes transversales adicionales no cambian esos recuentos.
 
 PR02 planifica salud cada minuto en demostración, sin acreditar disponibilidad
 mensual por un test local. k6 caracteriza costo Argon2 y sesiones con datos ficticios,

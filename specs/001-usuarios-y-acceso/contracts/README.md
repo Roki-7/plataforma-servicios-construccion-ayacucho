@@ -32,6 +32,27 @@ antes de convertirlo a UTF-8, sin reemplazos que hagan equivalentes dos entradas
 Los límites JSON Schema de caracteres y los validadores deben probarse con Unicode
 suplementario; no imponer un límite UTF-16 distinto en el navegador.
 
+### Límites de transporte y operaciones sin cuerpo
+
+El límite ordinario es **65536 bytes (64 KiB)** en las 17 operaciones, también
+para un cuerpo enviado por error a una ruta sin `requestBody`. Esas rutas no
+aceptan cuerpo: dentro del límite lo rechazan con 400 DATOS_INVALIDOS; al superar
+el límite de transporte responden 413 CUERPO_DEMASIADO_GRANDE. Declarar ambos
+errores en OpenAPI no añade un cuerpo admitido a GET, cierre o renovación.
+
+POST `/cuentas` con fotografía y POST `/perfil/fotografias` permiten como máximo
+**14000000 bytes** de transporte; el registro sin fotografía conserva 65536 bytes.
+La ruta de registro aplica primero el tope duro de 14000000 y, una vez analizado
+el JSON, comprueba el límite ordinario si no incluye fotografía. El contenido
+decodificado de la imagen conserva el máximo de **10000000 bytes**: excederlo
+produce 413 ARCHIVO_DEMASIADO_GRANDE aunque el transporte todavía quepa.
+Los bytes del transporte se cuentan antes de analizar JSON; el tipo admitido
+en peticiones con cuerpo es application/json, sin codificaciones comprimidas.
+JSON malformado, tipo/codificación no admitidos o cuerpo inesperado dentro del
+límite producen 400 DATOS_INVALIDOS. Un exceso comprobado durante la lectura
+produce 413 antes de analizarlo. Proxy y aplicación preservan el formato de error
+JSON y Cache-Control no-store, sin devolver páginas HTML ni cuerpos con secretos.
+
 ## Inventario
 
 | Método y ruta | Uso | RF |
@@ -171,10 +192,42 @@ este flujo ni para correo: la regla global aprobada corresponde a recuperación.
 | 403 | SIN_PERMISO, ORIGEN_NO_ADMITIDO, CSRF_NO_VALIDO, REAUTENTICACION_REQUERIDA |
 | 404 | RECURSO_NO_DISPONIBLE |
 | 409 | CORREO_EN_USO, VERSION_DESACTUALIZADA, CLAVE_IDEMPOTENCIA_REUTILIZADA |
-| 413 | ARCHIVO_DEMASIADO_GRANDE |
+| 413 | CUERPO_DEMASIADO_GRANDE, ARCHIVO_DEMASIADO_GRANDE |
 | 422 | CONTRASENA_NO_ADMITIDA, CONTRASENA_ACTUAL_INVALIDA, RECUPERACION_NO_VALIDA, VERIFICACION_CORREO_NO_VALIDA |
 | 429 | CUENTA_TEMPORALMENTE_BLOQUEADA, DEMASIADOS_INTENTOS |
 | 503 | DEPENDENCIA_NO_DISPONIBLE |
+
+Los componentes de respuesta de OpenAPI restringen `codigo` al enum de su HTTP,
+conservando `codigo`, `mensaje` y `detalles`. La siguiente tabla concreta los
+rechazos previstos; las pruebas negativas parten de una petición válida y cambian
+una condición para no confundir errores simultáneos.
+
+| Condición | HTTP / código | Aplicación |
+|---|---|---|
+| Origin obligatorio ausente | 400 CABECERA_REQUERIDA | Las 13 mutaciones POST/PATCH/DELETE, incluidas cierre y renovación |
+| Origin malformado | 400 DATOS_INVALIDOS | Esas mismas mutaciones; URI malformada no equivale a origen válido ajeno |
+| Origin válido pero no autorizado | 403 ORIGEN_NO_ADMITIDO | Esas mismas mutaciones; los GET no exigen esa cabecera |
+| Contexto de bootstrap CSRF ajeno | 403 ORIGEN_NO_ADMITIDO | GET /sesiones/csrf valida contexto de mismo origen sin añadir Origin obligatorio a GET |
+| Idempotency-Key obligatorio ausente / formato inválido | 400 CABECERA_REQUERIDA / DATOS_INVALIDOS | Solo las operaciones que lo declaran |
+| JSON, Unicode, MIME/codificación, estructura o parámetro de ruta malformados | 400 DATOS_INVALIDOS | Según entradas declaradas; UUID de foto inválido o token de longitud/formato incorrectos no son un desafío semánticamente rechazado |
+| Propiedad adicional o campo no editable | 400 PROPIEDAD_NO_ADMITIDA | Entradas con additionalProperties=false |
+| Cuerpo inesperado dentro del límite | 400 DATOS_INVALIDOS | GET y mutaciones sin requestBody |
+| Cuerpo por encima del límite aplicable | 413 CUERPO_DEMASIADO_GRANDE | Las 17 operaciones; conservar controles válidos de las demás condiciones al probar el límite |
+| Imagen decodificada de más de 10000000 bytes | 413 ARCHIVO_DEMASIADO_GRANDE | Registro con foto y carga de fotografía; contenido/firma o MIME inconsistentes dentro del límite son 400 DATOS_INVALIDOS |
+| Credencial de acceso/renovación ausente, vencida o revocada | 401 NO_AUTENTICADO / SESION_NO_VALIDA | Operaciones que declaran Bearer o cookie, sin usar 400 por ausencia de estas credenciales |
+| Credenciales de login incorrectas | 401 CREDENCIALES_INVALIDAS | POST /sesiones, sin iniciar sesión |
+| CSRF ausente/incorrecto | 403 CSRF_NO_VALIDO | Renovación; no se trata como cabecera general ausente de 400 |
+| Titularidad/permiso insuficiente o recencia insuficiente | 403 SIN_PERMISO / REAUTENTICACION_REQUERIDA | Conforme a la operación; recencia solo al solicitar correo |
+| Recurso inexistente o no visible | 404 RECURSO_NO_DISPONIBLE | Referencia de fotografía; no exponer si pertenece a otro titular |
+| Correo ocupado, versión obsoleta o misma clave con otros datos | 409 CORREO_EN_USO / VERSION_DESACTUALIZADA / CLAVE_IDEMPOTENCIA_REUTILIZADA | Conforme a las mutaciones declaradas |
+| Nueva contraseña rechazada, actual incorrecta o desafío no válido | 422 CONTRASENA_NO_ADMITIDA / CONTRASENA_ACTUAL_INVALIDA / RECUPERACION_NO_VALIDA / VERIFICACION_CORREO_NO_VALIDA | Solo donde se declara 422; token de formato correcto pero vencido/usado/inválido es rechazo semántico. Login incorrecto conserva 401 |
+| Espera por fallos o protección de abuso | 429 CUENTA_TEMPORALMENTE_BLOQUEADA / DEMASIADOS_INTENTOS | Solo operaciones que declaran 429, con Retry-After según contrato |
+| Dependencia requerida no disponible | 503 DEPENDENCIA_NO_DISPONIBLE | Sin fallback permisivo; fallo SMTP posterior al commit no convierte un reset confirmado en fallo |
+
+En recuperación se mantiene el 202 y texto genérico exacto para una solicitud
+válida, exista o no la cuenta. Los errores de transporte o cabeceras no dependen
+de su existencia. Estas precisiones son correcciones técnicas de I3 y no cambian
+los 32 FR, los 53 CA, el replay acordado ni los plazos de seguridad.
 
 Validar contrato automático, propiedades adicionales, autorización por propietario,
 límites Unicode, constantes de mensajes, cookies, ausencia de secretos y reglas

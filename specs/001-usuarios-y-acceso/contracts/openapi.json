@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Usuarios y acceso — funcionalidad001",
-    "version": "1.0.0",
-    "description": "Contrato de diseño, no implementación. RF01–RF05, HU01–HU02; ver spec, data-model y README de contratos. Política de idempotencia confirmada por el usuario el 2026-11-16. Errores uniformes; credenciales y respuestas privadas no-store."
+    "version": "1.0.1",
+    "description": "Contrato de diseño, no implementación. RF01–RF05, HU01–HU02; ver spec, data-model y README de contratos. Política de idempotencia confirmada por el usuario el 2026-11-16. Errores uniformes; credenciales y respuestas privadas no-store. Corrección documental I3: 400/413 explícitos y códigos por HTTP. Cuerpo máximo ordinario 65536 bytes, incluidos cuerpos inesperados; registro con foto y carga admiten 14000000. Rutas sin requestBody:400 por cuerpo inesperado dentro del límite y 413 por exceso. Solo application/json sin compresión en entradas con cuerpo; formato no admitido:400 DATOS_INVALIDOS. Ver tabla de rechazos del README."
   },
   "servers": [
     {
@@ -81,7 +81,9 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF01. Fotografía opcional como JSON+base64 para conservar convención JSON. Sin contraseña ni tokens en respuesta. El correo confirma unicidad mediante índice en PostgreSQL. Sin autoalta administrativa ni verificación de correo inicial añadida."
+        "description": "RF01. Fotografía opcional como JSON+base64 para conservar convención JSON. Sin contraseña ni tokens en respuesta. El correo confirma unicidad mediante índice en PostgreSQL. Sin autoalta administrativa ni verificación de correo inicial añadida.",
+        "x-limite-cuerpo-bytes": 14000000,
+        "x-limite-cuerpo-sin-fotografia-bytes": 65536
       }
     },
     "/sesiones": {
@@ -138,13 +140,17 @@
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "429": {
             "$ref": "#/components/responses/Error429"
           },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
-        }
+        },
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/sesiones/actual": {
@@ -179,17 +185,24 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
           "401": {
             "$ref": "#/components/responses/Error401"
           },
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF02. Bearer vigente identifica la sesión y origen válido protege el navegador. Revoca Bearer y renovación antes de responder; sin revocación global."
+        "description": "RF02. Bearer vigente identifica la sesión y origen válido protege el navegador. Revoca Bearer y renovación antes de responder; sin revocación global. No acepta cuerpo: dentro de 65536 bytes,400 DATOS_INVALIDOS; si supera ese límite,413 CUERPO_DEMASIADO_GRANDE.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/sesiones/renovacion": {
@@ -232,17 +245,24 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
           "401": {
             "$ref": "#/components/responses/Error401"
           },
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF02. Cookie y X-CSRF-Token obligatorios, origen exacto. Rotación atómica y vencimiento absoluto de siete días; no deslizarlo. El cliente coordina una sola renovación en vuelo."
+        "description": "RF02. Cookie y X-CSRF-Token obligatorios, origen exacto. Rotación atómica y vencimiento absoluto de siete días; no deslizarlo. El cliente coordina una sola renovación en vuelo. No acepta cuerpo: dentro de 65536 bytes,400 DATOS_INVALIDOS; si supera ese límite,413 CUERPO_DEMASIADO_GRANDE.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/sesiones/csrf": {
@@ -273,17 +293,24 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
           "401": {
             "$ref": "#/components/responses/Error401"
           },
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "Bootstrap para recarga sin Bearer en memoria. Solo mismo origen; no renovar ni modificar la sesión. Exigir Fetch Metadata same-origin o validación equivalente de origen/referer confiable. Sin CORS a terceros."
+        "description": "Bootstrap para recarga sin Bearer en memoria. Solo mismo origen; no renovar ni modificar la sesión. Exigir Fetch Metadata same-origin o validación equivalente de origen/referer confiable. Sin CORS a terceros. No acepta cuerpo: dentro de 65536 bytes,400 DATOS_INVALIDOS; si supera ese límite,413 CUERPO_DEMASIADO_GRANDE.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/sesiones/reautenticacion": {
@@ -338,6 +365,9 @@
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -348,7 +378,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "Solo éxito con contraseña actual actualiza autenticacionConContrasenaEn. No crea otra cuenta/sesión ni acepta una marca de tiempo enviada por cliente."
+        "description": "Solo éxito con contraseña actual actualiza autenticacionConContrasenaEn. No crea otra cuenta/sesión ni acepta una marca de tiempo enviada por cliente.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/recuperaciones": {
@@ -396,6 +427,9 @@
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "429": {
             "$ref": "#/components/responses/Error429"
           },
@@ -403,7 +437,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF03. Mensaje idéntico para existentes/inexistentes, sin IDs ni destino ni estados de cuenta. Encolar correo solo para existente; fallas específicas de envío no cambian el mensaje. No alterar contraseña ni sesiones al solicitar."
+        "description": "RF03. Mensaje idéntico para existentes/inexistentes, sin IDs ni destino ni estados de cuenta. Encolar correo solo para existente; fallas específicas de envío no cambian el mensaje. No alterar contraseña ni sesiones al solicitar.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/recuperaciones/{token}": {
@@ -460,6 +495,9 @@
           "409": {
             "$ref": "#/components/responses/Error409"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -470,7 +508,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF03. Ahora<emitida+1800 s, propósito correcto, no usado/revocado. Cambio+consumo+invalidación de enlaces pendientes+revocación de sesiones+aviso+resultado idempotente en un commit. Misma clave y mismos datos: resultado previo sin nuevos cambios; otra clave con enlace consumido:422 RECUPERACION_NO_VALIDA. No iniciar sesión ni devolver credenciales. Consultar replay confirmado antes de revalidar consumo/vencimiento o aplicar política actual; incluye coincidencia exacta de token y cuerpo. El replay no repite efectos aunque el enlace ya haya vencido."
+        "description": "RF03. Ahora<emitida+1800 s, propósito correcto, no usado/revocado. Cambio+consumo+invalidación de enlaces pendientes+revocación de sesiones+aviso+resultado idempotente en un commit. Misma clave y mismos datos: resultado previo sin nuevos cambios; otra clave con enlace consumido:422 RECUPERACION_NO_VALIDA. No iniciar sesión ni devolver credenciales. Consultar replay confirmado antes de revalidar consumo/vencimiento o aplicar política actual; incluye coincidencia exacta de token y cuerpo. El replay no repite efectos aunque el enlace ya haya vencido.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/perfil": {
@@ -501,16 +540,24 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
           "401": {
             "$ref": "#/components/responses/Error401"
           },
           "403": {
             "$ref": "#/components/responses/Error403"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
-        }
+        },
+        "x-limite-cuerpo-bytes": 65536,
+        "description": " No acepta cuerpo: dentro de 65536 bytes,400 DATOS_INVALIDOS; si supera ese límite,413 CUERPO_DEMASIADO_GRANDE."
       },
       "patch": {
         "operationId": "actualizarPerfil",
@@ -572,6 +619,9 @@
           "409": {
             "$ref": "#/components/responses/Error409"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -579,7 +629,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF05. Rechazar propiedades desconocidas como cuentaId, correo, contrasena o administrador. Versión esperada obligatoria. fotografiaId debe ser propia y validada. Vaciar fotografía/teléfono/distrito admite null. Registrar teléfono no autoriza compartirlo."
+        "description": "RF05. Rechazar propiedades desconocidas como cuentaId, correo, contrasena o administrador. Versión esperada obligatoria. fotografiaId debe ser propia y validada. Vaciar fotografía/teléfono/distrito admite null. Registrar teléfono no autoriza compartirlo.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/perfil/perfiles": {
@@ -640,6 +691,9 @@
           "409": {
             "$ref": "#/components/responses/Error409"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -647,7 +701,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF01/RF05. Mismo usuario, credenciales y datos. No crear perfil profesional RF06 ni verificación RF07 ni administración. Perfil ya habilitado no se duplica; una petición nueva desactualizada puede requerir refrescar versión."
+        "description": "RF01/RF05. Mismo usuario, credenciales y datos. No crear perfil profesional RF06 ni verificación RF07 ni administración. Perfil ya habilitado no se duplica; una petición nueva desactualizada puede requerir refrescar versión.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/perfil/cambios-correo": {
@@ -708,6 +763,9 @@
           "409": {
             "$ref": "#/components/responses/Error409"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -715,7 +773,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "Comprobar servidor 0<=ahora-autenticacionConContrasenaEn<=300 s al solicitar. Marca solo de login/reautenticación en esa sesión. Actividad/renovación no reinician plazo. Más de300 o sin marca:403 REAUTENTICACION_REQUERIDA. No cambiar el correo hasta verificar el nuevo. El desafío expira en 30 minutos como decisión técnica."
+        "description": "Comprobar servidor 0<=ahora-autenticacionConContrasenaEn<=300 s al solicitar. Marca solo de login/reautenticación en esa sesión. Actividad/renovación no reinician plazo. Más de300 o sin marca:403 REAUTENTICACION_REQUERIDA. No cambiar el correo hasta verificar el nuevo. El desafío expira en 30 minutos como decisión técnica.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/perfil/cambios-correo/{token}/confirmacion": {
@@ -779,6 +838,9 @@
           "409": {
             "$ref": "#/components/responses/Error409"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -786,7 +848,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "Sesión válida del mismo titular y token del cambio, con versión de perfil y desafío. No repetir exigencia de 300 segundos al confirmar; se acreditó al solicitar. Verificar unicidad otra vez. No cambiar identificador interno, contraseña, perfiles ni datos. No consumir mediante GET."
+        "description": "Sesión válida del mismo titular y token del cambio, con versión de perfil y desafío. No repetir exigencia de 300 segundos al confirmar; se acreditó al solicitar. Verificar unicidad otra vez. No cambiar identificador interno, contraseña, perfiles ni datos. No consumir mediante GET.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/perfil/cambios-contrasena": {
@@ -847,6 +910,9 @@
           "409": {
             "$ref": "#/components/responses/Error409"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "422": {
             "$ref": "#/components/responses/Error422"
           },
@@ -854,7 +920,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF05. Flujo específico: contraseña actual correcta, nueva política y confirmación. No revocar globalmente otras sesiones por inferencia; el reset RF03 tiene esa regla explícita. No actualizar recencia por actividad: si se necesita reautenticación explícita, usar el recorrido correspondiente."
+        "description": "RF05. Flujo específico: contraseña actual correcta, nueva política y confirmación. No revocar globalmente otras sesiones por inferencia; el reset RF03 tiene esa regla explícita. No actualizar recencia por actividad: si se necesita reautenticación explícita, usar el recorrido correspondiente.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/perfil/fotografias": {
@@ -925,7 +992,8 @@
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "RF05. JSON base64, máximo 10000000 bytes decodificados. No URL libre, PDF ni objeto ajeno. Devuelve referencia propia temporal; PATCH /perfil la vincula con versión. No guardar binario en PostgreSQL."
+        "description": "RF05. JSON base64, máximo 10000000 bytes decodificados. No URL libre, PDF ni objeto ajeno. Devuelve referencia propia temporal; PATCH /perfil la vincula con versión. No guardar binario en PostgreSQL.",
+        "x-limite-cuerpo-bytes": 14000000
       }
     },
     "/perfil/fotografias/{fotografiaId}": {
@@ -961,6 +1029,9 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
           "401": {
             "$ref": "#/components/responses/Error401"
           },
@@ -970,11 +1041,15 @@
           "404": {
             "$ref": "#/components/responses/Error404"
           },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "No exponer bucket ni clave de objeto. JSON base64 para conservar convención del proyecto. Sin endpoint público RF10 en001."
+        "description": "No exponer bucket ni clave de objeto. JSON base64 para conservar convención del proyecto. Sin endpoint público RF10 en001. No acepta cuerpo: dentro de 65536 bytes,400 DATOS_INVALIDOS; si supera ese límite,413 CUERPO_DEMASIADO_GRANDE.",
+        "x-limite-cuerpo-bytes": 65536
       }
     },
     "/salud": {
@@ -1001,11 +1076,18 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
           "503": {
             "$ref": "#/components/responses/Error503"
           }
         },
-        "description": "Sin datos personales ni secretos. PostgreSQL requerido; Redis no debe hacer fallar preparación de001. El catálogo de contraseñas debe estar preparado para habilitar altas/cambios. Este endpoint no prueba disponibilidad de funciones futuras."
+        "description": "Sin datos personales ni secretos. PostgreSQL requerido; Redis no debe hacer fallar preparación de001. El catálogo de contraseñas debe estar preparado para habilitar altas/cambios. Este endpoint no prueba disponibilidad de funciones futuras. No acepta cuerpo: dentro de 65536 bytes,400 DATOS_INVALIDOS; si supera ese límite,413 CUERPO_DEMASIADO_GRANDE.",
+        "x-limite-cuerpo-bytes": 65536
       }
     }
   },
@@ -1043,7 +1125,7 @@
         "name": "Origin",
         "in": "header",
         "required": true,
-        "description": "Origen exacto autorizado. Peticiones de prueba deben enviar el origen configurado.",
+        "description": "Cabecera obligatoria en las 13 mutaciones. Ausente:400 CABECERA_REQUERIDA; URI malformada:400 DATOS_INVALIDOS; origen válido distinto del autorizado:403 ORIGEN_NO_ADMITIDO. En pruebas enviar el origen exacto configurado. No se exige en GET.",
         "schema": {
           "type": "string",
           "format": "uri"
@@ -1762,7 +1844,7 @@
     },
     "responses": {
       "Error400": {
-        "description": "Datos o cabecera inválidos; propiedad no admitida.",
+        "description": "Datos o cabecera inválidos; propiedad no admitida. Códigos: DATOS_INVALIDOS, CABECERA_REQUERIDA, PROPIEDAD_NO_ADMITIDA. Incluye Origin obligatorio ausente o malformado, JSON/MIME/codificación inválidos, cuerpo inesperado y parámetros de ruta malformados; credenciales y CSRF ausentes conservan 401/403.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1771,13 +1853,29 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "DATOS_INVALIDOS",
+                        "CABECERA_REQUERIDA",
+                        "PROPIEDAD_NO_ADMITIDA"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error401": {
-        "description": "Sesión ausente, inválida, vencida o revocada.",
+        "description": "Sesión ausente, inválida, vencida o revocada. Códigos: NO_AUTENTICADO, SESION_NO_VALIDA, CREDENCIALES_INVALIDAS.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1786,13 +1884,29 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "NO_AUTENTICADO",
+                        "SESION_NO_VALIDA",
+                        "CREDENCIALES_INVALIDAS"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error403": {
-        "description": "Permiso, origen, CSRF o autenticación reciente insuficientes.",
+        "description": "Permiso, origen, CSRF o autenticación reciente insuficientes. Códigos: SIN_PERMISO, ORIGEN_NO_ADMITIDO, CSRF_NO_VALIDO, REAUTENTICACION_REQUERIDA.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1801,13 +1915,30 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "SIN_PERMISO",
+                        "ORIGEN_NO_ADMITIDO",
+                        "CSRF_NO_VALIDO",
+                        "REAUTENTICACION_REQUERIDA"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error404": {
-        "description": "Recurso inexistente o no visible.",
+        "description": "Recurso inexistente o no visible. Códigos: RECURSO_NO_DISPONIBLE.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1816,13 +1947,27 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "RECURSO_NO_DISPONIBLE"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error409": {
-        "description": "Conflicto de versión, identidad o idempotencia.",
+        "description": "Conflicto de versión, identidad o idempotencia. Códigos: CORREO_EN_USO, VERSION_DESACTUALIZADA, CLAVE_IDEMPOTENCIA_REUTILIZADA.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1831,13 +1976,29 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "CORREO_EN_USO",
+                        "VERSION_DESACTUALIZADA",
+                        "CLAVE_IDEMPOTENCIA_REUTILIZADA"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error413": {
-        "description": "Imagen o cuerpo por encima del límite.",
+        "description": "Imagen o cuerpo por encima del límite. Códigos: CUERPO_DEMASIADO_GRANDE, ARCHIVO_DEMASIADO_GRANDE. CUERPO_DEMASIADO_GRANDE: transporte ordinario de más de 65536 bytes o registro con foto/carga de más de 14000000; ARCHIVO_DEMASIADO_GRANDE: imagen decodificada de más de 10000000 bytes.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1846,13 +2007,28 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "CUERPO_DEMASIADO_GRANDE",
+                        "ARCHIVO_DEMASIADO_GRANDE"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error422": {
-        "description": "Política, credencial actual, desafío o confirmación incumplidos.",
+        "description": "Política, credencial actual, desafío o confirmación incumplidos. Códigos: CONTRASENA_NO_ADMITIDA, CONTRASENA_ACTUAL_INVALIDA, RECUPERACION_NO_VALIDA, VERIFICACION_CORREO_NO_VALIDA.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1861,13 +2037,30 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "CONTRASENA_NO_ADMITIDA",
+                        "CONTRASENA_ACTUAL_INVALIDA",
+                        "RECUPERACION_NO_VALIDA",
+                        "VERIFICACION_CORREO_NO_VALIDA"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error429": {
-        "description": "Espera por intentos o protección de abuso.",
+        "description": "Espera por intentos o protección de abuso. Códigos: CUENTA_TEMPORALMENTE_BLOQUEADA, DEMASIADOS_INTENTOS.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1883,13 +2076,28 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "CUENTA_TEMPORALMENTE_BLOQUEADA",
+                        "DEMASIADOS_INTENTOS"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }
       },
       "Error503": {
-        "description": "Dependencia necesaria no disponible.",
+        "description": "Dependencia necesaria no disponible. Códigos: DEPENDENCIA_NO_DISPONIBLE.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/NoStore"
@@ -1898,7 +2106,21 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Error"
+                },
+                {
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "enum": [
+                        "DEPENDENCIA_NO_DISPONIBLE"
+                      ]
+                    }
+                  }
+                }
+              ]
             }
           }
         }

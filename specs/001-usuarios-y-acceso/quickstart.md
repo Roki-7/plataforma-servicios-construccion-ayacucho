@@ -13,6 +13,9 @@ El ejemplo vacío de Contrataciones no sustituye esa implementación.
 - Node.js 24 LTS >=24.15, Docker con Compose y npm compatible.
 - La futura implementación debe incluir manifiestos y lockfiles independientes
   en `tecnologia/backend` y `tecnologia/frontend`.
+- El backend debe entregar `tecnologia/backend/Dockerfile` y `.dockerignore`
+  (T001); construcción/arranque inicial en T023 después de existir T022 y repetición
+  de la imagen final de las siete historias en T116. Son artefactos futuros.
 - Entorno de validación aislado, con cuentas y correos ficticios; SMTP se captura
   en Mailpit, no se envía a personas. No usar credenciales de producción.
 - Origen común HTTPS local `https://localhost:8443`, certificado local confiable
@@ -100,6 +103,31 @@ de spec y matriz; falla por ID sin prueba o por resultado fallido. No confundir
 declarar cobertura con aprobar escenarios. Guardar JUnit/HTML, commit, entorno
 y versión del corpus. Los scripts y reportes son futuros; hoy no existen.
 
+Después de preparar DB/corpus y de disponer del entrypoint compilado, T023 debe
+entregar esta comprobación adicional, también repetida por CI en T116:
+
+```powershell
+npm --prefix tecnologia/backend run test:container
+```
+
+El script futuro construye la imagen Linux multietapa desde el Dockerfile de
+T001 y la arranca con dependencias y configuración aisladas. Verifica usuario
+sin privilegios, carga de Argon2 nativo, salud 200 con dependencias listas y
+503 al configurar DB/corpus no disponibles en instancias separadas de prueba,
+sin detener los servicios usados por otras suites. Configuración/corpus de
+validación se montan fuera de las capas; producción rechaza fixture. No publicar
+puertos ni usar credenciales reales; limpiar únicamente contenedores efímeros
+creados por esta prueba y conservar digest de imagen/entorno/resultados sanitizados.
+En T116 comprobar además el worker del mismo backend y un recorrido de correo
+capturado en Mailpit con las historias integradas. La receta puede prepararse en
+T001; no afirmar construcción/arranque funcionales antes de T022/T023.
+
+Los cierres de US3 (T062) y US5 (T076) validan sus suites sin esperar entre sí.
+US5 dispone de la proyección compartible de T069; US4 la integra y verifica
+transversalmente en T082. En el cierre global T110 añade regresión conjunta de
+recuperación/edición de perfil, con dependencias explícitas de T062 y T076,
+conservando los 53 CA originales y la revocación de accesos tras reset.
+
 ## 4. Recorridos de validación de extremo a extremo
 
 | Paso | Acción con datos ficticios | Resultado esperado |
@@ -140,6 +168,25 @@ Simular fallas SMTP, worker después de entregar, DB entre escrituras y Redis fu
 de servicio. Esperado: no efectos parciales ni bypass, aviso reintentable sin revertir
 reset, ningún token en logs, ningún acceso dependiente de Redis.
 Comprobar CSRF/origen, fotos ajenas, tamaño/contenido de imágenes y limpieza de objetos.
+
+T113 debe comprobar también los rechazos de transporte de OpenAPI 1.0.1:
+
+| Caso negativo aislado | Resultado previsto |
+|---|---|
+| Cuerpo >65536 bytes ordinarios, incluidos GET/cierre/refresh con cuerpo inesperado | 413 CUERPO_DEMASIADO_GRANDE |
+| Registro con fotografía o carga >14000000 bytes de transporte | 413 CUERPO_DEMASIADO_GRANDE |
+| Foto decodificada >10000000 bytes, dentro del transporte admitido | 413 ARCHIVO_DEMASIADO_GRANDE |
+| Cuerpo no vacío en operación sin requestBody, dentro del límite | 400 DATOS_INVALIDOS |
+| Origin ausente en cualquiera de las 13 mutaciones | 400 CABECERA_REQUERIDA |
+| Origin malformado / origen válido ajeno | 400 DATOS_INVALIDOS / 403 ORIGEN_NO_ADMITIDO |
+| UUID/token malformados, JSON o MIME/codificación no admitidos | 400 DATOS_INVALIDOS |
+| Credencial ausente/inválida / CSRF ausente/incorrecto | 401 según credencial / 403 CSRF_NO_VALIDO |
+
+Usar peticiones válidas de control, modificar una sola condición y comprobar el
+límite exacto/exceso de un byte, estado protegido intacto y código permitido por
+el HTTP. GET no exige Origin. Los demás 404/409/422/429/503 se rigen por la tabla
+de rechazos de `contracts/README.md`; token de formato correcto pero vencido/usado
+se rechaza semánticamente con 422, conservando la excepción de replay exacto acordada.
 
 ## 6. Criterio de aceptación y límites
 

@@ -50,6 +50,14 @@ PR14 y soporte PR02. k6 caracteriza costos; no se inventa un SLA para registro.
 Node en contenedor Linux. Desarrollo Windows compatible mediante Docker Compose.
 Datos de validación ficticios y correo capturado por Mailpit.
 
+Entrega de contenedor prevista: T001 define `tecnologia/backend/Dockerfile` y
+`.dockerignore`; T022 proporciona el entrypoint compilado y T023 construye y
+comprueba el arranque de la imagen fundacional después de preparar DB/corpus.
+T116 repite construcción/arranque con las siete historias integradas y conserva
+digest/evidencia en CI. Imagen multietapa, usuario sin privilegios, Argon2 nativo
+compatible y configuración/secretos/corpus fuera de las capas; fixture solo en
+modo de validación explícito. No equivale a desplegar ni publicar un servicio.
+
 **Project Type**: Aplicación web con API REST y backend monolítico modular;
 se generan solo artefactos de diseño.
 
@@ -226,6 +234,12 @@ faltante. Una cuenta puede mostrar ambos roles sin duplicar identidad.
 No vistas administrativas ni perfil profesional. No confiar en ocultar controles:
 casos de uso del servidor validan titularidad, perfiles y campos permitidos.
 
+US5 implementa la proyección compartible en T069 antes de su cierre T076; US4
+la reutiliza e integra mediante su API pública en T082 y conserva la validación
+transversal de permisos. US3 y US5 no dependen entre sí para desarrollar/cerrar
+sus historias; su regresión conjunta se ejecuta en T110 con dependencias explícitas
+de T062 y T076, cuando ambas están disponibles.
+
 Correo/documentos/dirección privados; teléfono no compartible sin decisión
 explícita asociada al valor autorizado. No localStorage con credenciales.
 Fotografía opcional por JSON/base64 validado; carga y lectura controladas por API.
@@ -243,6 +257,17 @@ La [guía](quickstart.md) define los scripts futuros y resultados esperados.
 No existen hoy ni se ejecutan aquí comandos de aplicación. Primero tareas
 ordenadas por historia; implementación posterior; luego pruebas y actualización
 de README/API/trazabilidad global con evidencia real conforme a DoD.
+
+Corrección documental I3: OpenAPI 1.0.1 explicita 400/413 en las 17 operaciones,
+incluidos cuerpos inesperados y entradas de ruta malformadas; Origin es obligatorio
+solo en las 13 mutaciones, con 400 por ausencia/formato inválido y 403 por origen
+ajeno. El catálogo distingue cuerpo de transporte e imagen decodificada y restringe
+`codigo` por HTTP. T020 aplica estas reglas y T113 las comprueba con variantes
+negativas según `contracts/README.md`; no se añaden FR ni CA.
+
+Las correcciones I1/I2/I3/C1 conservan las 119 tareas, sus IDs T001–T119, los
+32 requisitos locales, los 53 escenarios y el alcance aprobado. Solo se ajustan
+responsabilidades, dependencias y contratos técnicos; ninguna tarea se da por ejecutada.
 
 ## Complexity Tracking
 
