@@ -39,10 +39,10 @@ Documentos de origen: [HU](01-analisis-de-sistema/02-historias-de-usuario.md) ·
 
 Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y ADR-013 (stack).
 
-La funcionalidad 001 dispone de fundación y US1 verificadas en `tecnologia/backend`
+La funcionalidad 001 dispone de fundación, US1 y US2 verificadas en `tecnologia/backend`
 y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
-vincula T001–T036 con archivos y resultados: 11 CA-REG comprobados; US2–US7 y los
-otros 42 CA permanecen pendientes. Los nueve proyectos de Linux y Windows
+vincula T001–T048 con archivos y resultados: 11 CA-REG y nueve CA-SES comprobados;
+US3–US7 y los otros 33 CA permanecen pendientes. Los nueve proyectos de Linux y Windows
 conservan TLS activo y rechazo de certificados no confiables. No acredita la
 entrega completa de 001 ni todos los 32 requisitos locales.
 
@@ -54,8 +54,22 @@ entrega completa de 001 ni todos los 32 requisitos locales.
 
 Las rutas abreviadas de componentes y pruebas son relativas a las mismas raíces
 backend/frontend de cada fila. La [matriz normativa](../specs/001-usuarios-y-acceso/test-matrix.md)
-conserva la relación exacta de cada CA con sus niveles. La adición usa una sesión
-ficticia exclusivamente en validación; no se entrega RF02/login en este corte.
+conserva la relación exacta de cada CA con sus niveles. La adición de US1 usa ahora
+registro y login reales en la misma navegación. La proyección inicial se conserva
+en memoria; su consulta general sigue reservada a US5. El fixture anterior ya no
+se importa en la web.
+
+| Cadena de US2 | Componentes construidos | Prueba ejecutada |
+|---|---|---|
+| HU01 → RF02 → FR-004–007 → AC04/EQ-04 → DA03 → ADR-002/005/006 → Usuarios y acceso | `tecnologia/backend/src/modulos/usuarios-acceso/dominio/sesion.ts`, `control-intentos.ts`, `aplicacion/iniciar-sesion.ts`, `renovar-sesion.ts`, `obtener-csrf.ts`, `cerrar-sesion.ts`, repositorio de sesiones y controlador | `tecnologia/backend/test/unit/usuarios-acceso/sesiones.spec.ts` (15 U), `test/integration/usuarios-acceso/sesiones.spec.ts` (19 I) y `test/contract/usuarios-acceso/sesiones.spec.ts` (13 C), según niveles CA-SES-01–09; PR04/PR13. |
+| HU01 → RF02 y apoyo RF01 → FR-006–007/012/014 → EQ-04/EQ-07 → DA03/DA10 → ADR-004/006 → web | `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/sesion.ts`, `infraestructura/coordinador-renovacion.ts`, `presentacion/Acceso.tsx`, `EstadoSesion.tsx`, composición y HTTP | `tecnologia/frontend/test/unit/usuarios-acceso/sesiones.test.tsx` (9 V), `test/e2e/usuarios-acceso/sesiones.spec.ts` (9 E por entorno), regresión `registro.spec.ts` con login real; Chromium/Firefox/WebKit × 360/768/1366. |
+
+Cookie Secure/HttpOnly/SameSite=Lax/Path y siete días absolutos; rotación y cierre
+comprobados en PostgreSQL real, sin caché de permisos. Las matrices finales pasan
+36/36 en Linux y 36/36 en Windows. El inspector SameSite de WebKit Windows tiene
+una limitación documentada; la cabecera Lax se exige en todos los motores y su
+alcance se detalla en el estado de implementación. No se acredita US3 ni la
+entrega completa de 001.
 
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
@@ -90,7 +104,7 @@ ficticia exclusivamente en validación; no se entrega RF02/login en este corte.
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | Parcial: fundación y US1 verificadas | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | Parcial: fundación, US1 y US2 verificadas | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |

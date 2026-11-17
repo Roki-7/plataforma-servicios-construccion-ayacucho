@@ -1,0 +1,26 @@
+import { expect, test } from '@jest/globals';
+import { evaluarIntento } from '../../../src/modulos/usuarios-acceso/dominio/control-intentos.js';
+import { accesoVigente, renovacionVigente } from '../../../src/modulos/usuarios-acceso/dominio/sesion.js';
+import { exigirTitularidad } from '../../../src/modulos/usuarios-acceso/dominio/politica-acceso.js';
+import { idCuenta } from '../../../src/modulos/usuarios-acceso/dominio/identificadores.js';
+import { IniciarSesion } from '../../../src/modulos/usuarios-acceso/aplicacion/iniciar-sesion.js';
+import type { RepositorioCuentas, UnidadDeTrabajo } from '../../../src/modulos/usuarios-acceso/aplicacion/puertos/puertos.js';
+import type { RepositorioAutenticacion } from '../../../src/modulos/usuarios-acceso/aplicacion/puertos/sesiones.js';
+const inicio = new Date('2026-11-16T00:00:00Z');
+test('CA-SES-02 credenciales incorrectas no autorizan sesión', () => { expect(evaluarIntento({ fallosConsecutivos: 0, bloqueadaHasta: null }, false, inicio)).toMatchObject({ permitido: false, estado: { fallosConsecutivos: 1 }, espera: 0 }); });
+test('CA-SES-03 quinto fallo fija 900 segundos sin prolongarse por intentos bloqueados', () => { const quinto = evaluarIntento({ fallosConsecutivos: 4, bloqueadaHasta: null }, false, inicio); expect(quinto.espera).toBe(900); expect(quinto.estado.bloqueadaHasta).toEqual(new Date(+inicio + 900000)); expect(evaluarIntento(quinto.estado, true, new Date(+inicio + 1000)).estado).toEqual(quinto.estado); });
+test.each([899999, 900000, 900001])('CA-SES-04 límite bloqueo %i ms', (ms) => { const resultado = evaluarIntento({ fallosConsecutivos: 5, bloqueadaHasta: new Date(+inicio + 900000) }, true, new Date(+inicio + ms)); expect(resultado.permitido).toBe(ms >= 900000); if (ms >= 900000) expect(resultado.estado).toEqual({ fallosConsecutivos: 0, bloqueadaHasta: null }); });
+test('CA-SES-04 después del límite un fallo inicia una secuencia nueva', () => { expect(evaluarIntento({ fallosConsecutivos: 5, bloqueadaHasta: new Date(+inicio + 900000) }, false, new Date(+inicio + 900000)).estado).toEqual({ fallosConsecutivos: 1, bloqueadaHasta: null }); });
+test.each([899999, 900000, 900001])('CA-SES-05 límite acceso %i ms', (ms) => { expect(accesoVigente({ accesoVenceEn: new Date(+inicio + 900000), revocadaEn: null }, new Date(+inicio + ms))).toBe(ms < 900000); });
+test.each([604799999, 604800000, 604800001])('CA-SES-06 renovación absoluta %i ms', (ms) => { expect(renovacionVigente({ renovacionVenceEn: new Date(+inicio + 604800000), revocadaEn: null }, new Date(+inicio + ms))).toBe(ms < 604800000); });
+test('CA-SES-07 revocación invalida ambas credenciales aunque no hayan vencido', () => { const s = { accesoVenceEn: new Date(+inicio + 900000), renovacionVenceEn: new Date(+inicio + 604800000), revocadaEn: inicio }; expect(accesoVigente(s, inicio)).toBe(false); expect(renovacionVigente(s, inicio)).toBe(false); });
+test('CA-SES-08 perfiles propios sin administración ni titularidad ajena implícita', () => { const id = idCuenta('550e8400-e29b-41d4-a716-446655440000'); expect(() => exigirTitularidad(id, id, ['cliente', 'prestador'])).not.toThrow(); expect(() => exigirTitularidad(id, idCuenta('550e8400-e29b-41d4-a716-446655440001'), ['cliente', 'prestador'])).toThrow(); });
+test('CA-SES-02 puertos: contraseña íntegra, fallo confirmado sin crear sesión', async () => {
+  const id = idCuenta('550e8400-e29b-41d4-a716-446655440000'); const p = ' ' + '𠮷'.repeat(30) + ' sufijo ';
+  let confirmado = false; let hashRecibido = ''; let fallos = 0;
+  const cuentas = { buscarPorCorreo: async () => ({ id, correo: 'a@example.invalid', version: 1n, versionCredencial: 1n, contrasenaHash: 'PHC-ficticio' }) } as unknown as RepositorioCuentas;
+  const sesiones = { bloquearCuenta: async () => ({ id, versionCredencial: 1n, fallosConsecutivos: 0, bloqueadaHasta: null }), guardarIntentos: async (_id: unknown, c: { fallosConsecutivos: number }) => { fallos = c.fallosConsecutivos; }, crear: async () => { throw new Error('No debe crear sesión.'); } } as unknown as RepositorioAutenticacion;
+  const uow: UnidadDeTrabajo = { ejecutar: async (trabajo) => { const r = await trabajo({ id: 'tx-ficticia' }); confirmado = true; return r; } };
+  const login = new IniciarSesion(cuentas, sesiones, uow, { crear: async () => '', verificar: async (v) => { hashRecibido = v; return false; } }, { ahora: () => inicio }, { secreto: () => { throw new Error('No debe emitir secretos.'); }, uuid: () => '', digest: () => new Uint8Array() }, { emitir: () => '', verificar: () => false });
+  await expect(login.ejecutar({ correo: 'a@example.invalid', contrasena: p })).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS' }); expect(hashRecibido === p).toBe(true); expect(confirmado).toBe(true); expect(fallos).toBe(1);
+});

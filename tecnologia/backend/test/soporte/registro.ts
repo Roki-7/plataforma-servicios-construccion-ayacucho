@@ -12,6 +12,8 @@ export const registroValido = () => ({ nombreMostrar: 'Empresa ficticia', correo
 export async function entornoRegistro() {
   cargarLocal(); const config = cargarConfiguracion(); const aislada = await baseAislada(persistenciaFundacional, config.databaseUrl);
   const sistema = await crearAplicacion({ ...config, databaseUrl: aislada.db.options.type === 'postgres' ? String(aislada.db.options.url) : '' }, { worker: false });
-  const post = (ruta: string, cuerpo: object, clave = randomUUID(), token?: string) => { const peticion = request(sistema.app.getHttpServer()).post('/api/v1' + ruta).set('Origin', origen).set('Idempotency-Key', clave); if (token) peticion.set('Authorization', `Bearer ${token}`); return peticion.send(cuerpo); };
-  return { ...sistema, post, cerrar: async () => { await sistema.app.close(); await aislada.cerrar(); } };
+  await sistema.app.listen(0, '127.0.0.1');
+  const post = (ruta: string, cuerpo: object | undefined, clave = randomUUID(), token?: string) => { const peticion = request(sistema.app.getHttpServer()).post('/api/v1' + ruta).set('Origin', origen).set('Idempotency-Key', clave); if (token) peticion.set('Authorization', `Bearer ${token}`); return peticion.send(cuerpo); };
+  const borrarSesion = (token?: string) => { const r = request(sistema.app.getHttpServer()).delete('/api/v1/sesiones/actual').set('Origin', origen); if (token) r.set('Authorization', `Bearer ${token}`); return r; };
+  return { ...sistema, post, borrarSesion, cerrar: async () => { await sistema.app.close(); await aislada.cerrar(); } };
 }

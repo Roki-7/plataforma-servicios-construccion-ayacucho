@@ -18,7 +18,7 @@ export function Registro({ registrar }: { registrar: (datos: DatosRegistro) => P
         fotografia = { tipoContenido: archivo.type as ImagenEntrada['tipoContenido'], contenidoBase64 };
       }
       const resultado = await registrar({ nombreMostrar: d.nombreMostrar, correo: d.correo, contrasena: d.contrasena, confirmacionContrasena: d.confirmacionContrasena, perfiles: d.seleccion === 'ambos' ? ['cliente', 'prestador'] : [d.seleccion as 'cliente' | 'prestador'], politicaPrivacidadAceptada: true, politicaPrivacidadVersion: PRIVACIDAD_VERSION, telefono: texto('telefono') || null, distrito: texto('distrito') || null, ...(fotografia ? { fotografia } : {}) });
-      form.reset(); setMensaje(`Cuenta creada con perfil ${resultado.perfiles.join(' y ')}. El inicio de sesión estará disponible en la próxima etapa.`);
+      form.reset(); setMensaje(`Cuenta creada con perfil ${resultado.perfiles.join(' y ')}. Puede iniciar sesión para continuar.`);
     } catch (error) { const campos: Record<string, string> = {}; if (error instanceof ErrorApi) for (const detalle of error.detalles) if (detalle.campo) campos[detalle.campo] = detalle.motivo; setErrores(campos); setMensaje(error instanceof Error ? error.message : 'No fue posible crear la cuenta.'); }
     finally { setOcupado(false); }
   }

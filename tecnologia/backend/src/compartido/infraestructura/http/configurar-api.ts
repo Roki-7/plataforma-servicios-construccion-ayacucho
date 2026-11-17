@@ -14,6 +14,7 @@ type DocumentoContrato = AnySchemaObject & { paths: Record<string, Record<string
 interface Ruta { patron: string; regex: RegExp; metodo: string; operacion: Operacion; validar?: ValidateFunction; parametros: { nombre: string; validar: ValidateFunction }[] }
 function responder(res: Response, error: ErrorAplicacion): void {
   res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer');
+  if (error.http === 429 && error.reintentarEnSegundos !== undefined) res.setHeader('Retry-After', String(error.reintentarEnSegundos));
   res.status(error.http).json({ codigo: error.codigo, mensaje: error.message, detalles: error.detalles });
 }
 function unicodeValido(valor: unknown): boolean {

@@ -174,8 +174,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local
 ```
 
 El último comando construye y ejecuta los nueve proyectos de forma secuencial,
-monta la CA pública, la carpeta de evidencia y las sesiones sintéticas efímeras
-descritas abajo, y retira solo el
+monta solo la CA pública y la carpeta de evidencia, y retira solo el
 contenedor identificado por su nombre/etiqueta únicos. `-- --sin-construir` permite
 reutilizar la imagen local para diagnosticar; reconstruir después de cambiar
 código, configuración o lockfile. El primer uso descarga la imagen y necesita red.
@@ -185,33 +184,54 @@ rechazar un certificado autofirmado de control en `https://localhost:9443`.
 La clave de ese control se genera dentro de `/tmp` del contenedor y se elimina
 con este. El control no introduce un endpoint de negocio ni un escenario CA.
 
-### Recorridos US1
+### Recorridos US1 y US2
 
 Cada proyecto añade registro como cliente, prestador y ambos (con/sin opcionales
-y foto), y habilitación con una sesión ficticia vigente. El frontend debe
-iniciarse con `npm run dev -- --mode validation`; el build de producción excluye
-la importación del fixture. Playwright intercepta un módulo de composición y
-mantiene el Bearer en memoria; no se expone un endpoint de login o de fixtures.
-El backend real valida esa sesión y sus permisos en PostgreSQL.
+y foto), y habilitación con login real. US2 sustituye la sesión fixture de US1:
+se registra una cuenta ficticia, se inicia sesión en la misma pantalla y se añade
+el perfil faltante conservando su identidad. No se interceptan respuestas API ni
+se inyectan tokens. La consulta general de perfil pertenece a US5 y sigue pendiente.
 
-Windows crea y retira una cuenta ficticia por test. Linux prepara en el host
-nueve cuentas independientes y monta solo sus sesiones sintéticas en un JSON
-efímero readonly, nunca `backend.env`, `fixtures.json` ni claves TLS. Al finalizar
-retira las cuentas/sesiones y borra ese JSON. No copia el archivo a la imagen.
+El recorrido de sesiones prueba correo con mayúsculas, cookie Secure/HttpOnly,
+recarga/bootstrap y rotación, fechas absolutas y recencia intactas, cierre y rechazo
+de credenciales previas. Cada test usa cuentas ficticias con correo UUID exclusivo
+en la base local de validación y contextos de navegador aislados. Windows y Linux
+ejecutan los mismos cuatro tests por proyecto: 36 en cada entorno. El runner Linux
+ya no crea ni monta archivos con sesiones sintéticas; nunca monta `backend.env`,
+`fixtures.json` ni claves TLS. Los Bearer permanecen en memoria y no se transmiten
+por BroadcastChannel. Web Locks serializa la renovación entre pestañas, y cada
+rotación obtiene el CSRF vigente dentro del bloqueo.
 No ejecutar dos matrices contra la misma instancia web al medir sus tiempos.
-Los tests de US1 disponen de 60 segundos, incluida preparación y limpieza; no es
+Los tests disponen de 60 segundos, incluida preparación del navegador; no es
 un SLA del producto. Se conservan cero reintentos automáticos.
 Se desactiva el contexto automático de fallos de Playwright para impedir que
 copie los valores de los campos privados; capturas, vídeos y trazas siguen apagados.
 
-`E2E_EVIDENCIA` permite separar las ejecuciones sin cambiar TLS. Para US1 usar
-`../.local/evidencia/001/us1/e2e-windows` con el runner Windows y
-`../.local/evidencia/001/us1` con Linux (añade `e2e-linux/`).
+`E2E_EVIDENCIA` permite separar las ejecuciones sin cambiar TLS. Para US2 usar
+`../.local/evidencia/001/us2/e2e-windows` con el runner Windows y
+`../.local/evidencia/001/us2` con Linux (añade `e2e-linux/`). La evidencia de US1
+se conserva en su carpeta anterior.
 
 La configuración mantiene `ignoreHTTPSErrors:false`. No se admiten flags que
 omitan errores de certificado ni `NODE_TLS_REJECT_UNAUTHORIZED=0`. El runner
 comprueba la CA, el certificado servido y sus SAN y verifica que un hostname
 ajeno no coincide. Una CA expirada o un certificado incorrecto debe fallar.
+
+### Inspector SameSite de WebKit Windows
+
+Playwright 1.65.1 documenta un fallo esperado al leer `SameSite=Lax` mediante
+`context.cookies()` en WebKit nativo Windows: CO-007 espera ese fallo y CO-009
+representa el resultado como `None`. Ver [pruebas oficiales de la versión
+fijada](https://github.com/microsoft/playwright/blob/v1.65.1/tests/library/browsercontext-cookies.spec.ts#L121-L132).
+En la primera matriz Windows de US2, 33/36 pasaron y las tres lecturas nativas
+de WebKit detectaron exactamente esta diferencia.
+
+El test exige `Set-Cookie: …; SameSite=Lax` y ausencia de Domain en todos los
+proyectos, además de comprobar Secure/HttpOnly/Path y que JavaScript no pueda
+leer la cookie. Solo el valor del inspector de WebKit Windows se contrasta con
+el comportamiento documentado y se anota como limitación de plataforma. Linux,
+Chromium y Firefox deben informar `Lax`. No se omite ningún recorrido, ni se
+modifica la política de cookies o la confianza TLS para resolver esa diferencia.
 
 La evidencia ignorada queda en `tecnologia/.local/evidencia/001/e2e-linux/`:
 `ejecucion.json`, `tls.json`, `playwright.json`, JUnit y HTML. Registra plataforma,

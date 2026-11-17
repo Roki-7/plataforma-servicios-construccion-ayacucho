@@ -1,4 +1,121 @@
-# Estado de implementación: fundación y US1 de 001
+# Estado de implementación: fundación, US1 y US2 de 001
+
+Fecha local: 2026-11-16 (America/Mexico_City). Continuación autorizada:
+**solo US2, T037–T048**, desde la primera tarea pendiente T037.
+**12/12 implementadas y verificadas localmente**. Se conserva US1.
+El backlog mantiene **119 tareas: 48 terminadas y 71 pendientes**; la siguiente
+es **T049 (US3), no iniciada**. De los 53 escenarios se verifican los 11 CA-REG
+y los nueve CA-SES; los otros 33 siguen pendientes. No se declara completa 001
+ni su DoD de CI, revisión y fusión.
+
+## Resultado de US2
+
+- `POST /api/v1/sesiones` comprueba correo canónico en PostgreSQL y la contraseña
+  íntegra con Argon2 fuera de locks, sin consultar el catálogo. Revalida la versión
+  de credencial bajo bloqueo de cuenta. Credenciales incorrectas no crean sesión.
+  Los fallos se confirman en DB antes de devolver 401/429: el quinto fija 900 s,
+  los intentos bloqueados no prolongan el plazo, el límite permite reiniciar la
+  secuencia y el éxito restablece los contadores. `Retry-After` refleja la espera.
+- Acceso opaco de 32 bytes con vigencia de 900 s; renovación independiente con
+  límite absoluto de siete días desde el inicio. Se guardan solo sus digests.
+  `POST /sesiones/renovacion` exige Origin, cookie y CSRF por HMAC con propósito
+  separado. Bloquea cuenta→sesión, lee reloj tras locks y rota ambos secretos y
+  la versión atómicamente. No mueve inicio, límite absoluto ni marca de contraseña.
+  La renovación anterior y el Bearer anterior dejan de ser vigentes.
+- `GET /sesiones/csrf` exige contexto de mismo origen mediante Fetch Metadata o
+  Origin/Referer confiable, comprueba cookie vigente y no altera sesión ni cookie.
+  `DELETE /sesiones/actual` comprueba Bearer, revoca en DB antes de responder 204
+  y después elimina la cookie. Otras sesiones de la cuenta permanecen vigentes.
+  Fallos de DB no emiten credenciales, no confirman cierre parcial y no borran cookie.
+- Cookie `__Secure-renovacion` HttpOnly/Secure/SameSite=Lax,
+  `Path=/api/v1/sesiones`, sin Domain y con vencimiento absoluto. Ningún resultado
+  con secretos pasa por la tabla genérica de idempotencia.
+- Web: `/acceso`, estado/cierre y bootstrap al recargar. Acceso solo en memoria;
+  una renovación en vuelo por instancia y Web Locks entre pestañas. Cada rotación
+  obtiene el CSRF vigente dentro del bloqueo; no hay reintento ciego de una rotación
+  fallida. Cierre espera la renovación pendiente y retira acceso; 401 protegido y
+  respuestas tardías no restauran credenciales invalidadas. Sin tokens en
+  localStorage, sessionStorage o BroadcastChannel.
+- La incorporación de perfiles de US1 usa ahora registro y login reales en la misma
+  navegación, manteniendo su proyección inicial en memoria. Tras una recarga se
+  recupera la sesión; la consulta general de datos/versiones del perfil sigue
+  pendiente de US5. No se adelanta `GET /perfil`. Recuperación solo tiene el aviso
+  de ruta pendiente previsto por T048, sin solicitud ni cambio de contraseña.
+
+## Trazabilidad y pruebas de US2
+
+| Tareas | Componentes principales | Evidencia propia de US2 |
+|---|---|---|
+| T037, T042 | `dominio/sesion.ts`, `control-intentos.ts`; `test/unit/usuarios-acceso/sesiones.spec.ts` | 15 U: 899.999/900/900.001 s, siete días, revocación, perfiles y puertos sin DB; contraseña íntegra y fallo confirmado sin emisión. |
+| T038, T043–T045 | `infraestructura/persistencia/repositorio-sesiones.ts`, puertos y `aplicacion/iniciar-sesion.ts`, `renovar-sesion.ts`, `obtener-csrf.ts`, `cerrar-sesion.ts` | 19 I: PostgreSQL aislado real, cinco fallos y rotaciones concurrentes, reinicio, límites, recencia intacta, otra sesión conservada, revalidación de credencial y rollback de login/rotación/cierre. |
+| T039, T046 | `presentacion/sesiones.controller.ts`, `infraestructura/seguridad/csrf.ts`, composición y HTTP | 13 C: cuatro operaciones, OpenAPI, cabeceras, cookie/CSRF/origen, cuerpos inesperados, 413, 401/429, vencimiento y ausencia de secretos en errores. |
+| T040, T047 | Web `aplicacion/sesion.ts`, `infraestructura/coordinador-renovacion.ts` y adaptador HTTP | 9 V: memoria, vuelo único, dos instancias con Web Locks, CSRF actualizado dentro del bloqueo, cierre concurrente, respuesta tardía y fallo sin retry. |
+| T041, T048 | Web `presentacion/Acceso.tsx`, `EstadoSesion.tsx`, composición y pruebas E | 9 E de sesiones por entorno, más regresión de 18 E US1 y nueve de fundación/TLS. Login real también en CA-REG-06. |
+
+Los cinco archivos de prueba se llaman `sesiones.spec.ts` (U/I/C/E) y
+`sesiones.test.tsx` (V), bajo las rutas de la matriz en `tecnologia/backend/test/`
+y `tecnologia/frontend/test/`. Cada nombre conserva el CA correspondiente.
+Las rutas de componentes backend de la tabla son relativas a
+`tecnologia/backend/src/modulos/usuarios-acceso/`; las web, a
+`tecnologia/frontend/src/features/usuarios-acceso/`.
+
+## Verificación final de US2 y regresiones
+
+| Comprobación | Resultado |
+|---|---|
+| Backend `test:unit` | **57/57**, incluye 42 de fundación/US1 |
+| Backend `test:integration -- --runInBand` | **35/35**, incluye 16 de fundación/US1; código de salida 0 confirmado |
+| Backend `test:contract` | **44/44**, incluye 31 de fundación/US1; código de salida 0 confirmado |
+| Frontend `test:unit` | **23/23**, incluye 14 de fundación/US1 |
+| Tipos, lint y build de ambos proyectos | Aprobados |
+| Arquitectura | Sin infracciones, 93 módulos y 249 dependencias |
+| Linux Chromium/Firefox/WebKit × 360/768/1366 | **36/36**, cero omitidos/reintentos; 3,4 min |
+| Windows nativo, misma matriz | **36/36**, cero omitidos/reintentos; 3,0 min |
+| Imagen backend Linux | UID 1000, Argon2 nativo, salud 200/503/503 y login/refresh sin credenciales 401/401 |
+| Proxy HTTPS | Salud/web 200; exceso 64 KiB/14 MB → 413 JSON y no-store |
+
+TLS, CA, certificados, configuración de Caddy, hostname y
+`ignoreHTTPSErrors:false` conservados. Cada proyecto mantiene el control negativo
+de certificado no confiable. No se reinstaló la CA ni se cambiaron almacenes.
+El runner Linux monta únicamente la CA pública y evidencia; US2 elimina el montaje
+de sesiones fixture. El frontend ya no importa el módulo de sesión de validación.
+
+Las primeras pruebas U/V fallaron por módulos aún ausentes antes de implementar.
+El harness C ahora escucha en puerto efímero y usa HTTP directo para el transporte
+de cuerpos grandes: se aisló un `ECONNRESET` de Supertest en GET sin modificar
+el rechazo del servidor. Se corrigieron las inferencias de tipos de composición y
+cabeceras de prueba. Un intento nativo agotó 30 s al crear la página, antes del
+recorrido: el presupuesto común es ahora 60 s, sin SLA nuevo ni retry automático.
+Un proceso de contrato terminó sin informe; se configuró la composición de Nest
+para propagar errores al bootstrap/ejecutor en lugar de abortar silenciosamente,
+y la suite completa final terminó 44/44 con salida 0.
+
+**Limitación de plataforma registrada:** el inspector de WebKit Windows informa
+SameSite=None aunque el servidor envía Lax. Playwright 1.65.1 lo contempla en
+[CO-007/CO-009](https://github.com/microsoft/playwright/blob/v1.65.1/tests/library/browsercontext-cookies.spec.ts#L121-L132).
+El primer intento fue 33/36 por esa lectura. La matriz final exige la cabecera
+SameSite=Lax en todos los motores, comprueba Secure/HttpOnly/Path y ausencia de
+Domain, y anota el inspector nativo; no omite ningún flujo. Linux, Chromium y
+Firefox verifican además la lectura Lax. No se afirma que el inspector Windows
+acredite esa propiedad. Detalles en
+[TLS-PRUEBAS.md](../../tecnologia/frontend/TLS-PRUEBAS.md).
+
+Evidencia ignorada: `tecnologia/.local/evidencia/001/us2/`, con JUnit de backend y
+frontend, `cobertura-us2.json`, `verificacion.json`, `proxy.json`, `contenedor.json`,
+`e2e-linux/` y `e2e-windows-final/`. Se conservan los intentos nativos anteriores
+en `e2e-windows-smoke/` y `e2e-windows/`. Imagen E Linux:
+`sha256:5f13479723a8e9cbafc993108b47291fe6e01abb9e4919f4db9ad4ea84d8e073`;
+imagen backend comprobada:
+`sha256:ec5eb728a33e5914f5b650d1e9b2409d54ad1a6b37f269443748e4325b0a02d8`.
+
+**Bloqueos de US2: ninguno.** Se detiene antes de T049/US3. El corpus completo,
+versionado y aprobado de producción sigue siendo entrada pendiente del despliegue.
+El fixture local no lo sustituye y se rechaza en producción. Registro/nuevas
+contraseñas requieren catálogo preparado; login no omite credenciales ni depende
+de ese catálogo. No se inicia recuperación, consulta/edición general de perfil ni
+las demás historias; tampoco se declara el MVP terminado.
+
+## Histórico: entrega de fundación y US1
 
 Fecha local: 2026-11-16 (America/Mexico_City). Continuación autorizada: solo
 **US1, T024–T036**, desde la primera tarea pendiente T024. **13/13 verificadas**.
@@ -9,7 +126,7 @@ los **11 CA-REG de US1** en los niveles de la matriz; los otros 42 siguen pendie
 Esto es un corte local verificado, no la entrega completa de 001 ni un cumplimiento
 de su DoD de CI, revisión y fusión.
 
-## Resultado de US1
+## Histórico US1: resultado
 
 - Registro real mediante `POST /api/v1/cuentas`: cliente, prestador o ambos;
   nombre de persona/empresa, correo único sin distinguir mayúsculas, contraseña
@@ -47,7 +164,7 @@ Las rutas backend de la tabla son relativas a `tecnologia/backend/src/` o
 Los cinco archivos de pruebas y sus CA exactos conservan la trazabilidad de
 [test-matrix.md](test-matrix.md) y [docs/trazabilidad.md](../../docs/trazabilidad.md).
 
-## Pruebas y regresiones de este corte
+## Histórico US1: pruebas y regresiones
 
 | Grupo | Resultado final, incluida fundación |
 |---|---|

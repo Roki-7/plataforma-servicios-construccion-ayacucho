@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-16. **Estado**: preparación, fundación y US1 implementadas y verificadas;
+**Fecha**: 2026-11-16. **Estado**: preparación, fundación, US1 y US2 implementadas y verificadas;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -9,7 +9,7 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
-US1 (T024–T036) está implementada y verificada; T037–T119 siguen pendientes.
+US1 (T024–T036) y US2 (T037–T048) están verificadas; T049–T119 siguen pendientes.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -116,21 +116,21 @@ T037–T041 se escriben en paralelo después de US1. Reautenticación es de US6.
 
 ### Pruebas primero
 
-- [ ] T037 [P] [US2] Escribir U de CA-SES-02, CA-SES-04, CA-SES-05 y CA-SES-08 en `tecnologia/backend/test/unit/usuarios-acceso/sesiones.spec.ts`; reloj 899.999/900/900.001 s, reglas de perfiles, credenciales completas y ausencia de sesión ante rechazo.
-- [ ] T038 [P] [US2] Escribir I de CA-SES-01, CA-SES-02, CA-SES-03, CA-SES-04, CA-SES-05, CA-SES-06, CA-SES-07, CA-SES-08 y CA-SES-09 en `tecnologia/backend/test/integration/usuarios-acceso/sesiones.spec.ts`; fallos concurrentes serializados, quinto bloqueo, no prolongar espera, reinicio de secuencia/éxito, límite absoluto 7 d, rotación concurrente, revocación inmediata, DB caída/rollback y correo canónico.
-- [ ] T039 [P] [US2] Escribir C de POST `/sesiones`, DELETE `/sesiones/actual`, POST `/sesiones/renovacion` y GET `/sesiones/csrf` para CA-SES-01, CA-SES-02, CA-SES-03, CA-SES-04, CA-SES-05, CA-SES-06, CA-SES-07, CA-SES-08 y CA-SES-09 en `tecnologia/backend/test/contract/usuarios-acceso/sesiones.spec.ts`; cookie, CSRF, bootstrap sin mutación, origen, expiración, 401/429/503 y X-06/X-08.
-- [ ] T040 [P] [US2] Escribir pruebas web adicionales de acceso en memoria, bootstrap/renovación única en vuelo y cierre en `tecnologia/frontend/test/unit/usuarios-acceso/sesiones.test.tsx`; sin almacenamiento web de tokens, ni retry ciego tras renovación consumida ni recencia reiniciada por actividad/refresh.
-- [ ] T041 [P] [US2] Escribir E de CA-SES-01, CA-SES-06, CA-SES-07 y CA-SES-09 en `tecnologia/frontend/test/e2e/usuarios-acceso/sesiones.spec.ts`; acceso, recarga/bootstrap, renovación, cierre y reutilización de credenciales anteriores, cookie Secure/HttpOnly y T007; integrar ahora el login real en la adición de US1.
+- [X] T037 [P] [US2] Escribir U de CA-SES-02, CA-SES-04, CA-SES-05 y CA-SES-08 en `tecnologia/backend/test/unit/usuarios-acceso/sesiones.spec.ts`; reloj 899.999/900/900.001 s, reglas de perfiles, credenciales completas y ausencia de sesión ante rechazo.
+- [X] T038 [P] [US2] Escribir I de CA-SES-01, CA-SES-02, CA-SES-03, CA-SES-04, CA-SES-05, CA-SES-06, CA-SES-07, CA-SES-08 y CA-SES-09 en `tecnologia/backend/test/integration/usuarios-acceso/sesiones.spec.ts`; fallos concurrentes serializados, quinto bloqueo, no prolongar espera, reinicio de secuencia/éxito, límite absoluto 7 d, rotación concurrente, revocación inmediata, DB caída/rollback y correo canónico.
+- [X] T039 [P] [US2] Escribir C de POST `/sesiones`, DELETE `/sesiones/actual`, POST `/sesiones/renovacion` y GET `/sesiones/csrf` para CA-SES-01, CA-SES-02, CA-SES-03, CA-SES-04, CA-SES-05, CA-SES-06, CA-SES-07, CA-SES-08 y CA-SES-09 en `tecnologia/backend/test/contract/usuarios-acceso/sesiones.spec.ts`; cookie, CSRF, bootstrap sin mutación, origen, expiración, 401/429/503 y X-06/X-08.
+- [X] T040 [P] [US2] Escribir pruebas web adicionales de acceso en memoria, bootstrap/renovación única en vuelo y cierre en `tecnologia/frontend/test/unit/usuarios-acceso/sesiones.test.tsx`; sin almacenamiento web de tokens, ni retry ciego tras renovación consumida ni recencia reiniciada por actividad/refresh.
+- [X] T041 [P] [US2] Escribir E de CA-SES-01, CA-SES-06, CA-SES-07 y CA-SES-09 en `tecnologia/frontend/test/e2e/usuarios-acceso/sesiones.spec.ts`; acceso, recarga/bootstrap, renovación, cierre y reutilización de credenciales anteriores, cookie Secure/HttpOnly y T007; integrar ahora el login real en la adición de US1.
 
-### Implementación futura
+### Implementación US2
 
-- [ ] T042 [US2] Implementar estado y reglas puras de Sesión/ControlIntentos en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/sesion.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/dominio/control-intentos.ts`; quinto fallo +900 s, intentos bloqueados no extienden espera, al límite reiniciar secuencia, acceso vence al alcanzar 900 s y renovación absoluta 7 d, sin renovar autenticación con contraseña por actividad.
-- [ ] T043 [US2] Implementar repositorio transaccional de sesiones/fallos en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-sesiones.ts`; locks cuenta→sesión, actualización serial de fallos y revalidación de version_credencial antes de crear/acreditar sesión, rotación atómica de ambos digests, cierre/revocación y consulta por operación. Depende de T042 y T012.
-- [ ] T044 [US2] Implementar login en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/iniciar-sesion.ts`; correo canónico y Argon2 fuera de locks, revalidar version_credencial/estado tras lock, reiniciar fallos solo al éxito, marcar contraseña en esa sesión y no emitir tokens ante bloqueo/error. Depende de T043.
-- [ ] T045 [US2] Implementar renovación, bootstrap y cierre en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/renovar-sesion.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/obtener-csrf.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/cerrar-sesion.ts`; CSRF por HMAC de renovación presentada, origen exacto, rotar sin deslizar 7 d ni recencia, bootstrap sin mutar y cierre DB antes de eliminar cookie. Depende de T043.
-- [ ] T046 [US2] Exponer las cuatro operaciones de T039 en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/sesiones.controller.ts` y conectarlas en `tecnologia/backend/src/composicion/app.module.ts`; cookie `__Secure-renovacion`, HttpOnly/Secure/SameSite=Lax/Path=/api/v1/sesiones sin Domain, tokens solo en login/refresh y sin tabla genérica de resultados secretos. Depende de T044–T045.
-- [ ] T047 [US2] Implementar sesión web y coordinación entre peticiones/pestañas en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/sesion.ts` y `tecnologia/frontend/src/features/usuarios-acceso/infraestructura/coordinador-renovacion.ts`; acceso solo en memoria, cookie HttpOnly, bootstrap al recargar, refresh único en vuelo, limpieza tras cierre/401 sin restaurar credenciales revocadas ni persistirlas en BroadcastChannel/almacenamiento.
-- [ ] T048 [US2] Implementar acceso/cierre y conectarlos al registro/habilitación en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Acceso.tsx`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstadoSesion.tsx` y `tecnologia/frontend/src/composicion/App.tsx`; bloqueo comprensible y recuperación enlazada como ruta pendiente hasta US3, nunca éxito falso; ejecutar T037–T041 y regresión US1, evidencias en `tecnologia/.local/evidencia/001/us2/`.
+- [X] T042 [US2] Implementar estado y reglas puras de Sesión/ControlIntentos en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/sesion.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/dominio/control-intentos.ts`; quinto fallo +900 s, intentos bloqueados no extienden espera, al límite reiniciar secuencia, acceso vence al alcanzar 900 s y renovación absoluta 7 d, sin renovar autenticación con contraseña por actividad.
+- [X] T043 [US2] Implementar repositorio transaccional de sesiones/fallos en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-sesiones.ts`; locks cuenta→sesión, actualización serial de fallos y revalidación de version_credencial antes de crear/acreditar sesión, rotación atómica de ambos digests, cierre/revocación y consulta por operación. Depende de T042 y T012.
+- [X] T044 [US2] Implementar login en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/iniciar-sesion.ts`; correo canónico y Argon2 fuera de locks, revalidar version_credencial/estado tras lock, reiniciar fallos solo al éxito, marcar contraseña en esa sesión y no emitir tokens ante bloqueo/error. Depende de T043.
+- [X] T045 [US2] Implementar renovación, bootstrap y cierre en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/renovar-sesion.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/obtener-csrf.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/cerrar-sesion.ts`; CSRF por HMAC de renovación presentada, origen exacto, rotar sin deslizar 7 d ni recencia, bootstrap sin mutar y cierre DB antes de eliminar cookie. Depende de T043.
+- [X] T046 [US2] Exponer las cuatro operaciones de T039 en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/sesiones.controller.ts` y conectarlas en `tecnologia/backend/src/composicion/app.module.ts`; cookie `__Secure-renovacion`, HttpOnly/Secure/SameSite=Lax/Path=/api/v1/sesiones sin Domain, tokens solo en login/refresh y sin tabla genérica de resultados secretos. Depende de T044–T045.
+- [X] T047 [US2] Implementar sesión web y coordinación entre peticiones/pestañas en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/sesion.ts` y `tecnologia/frontend/src/features/usuarios-acceso/infraestructura/coordinador-renovacion.ts`; acceso solo en memoria, cookie HttpOnly, bootstrap al recargar, refresh único en vuelo, limpieza tras cierre/401 sin restaurar credenciales revocadas ni persistirlas en BroadcastChannel/almacenamiento.
+- [X] T048 [US2] Implementar acceso/cierre y conectarlos al registro/habilitación en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Acceso.tsx`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstadoSesion.tsx` y `tecnologia/frontend/src/composicion/App.tsx`; bloqueo comprensible y recuperación enlazada como ruta pendiente hasta US3, nunca éxito falso; ejecutar T037–T041 y regresión US1, evidencias en `tecnologia/.local/evidencia/001/us2/`.
 
 ## Fase 5: US3 — Recuperar el acceso a la cuenta (P1)
 
@@ -530,11 +530,13 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
-La continuación autorizada completó y verificó únicamente US1: T024–T036.
-T001–T036 suman 36 tareas terminadas; las 83 restantes siguen pendientes.
-Los 11 CA-REG pasan en los niveles de la matriz; los otros 42 CA no se declaran aprobados.
-Regresión: 42 U, 16 I y 31 C backend; 14 V frontend; 27 E por entorno en Linux
-y Windows (18 US1 + 9 fundación/TLS), sin omitidos ni reintentos.
+La continuación autorizada completó únicamente US2: T037–T048, conservando US1.
+T001–T048 suman 48 tareas terminadas; las 71 restantes siguen pendientes.
+Los 11 CA-REG y nueve CA-SES pasan en sus niveles; los otros 33 CA siguen pendientes.
+Regresión: 57 U, 35 I y 44 C backend; 23 V frontend; 36 E por entorno en Linux
+y Windows (9 sesiones + 18 US1 + 9 fundación/TLS), sin omitidos ni reintentos.
+La lectura SameSite de WebKit Windows tiene la limitación documentada en el estado;
+la cabecera SameSite=Lax se exige en todos los motores, sin modificar cookies.
 Se conservan TLS, certificados y confianza previamente verificados.
-Siguiente tarea T037 (US2): no iniciada. Detención antes de US2.
+Siguiente tarea T049 (US3): no iniciada. Detención antes de US3.
 Consultar la evidencia y las comprobaciones en implementation-status.md.
