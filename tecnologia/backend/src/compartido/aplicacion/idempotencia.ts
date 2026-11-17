@@ -10,3 +10,7 @@ export interface ResultadoIdempotente { readonly http: number; readonly cuerpo: 
 export interface Idempotencia {
   ejecutar(solicitud: SolicitudIdempotente, trabajo: (tx: ContextoTransaccion) => Promise<ResultadoIdempotente>): Promise<ResultadoIdempotente>;
 }
+/** Consulta anticipada sin locks de negocio para preparar el hash fuera de la transacción. */
+export interface IdempotenciaRecuperacion extends Idempotencia {
+  consultarRecuperacion(solicitud: SolicitudIdempotente): Promise<ResultadoIdempotente | null>;
+}

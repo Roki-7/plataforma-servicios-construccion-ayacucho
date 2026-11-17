@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-16. **Estado**: preparación, fundación, US1 y US2 implementadas y verificadas;
+**Fecha**: 2026-11-16. **Estado**: preparación, fundación, US1, US2 y US3 implementadas y verificadas;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -9,7 +9,7 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
-US1 (T024–T036) y US2 (T037–T048) están verificadas; T049–T119 siguen pendientes.
+US1 (T024–T036), US2 (T037–T048) y US3 (T049–T062) están verificadas; T063–T119 siguen pendientes.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -143,23 +143,23 @@ y login nuevo/anterior; el dominio no depende de UI de perfil.
 
 ### Pruebas primero
 
-- [ ] T049 [P] [US3] Escribir U de CA-REC-03, CA-REC-07 y CA-REC-10 en `tecnologia/backend/test/unit/usuarios-acceso/recuperacion.spec.ts`; 1799.999/1800/1800.001 s, propósito/cuenta, token inválido, política y confirmación, reloj leído después del lock en coordinación de aplicación.
-- [ ] T050 [P] [US3] Escribir I de CA-REC-01, CA-REC-02, CA-REC-03, CA-REC-04, CA-REC-05, CA-REC-06, CA-REC-07, CA-REC-08 y CA-REC-09 en `tecnologia/backend/test/integration/usuarios-acceso/recuperacion.spec.ts`; reset/reset, reset/login y reset/refresh con barreras, varios enlaces/sesiones, rollback entre hash/revocación/aviso/resultado, mismo replay aun vencido y con catálogo cambiado, clave nueva rechazada y correo Mailpit/reintento sin deshacer cambio.
-- [ ] T051 [P] [US3] Escribir C de POST `/recuperaciones` y POST `/recuperaciones/{token}` para CA-REC-01, CA-REC-02, CA-REC-03, CA-REC-04, CA-REC-05, CA-REC-06, CA-REC-07, CA-REC-08, CA-REC-09 y CA-REC-10 en `tecnologia/backend/test/contract/usuarios-acceso/recuperacion.spec.ts`; mismo 202/texto para existencia, 409 con misma clave/otro cuerpo, 422 con nueva clave/enlace usado, versión/propósito, no cookie/autologin y redacción de tokens.
-- [ ] T052 [P] [US3] Escribir V de CA-REC-10 en `tecnologia/frontend/test/unit/usuarios-acceso/recuperacion.test.tsx`; política, confirmación diferente, no éxito ante rechazo y manejo en memoria del fragmento limpiado, sin consumo al abrir pantalla.
-- [ ] T053 [P] [US3] Escribir E de CA-REC-01, CA-REC-02, CA-REC-06, CA-REC-08 y CA-REC-09 en `tecnologia/frontend/test/e2e/usuarios-acceso/recuperacion.spec.ts`; leer enlace/aviso en Mailpit, URL limpia, nueva contraseña/previa, varias sesiones revocadas y retorno a login, sin analítica/terceros ni captura de secretos; T007.
+- [X] T049 [P] [US3] Escribir U de CA-REC-03, CA-REC-07 y CA-REC-10 en `tecnologia/backend/test/unit/usuarios-acceso/recuperacion.spec.ts`; 1799.999/1800/1800.001 s, propósito/cuenta, token inválido, política y confirmación, reloj leído después del lock en coordinación de aplicación.
+- [X] T050 [P] [US3] Escribir I de CA-REC-01, CA-REC-02, CA-REC-03, CA-REC-04, CA-REC-05, CA-REC-06, CA-REC-07, CA-REC-08 y CA-REC-09 en `tecnologia/backend/test/integration/usuarios-acceso/recuperacion.spec.ts`; reset/reset, reset/login y reset/refresh con barreras, varios enlaces/sesiones, rollback entre hash/revocación/aviso/resultado, mismo replay aun vencido y con catálogo cambiado, clave nueva rechazada y correo Mailpit/reintento sin deshacer cambio.
+- [X] T051 [P] [US3] Escribir C de POST `/recuperaciones` y POST `/recuperaciones/{token}` para CA-REC-01, CA-REC-02, CA-REC-03, CA-REC-04, CA-REC-05, CA-REC-06, CA-REC-07, CA-REC-08, CA-REC-09 y CA-REC-10 en `tecnologia/backend/test/contract/usuarios-acceso/recuperacion.spec.ts`; mismo 202/texto para existencia, 409 con misma clave/otro cuerpo, 422 con nueva clave/enlace usado, versión/propósito, no cookie/autologin y redacción de tokens.
+- [X] T052 [P] [US3] Escribir V de CA-REC-10 en `tecnologia/frontend/test/unit/usuarios-acceso/recuperacion.test.tsx`; política, confirmación diferente, no éxito ante rechazo y manejo en memoria del fragmento limpiado, sin consumo al abrir pantalla.
+- [X] T053 [P] [US3] Escribir E de CA-REC-01, CA-REC-02, CA-REC-06, CA-REC-08 y CA-REC-09 en `tecnologia/frontend/test/e2e/usuarios-acceso/recuperacion.spec.ts`; leer enlace/aviso en Mailpit, URL limpia, nueva contraseña/previa, varias sesiones revocadas y retorno a login, sin analítica/terceros ni captura de secretos; T007.
 
-### Implementación futura
+### Implementación verificada
 
-- [ ] T054 [US3] Crear dominio, migración y entidad de recuperación en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/recuperacion.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/migraciones/006-recuperaciones.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/recuperacion.entity.ts`: id/usuario_id «uuid PK / FK», «Cuenta destino, nunca una cuenta elegida en el body de consumo.»; token_digest «bytea único», «Propósito exclusivamente recuperación.»; emitida_en/vence_en «timestamptz», «vence_en=emitida_en+1800 s.»; consumida_en/invalidada_en «timestamptz nulo», «Un solo consumo exitoso.»; version «bigint, inicial 1», «Se incluye en el enlace y consumo; representa la versión del desafío.»; estados pendiente/vencida/consumida/invalidada, vencida si ahora>=vence_en, sin invalidar enlaces anteriores solo por solicitar otro.
-- [ ] T055 [US3] Implementar repositorio y consumo bloqueado de desafíos en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-recuperaciones.ts`; localizar cuenta por digest, locks cuenta→desafío, revalidar uso/propósito/versión/tiempo tras lock, invalidar pendientes y revocar sesiones de esa cuenta en la misma UoW. Depende de T054.
-- [ ] T056 [US3] Implementar solicitud en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/solicitar-recuperacion.ts`; para existente guardar desafío+correo por API de Notificaciones, sin cambiar contraseña/sesiones; existentes/inexistentes reciben exactamente «Si el correo corresponde a una cuenta, recibirás instrucciones para recuperar el acceso», sin destino/ID/estado de cuenta y sin diferencias públicas por entrega SMTP. Depende de T055 y T017–T018.
-- [ ] T057 [US3] Implementar consumo de recuperación en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/consumir-recuperacion.ts`; replay exacto antes de consumo/vencimiento/catálogo/Argon2, nueva ejecución calcula política/hash fuera de locks y revalida todo tras adquirirlos, hash+version_credencial+version+consumo+invalidación de pendientes+revocación global+aviso+resultado idempotente en un commit, sin emitir sesión. Depende de T055, T016 y T043.
-- [ ] T058 [US3] Implementar plantillas/enlaces de recuperación y aviso en `tecnologia/backend/src/modulos/notificaciones/infraestructura/plantillas-seguridad.ts`; base configurada confiable, fragmento `/recuperar#token=...&version=1`, destinatario registrado, aviso sin contraseña, payload cifrado, claves lógicas únicas y expiración de entrega. Depende de T056–T057.
-- [ ] T059 [US3] Exponer las dos operaciones de recuperación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/recuperacion.controller.ts` y registrarlas en `tecnologia/backend/src/composicion/app.module.ts`; validar versión/Idempotency-Key/cuerpo completo, conservar códigos y mensaje del contrato, GET nunca consume ni cambia credenciales. Depende de T056–T058.
-- [ ] T060 [US3] Implementar casos de uso web de solicitud/consumo en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/recuperacion.ts`; clave estable para replay del mismo envío, errores sin éxito falso, token solo en memoria y retorno obligatorio a acceso al completar.
-- [ ] T061 [US3] Implementar solicitud y establecimiento en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/RecuperarAcceso.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstablecerContrasena.tsx`; leer fragmento y reemplazar historial antes de recursos adicionales, no consumir por GET, no analítica/terceros, mensajes genéricos/exigencia de enlace nuevo y pegado/espacios/política íntegra. Depende de T060.
-- [ ] T062 [US3] Conectar rutas reales y limpiar sesión web revocada en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; ejecutar T049–T053 y regresión sesiones/registro, comprobar ausencia de secretos en logs/URL/reportes y guardar evidencia en `tecnologia/.local/evidencia/001/us3/`.
+- [X] T054 [US3] Crear dominio, migración y entidad de recuperación en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/recuperacion.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/migraciones/006-recuperaciones.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/recuperacion.entity.ts`: id/usuario_id «uuid PK / FK», «Cuenta destino, nunca una cuenta elegida en el body de consumo.»; token_digest «bytea único», «Propósito exclusivamente recuperación.»; emitida_en/vence_en «timestamptz», «vence_en=emitida_en+1800 s.»; consumida_en/invalidada_en «timestamptz nulo», «Un solo consumo exitoso.»; version «bigint, inicial 1», «Se incluye en el enlace y consumo; representa la versión del desafío.»; estados pendiente/vencida/consumida/invalidada, vencida si ahora>=vence_en, sin invalidar enlaces anteriores solo por solicitar otro.
+- [X] T055 [US3] Implementar repositorio y consumo bloqueado de desafíos en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-recuperaciones.ts`; localizar cuenta por digest, locks cuenta→desafío, revalidar uso/propósito/versión/tiempo tras lock, invalidar pendientes y revocar sesiones de esa cuenta en la misma UoW. Depende de T054.
+- [X] T056 [US3] Implementar solicitud en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/solicitar-recuperacion.ts`; para existente guardar desafío+correo por API de Notificaciones, sin cambiar contraseña/sesiones; existentes/inexistentes reciben exactamente «Si el correo corresponde a una cuenta, recibirás instrucciones para recuperar el acceso», sin destino/ID/estado de cuenta y sin diferencias públicas por entrega SMTP. Depende de T055 y T017–T018.
+- [X] T057 [US3] Implementar consumo de recuperación en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/consumir-recuperacion.ts`; replay exacto antes de consumo/vencimiento/catálogo/Argon2, nueva ejecución calcula política/hash fuera de locks y revalida todo tras adquirirlos, hash+version_credencial+version+consumo+invalidación de pendientes+revocación global+aviso+resultado idempotente en un commit, sin emitir sesión. Depende de T055, T016 y T043.
+- [X] T058 [US3] Implementar plantillas/enlaces de recuperación y aviso en `tecnologia/backend/src/modulos/notificaciones/infraestructura/plantillas-seguridad.ts`; base configurada confiable, fragmento `/recuperar#token=...&version=1`, destinatario registrado, aviso sin contraseña, payload cifrado, claves lógicas únicas y expiración de entrega. Depende de T056–T057.
+- [X] T059 [US3] Exponer las dos operaciones de recuperación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/recuperacion.controller.ts` y registrarlas en `tecnologia/backend/src/composicion/app.module.ts`; validar versión/Idempotency-Key/cuerpo completo, conservar códigos y mensaje del contrato, GET nunca consume ni cambia credenciales. Depende de T056–T058.
+- [X] T060 [US3] Implementar casos de uso web de solicitud/consumo en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/recuperacion.ts`; clave estable para replay del mismo envío, errores sin éxito falso, token solo en memoria y retorno obligatorio a acceso al completar.
+- [X] T061 [US3] Implementar solicitud y establecimiento en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/RecuperarAcceso.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstablecerContrasena.tsx`; leer fragmento y reemplazar historial antes de recursos adicionales, no consumir por GET, no analítica/terceros, mensajes genéricos/exigencia de enlace nuevo y pegado/espacios/política íntegra. Depende de T060.
+- [X] T062 [US3] Conectar rutas reales y limpiar sesión web revocada en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; ejecutar T049–T053 y regresión sesiones/registro, comprobar ausencia de secretos en logs/URL/reportes y guardar evidencia en `tecnologia/.local/evidencia/001/us3/`.
 
 ## Fase 6: US5 — Consultar y actualizar el perfil propio (P1)
 
@@ -530,13 +530,15 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
-La continuación autorizada completó únicamente US2: T037–T048, conservando US1.
-T001–T048 suman 48 tareas terminadas; las 71 restantes siguen pendientes.
-Los 11 CA-REG y nueve CA-SES pasan en sus niveles; los otros 33 CA siguen pendientes.
-Regresión: 57 U, 35 I y 44 C backend; 23 V frontend; 36 E por entorno en Linux
-y Windows (9 sesiones + 18 US1 + 9 fundación/TLS), sin omitidos ni reintentos.
+La continuación autorizada completó únicamente US3: T049–T062, conservando US1 y US2.
+T001–T062 suman 62 tareas terminadas; las 57 restantes siguen pendientes.
+Los 11 CA-REG, nueve CA-SES y diez CA-REC pasan en sus niveles; los otros 23 CA siguen pendientes.
+Regresión: 68 U, 49 I y 53 C backend; 29 V frontend; 45 E por entorno en Linux
+y Windows (9 recuperación + 9 sesiones + 18 US1 + 9 fundación/TLS), sin omitidos ni reintentos.
 La lectura SameSite de WebKit Windows tiene la limitación documentada en el estado;
 la cabecera SameSite=Lax se exige en todos los motores, sin modificar cookies.
 Se conservan TLS, certificados y confianza previamente verificados.
-Siguiente tarea T049 (US3): no iniciada. Detención antes de US3.
+El corpus completo aprobado de producción continúa pendiente del despliegue;
+el fixture local no lo sustituye. Se conserva el registro de limitaciones e intentos.
+Siguiente tarea T063 (US5): no iniciada. Detención al completar US3.
 Consultar la evidencia y las comprobaciones en implementation-status.md.

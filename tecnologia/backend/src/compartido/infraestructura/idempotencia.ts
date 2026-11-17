@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import type { Idempotencia, SolicitudIdempotente, ResultadoIdempotente } from '../aplicacion/idempotencia.js';
+import type { IdempotenciaRecuperacion, SolicitudIdempotente, ResultadoIdempotente } from '../aplicacion/idempotencia.js';
 import type { ContextoTransaccion, ValorJson } from '../aplicacion/transaccion.js';
 import type { UnidadDeTrabajoPostgres } from './postgres/unidad-de-trabajo.js';
 import { datosInvalidos, dependenciaNoDisponible, ErrorAplicacion } from '../dominio/errores.js';
@@ -25,9 +25,21 @@ function exigirSinSecretos(valor: ValorJson): void {
   }
 }
 interface FilaIdempotente { cuerpo_hmac: Buffer; hmac_key_id: string; http: number; resultado: ValorJson }
-export class IdempotenciaPostgres implements Idempotencia {
+export class IdempotenciaPostgres implements IdempotenciaRecuperacion {
   constructor(private readonly uow: UnidadDeTrabajoPostgres, private readonly claves: ReadonlyMap<string, Buffer>, private readonly actual: string) {
     if (!claves.has(actual) || [...claves.values()].some((k) => k.length !== 32)) throw new Error('Claves HMAC no válidas.');
+  }
+  async consultarRecuperacion(s: SolicitudIdempotente): Promise<ResultadoIdempotente | null> {
+    if (s.ambito.tipo !== 'recuperacion' || s.metodo !== 'POST' || s.rutaLogica !== '/recuperaciones/{token}' || !s.token || s.clave.length < 16 || s.clave.length > 128 || createHash('sha256').update(s.token).digest('hex') !== s.ambito.id) throw datosInvalidos();
+    const entrada = jsonCanonico({ metodo: s.metodo, ruta: s.rutaLogica, token: s.token, cuerpo: s.cuerpo });
+    return this.uow.ejecutar(async (tx) => {
+      const filas: FilaIdempotente[] = await this.uow.runner(tx).query('SELECT cuerpo_hmac,hmac_key_id,http,resultado FROM claves_idempotencia WHERE ambito=$1 AND operacion=$2 AND clave=$3', [`recuperacion:${s.ambito.id}`, `${s.metodo} ${s.rutaLogica}`, s.clave]);
+      const anterior = filas[0]; if (!anterior) return null;
+      const clave = this.claves.get(anterior.hmac_key_id); if (!clave) throw dependenciaNoDisponible();
+      const hmac = createHmac('sha256', clave).update(entrada).digest();
+      if (anterior.cuerpo_hmac.length !== hmac.length || !timingSafeEqual(anterior.cuerpo_hmac, hmac)) throw new ErrorAplicacion(409, 'CLAVE_IDEMPOTENCIA_REUTILIZADA', 'La clave ya corresponde a otros datos.');
+      return { http: anterior.http, cuerpo: anterior.resultado };
+    });
   }
   async ejecutar(s: SolicitudIdempotente, trabajo: (tx: ContextoTransaccion) => Promise<ResultadoIdempotente>): Promise<ResultadoIdempotente> {
     if (s.clave.length < 16 || s.clave.length > 128 || !s.rutaLogica.startsWith('/') || s.rutaLogica.includes('?')) throw datosInvalidos();

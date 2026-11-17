@@ -17,6 +17,11 @@ import { RenovarSesion } from '../modulos/usuarios-acceso/aplicacion/renovar-ses
 import { ObtenerCsrf } from '../modulos/usuarios-acceso/aplicacion/obtener-csrf.js';
 import { CerrarSesion } from '../modulos/usuarios-acceso/aplicacion/cerrar-sesion.js';
 import { SesionesController, SERVICIOS_SESION } from '../modulos/usuarios-acceso/presentacion/sesiones.controller.js';
+import { RepositorioRecuperacionesPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/repositorio-recuperaciones.js';
+import { SolicitarRecuperacion } from '../modulos/usuarios-acceso/aplicacion/solicitar-recuperacion.js';
+import { ConsumirRecuperacion } from '../modulos/usuarios-acceso/aplicacion/consumir-recuperacion.js';
+import { RecuperacionController, SERVICIOS_RECUPERACION } from '../modulos/usuarios-acceso/presentacion/recuperacion.controller.js';
+import { PlantillasSeguridad } from '../modulos/notificaciones/infraestructura/plantillas-seguridad.js';
 import { HashArgon2id } from '../modulos/usuarios-acceso/infraestructura/seguridad/argon2id.js';
 import { CatalogoLocal } from '../modulos/usuarios-acceso/infraestructura/seguridad/catalogo-contrasenas.js';
 import { LectorSesionPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/lector-sesion.js';
@@ -57,10 +62,15 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
     csrf: new ObtenerCsrf(sesiones, uow, reloj, secretos, csrf),
     cerrar: new CerrarSesion(sesiones, uow, reloj, secretos, lector), origen: config.origen,
   };
+  const recuperaciones = new RepositorioRecuperacionesPostgres(db, uow); const plantillas = new PlantillasSeguridad(config.urlPublica);
+  const serviciosRecuperacion = {
+    solicitar: new SolicitarRecuperacion(cuentas, recuperaciones, uow, reloj, secretos, notificaciones, plantillas),
+    consumir: new ConsumirRecuperacion(cuentas, recuperaciones, sesiones, idempotencia, reloj, secretos, hash, catalogo, notificaciones, plantillas),
+  };
   const salud = { disponible: async () => {
     try {
       await conectar();
-      const tablas: { lista: boolean }[] = await db.query("SELECT count(*)=6 AS lista FROM unnest(ARRAY['usuarios','perfiles_habilitados','sesiones','claves_idempotencia','avisos_pendientes','fotografias_perfil']) t WHERE to_regclass(t) IS NOT NULL");
+      const tablas: { lista: boolean }[] = await db.query("SELECT count(*)=7 AS lista FROM unnest(ARRAY['usuarios','perfiles_habilitados','sesiones','claves_idempotencia','avisos_pendientes','fotografias_perfil','recuperaciones_acceso']) t WHERE to_regclass(t) IS NOT NULL");
       return tablas[0]?.lista === true && await catalogo.preparada();
     } catch { return false; }
   } };
@@ -70,7 +80,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   }, 60000);
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
-  @Module({ controllers: [SaludController, RegistroController, SesionesController], providers: [{ provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
+  @Module({ controllers: [SaludController, RegistroController, SesionesController, RecuperacionController], providers: [{ provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
   class AppModule {}
   const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
   await configurarApi(app, { origen: config.origen, contrato: config.contrato });
@@ -78,5 +88,5 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   app.enableShutdownHooks();
   await app.init();
   if (opciones.worker !== false) worker.iniciar();
-  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion };
+  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion };
 }

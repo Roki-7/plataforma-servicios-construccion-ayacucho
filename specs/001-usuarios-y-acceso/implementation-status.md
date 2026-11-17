@@ -1,4 +1,133 @@
-# Estado de implementación: fundación, US1 y US2 de 001
+# Estado de implementación: fundación, US1, US2 y US3 de 001
+
+Fecha local: 2026-11-16 (America/Mexico_City). Continuación autorizada:
+**solo US3, T049–T062**, desde la primera tarea pendiente T049.
+**14/14 implementadas y verificadas localmente**. Se conservan US1, US2 y TLS.
+El backlog mantiene **119 tareas: 62 terminadas y 57 pendientes**; la siguiente
+es **T063 (US5), no iniciada**. Se verifican 30 de los 53 escenarios: 11 CA-REG,
+nueve CA-SES y diez CA-REC; los otros 23 permanecen pendientes. No se declara
+completa 001 ni su DoD de CI, revisión y fusión. Las entregas previas se conservan
+como histórico más abajo.
+
+## Resultado de US3
+
+- `POST /api/v1/recuperaciones` devuelve siempre 202 y el mensaje exacto
+  «Si el correo corresponde a una cuenta, recibirás instrucciones para recuperar
+  el acceso» para solicitudes válidas, sin revelar existencia, destinatario ni
+  estado de entrega. Solo la cuenta existente guarda desafío y Outbox en el mismo
+  commit. Solicitar no cambia contraseña, sesiones ni enlaces previos. Un fallo de
+  DB/Outbox revierte ambos registros y conserva la respuesta pública genérica.
+- Enlace sobre la URL HTTPS configurada y confiable, dirigido al correo registrado:
+  `/recuperar#token=…&version=1`. Secreto aleatorio de 32 bytes, digest único en
+  PostgreSQL y payload de correo cifrado por el Outbox existente. Vigencia exacta
+  de 1800 s: a partir del límite se rechaza. GET y apertura de pantalla nunca
+  consumen. El worker conserva su lease, vencimiento y reintentos acotados.
+- `POST /api/v1/recuperaciones/{token}` exige Origin, versión e Idempotency-Key.
+  Valida confirmación y contraseña íntegra: 15–128 puntos de código, Unicode válido,
+  espacios y pegado sin trim/normalización/truncado; catálogo local de comunes y
+  comprometidas. Calcula Argon2 fuera de locks y revalida cuenta→desafío y reloj
+  después de bloquear. El commit incluye hash, versiones de cuenta/credencial,
+  consumo, invalidación de todos los enlaces pendientes, revocación de todas las
+  sesiones/renovaciones, aviso al titular y resultado idempotente. Un fallo del
+  último INSERT de idempotencia revierte también las escrituras previas.
+- Conforme a R12, el replay exacto confirmado se consulta antes del desafío,
+  vencimiento, catálogo y Argon2: devuelve el mismo 200 aun vencido o cambiado el
+  catálogo, sin otro hash, aviso ni revocación. Misma clave con otro cuerpo → 409;
+  clave nueva sobre enlace usado → 422. La consulta anticipada usa el HMAC del
+  cuerpo completo y la clave conservada por identificador; nunca persiste el body
+  ni credenciales. Las ejecuciones concurrentes siguen el bloqueo idempotente y
+  el orden de locks existente. No se introduce caducidad del resultado confirmado.
+- El aviso no contiene contraseña ni enlace de acceso. La respuesta no emite
+  tokens/cookie ni inicia sesión; se vuelve a `/acceso`. Un fallo SMTP posterior
+  se reintenta sin revertir el cambio confirmado. El login anterior falla y el
+  nuevo exige el mecanismo habitual de US2. No se añaden permisos administrativos.
+- Web: solicitud, formulario, errores por campo y exigencia de enlace nuevo cuando
+  corresponde. El fragmento inicial se captura en memoria y se retira del historial
+  antes del módulo y CSS, también en el HTML compilado. Se maneja `hashchange` al
+  abrir otro enlace en la misma página. No se restaura/renueva sesión en recuperación;
+  al completar se retiran acceso y proyección de perfil de memoria. Token, datos y
+  clave estable de reintento permanecen solo en memoria; cambiar datos genera otra
+  clave. No hay retry automático ni consumo al navegar, analítica o terceros.
+
+## Trazabilidad y pruebas de US3
+
+HU01 → RF03 → FR-008–011/022/026–027/030 → AC04/EQ-04 → DA03/DA07 →
+ADR-002/003/005/006/009 → Usuarios y acceso + API transaccional de Notificaciones
+→ PR04/PR13 → funcionalidad 001. Se actualiza también `docs/trazabilidad.md`.
+
+| Tareas | Componentes principales | Evidencia propia de US3 |
+|---|---|---|
+| T049, T054 | `dominio/recuperacion.ts`, migración `006-recuperaciones.ts`, entidad | 11 U: 1799.999/1800/1800.001 s, propósito/titular/versión, consumido/invalidado, política íntegra y reloj tras lock; puertos sin DB. |
+| T050, T055–T058 | Repositorio, solicitud/consumo, idempotencia compartida y plantillas de Notificaciones | 14 I con PostgreSQL real: carreras reset/reset, reset/login y reset/refresh con barreras, varios enlaces/sesiones, rollback completo, replay con catálogo inaccesible y correo SMTP/Mailpit con fallo/reintento. |
+| T051, T059 | `presentacion/recuperacion.controller.ts`, composición y validación OpenAPI existente | 9 C: ambas operaciones, respuesta genérica exacta, 400/409/422, Origin/clave/versión, no autologin/cookie, GET sin mutación, tokens de otro propósito y logs redactados. |
+| T052, T060–T061 | Web `aplicacion/recuperacion.ts`, `RecuperarAcceso.tsx`, `EstablecerContrasena.tsx` | 6 V: fragmento solo en memoria, no consumo al abrir, confirmación/política, entrada íntegra ante rechazo, clave estable/nueva y redacción de reportes. |
+| T053, T062 | Composición web, captura previa en `index.html`, rutas y reporte seguro de Playwright | 9 E por entorno: enlace y aviso en Mailpit, URL limpia, revocación de dos sesiones y refresh, contraseña anterior/nueva, acceso habitual, memoria y anchos previstos. |
+
+Los cinco archivos se llaman `recuperacion.spec.ts` (U/I/C/E) y
+`recuperacion.test.tsx` (V), en las raíces backend/frontend de la matriz normativa.
+Cada nombre conserva los CA correspondientes. Las rutas backend abreviadas son
+relativas a `tecnologia/backend/src/modulos/usuarios-acceso/`; las web, a
+`tecnologia/frontend/src/features/usuarios-acceso/`. Notificaciones no importa
+internos de Usuarios: composición conecta la plantilla mediante un puerto.
+
+## Verificación final de US3 y regresiones
+
+| Comprobación | Resultado |
+|---|---|
+| Backend `test:unit` | **68/68**, 11 nuevas y 57 de fundación/US1/US2 |
+| Backend `test:integration -- --runInBand` | **49/49**, 14 nuevas y 35 de regresión |
+| Backend `test:contract -- --no-cache` | **53/53**, nueve nuevas y 44 de regresión; salida 0 confirmada |
+| Frontend `test:unit` | **29/29**, seis nuevas y 23 de regresión |
+| Tipos, lint y build de ambos proyectos | Aprobados |
+| Arquitectura | Sin infracciones: 105 módulos y 297 dependencias |
+| Linux Chromium/Firefox/WebKit × 360/768/1366 | **45/45**, cero omitidos/reintentos; 6,5 min |
+| Windows nativo, misma matriz | **45/45**, cero omitidos/reintentos; 5,0 min |
+| Imagen backend Linux compilada | UID 1000, Argon2 nativo, salud 200/503/503, sesiones 401/401 y recuperación genérica 202 sin cookie |
+| Proxy HTTPS | Salud/web 200; excesos 64 KiB/14 MB → 413 JSON y no-store |
+| Reportes de US3 | Cero patrones de token de recuperación/Bearer/cookie sin redactar, incluidos archivos del ZIP embebido en HTML |
+
+Se ejecutó la migración de recuperación en la DB de validación; las suites prueban
+las migraciones también sobre PostgreSQL aislado. TLS, CA, certificados, Caddy,
+hostname, confianza y `ignoreHTTPSErrors:false` permanecen sin cambios. Los nueve
+proyectos de cada plataforma mantienen el control negativo de certificado ajeno.
+
+Las primeras U/V fallaron por módulos ausentes antes de implementar. Se corrigió
+un nombre de columna del helper de Outbox y se hicieron deterministas las carreras
+con barreras. Un proceso nativo de Jest terminó con `0xC0000409`; la ejecución
+completa de contratos sin caché terminó 53/53 y salida 0. No se atribuye una causa
+confirmada ni se cambian versiones por ese incidente.
+
+El primer smoke E detectó la navegación por fragmento sin recarga en `/recuperar`;
+se añadió su manejo y el flujo final pasó en los 18 proyectos. Ese fallo dejó un
+enlace en el reporte: se redactaron el texto y ZIP HTML históricos conservando el
+fallo y los resultados. Playwright incorpora ahora un reporter de redacción previo
+a list/HTML/JSON/JUnit; siguen desactivadas trazas, capturas y vídeo. Se verificaron
+los patrones sensibles de toda la evidencia US3, sin imprimir sus valores.
+
+Evidencia ignorada: `tecnologia/.local/evidencia/001/us3/`: cuatro JUnit U/I/C/V,
+`cobertura-us3.json` (diez CA en todos sus niveles exigidos), `verificacion.json`,
+`contenedor.json`, `proxy.json`, `secretos-reportes.json`, `e2e-linux/` y
+`e2e-windows/`. Se conservan los intentos smoke redactados. Imagen E Linux:
+`sha256:4a1e7b64ad253ba87a55659b1e888a99ed0b23877a23e64c6f72dbd88e4b3b1f`;
+imagen backend: `sha256:856fdf8e3cbc88b4bd32024b31d8a3b2766f437d891177feb4d68510cf723067`.
+
+**Bloqueos de US3: ninguno.** Se detiene al completar T062; T063 y posteriores
+siguen pendientes. Se conservan estas limitaciones:
+
+- Corpus completo, versionado y aprobado de producción pendiente como entrada del
+  despliegue. El fixture de validación no lo sustituye y se rechaza en producción.
+  Registro y recuperación requieren catálogo preparado; login no lo consulta.
+- Inspector SameSite de WebKit Windows: informa None aunque la cabecera es Lax.
+  Se mantiene la comprobación Lax en la cabecera en todos los motores, la lectura
+  Lax en Linux/Chromium/Firefox y la anotación nativa existente; detalle y referencia
+  en el histórico de US2 y `tecnologia/frontend/TLS-PRUEBAS.md`.
+- Consulta/edición general del perfil reservada a US5. US1 conserva la proyección
+  inicial en memoria tras registro/login; no se adelanta `GET /perfil`.
+- Historias restantes, T115/cobertura global, rendimiento/usabilidad y DoD de CI,
+  revisión y fusión pendientes según sus tareas. Esta entrega acredita solo US3
+  y sus regresiones locales; no acredita la funcionalidad 001 ni el MVP completos.
+
+## Histórico: entrega de fundación, US1 y US2
 
 Fecha local: 2026-11-16 (America/Mexico_City). Continuación autorizada:
 **solo US2, T037–T048**, desde la primera tarea pendiente T037.

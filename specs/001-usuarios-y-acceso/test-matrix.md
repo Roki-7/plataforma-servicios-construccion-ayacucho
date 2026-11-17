@@ -1,7 +1,7 @@
 # Matriz de validación — 53 escenarios de 001
 
-**Estado**: CA-REG-01–11 de US1 y CA-SES-01–09 de US2 implementados y verificados
-en sus niveles aplicables U/I/C/V/E; los otros 33 CA siguen planificados. Resultados y evidencia en
+**Estado**: CA-REG-01–11 de US1, CA-SES-01–09 de US2 y CA-REC-01–10 de US3 implementados y verificados
+en sus niveles aplicables U/I/C/V/E; los otros 23 CA siguen planificados. Resultados y evidencia en
 [implementation-status.md](implementation-status.md). Se conservan todos los
 criterios y niveles normativos de las 53 filas.
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).

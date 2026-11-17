@@ -1,0 +1,22 @@
+import { expect, test } from '@jest/globals';
+import { validarRecuperacion, type Recuperacion } from '../../../src/modulos/usuarios-acceso/dominio/recuperacion.js';
+import { politicaNuevaContrasena } from '../../../src/modulos/usuarios-acceso/dominio/politica-contrasena.js';
+import { idCuenta } from '../../../src/modulos/usuarios-acceso/dominio/identificadores.js';
+import { ConsumirRecuperacion } from '../../../src/modulos/usuarios-acceso/aplicacion/consumir-recuperacion.js';
+import type { RepositorioCuentas } from '../../../src/modulos/usuarios-acceso/aplicacion/puertos/puertos.js';
+import type { RepositorioRecuperaciones } from '../../../src/modulos/usuarios-acceso/aplicacion/puertos/recuperacion.js';
+const usuarioId = idCuenta('550e8400-e29b-41d4-a716-446655440000');
+const inicio = new Date('2026-11-16T00:00:00Z');
+const desafio = (): Recuperacion => ({ id: '550e8400-e29b-41d4-a716-446655440001', usuarioId, proposito: 'recuperacion', tokenDigest: new Uint8Array(32), emitidaEn: inicio, venceEn: new Date(+inicio + 1800000), consumidaEn: null, invalidadaEn: null, version: 1 });
+test.each([1799999, 1800000, 1800001])('CA-REC-03 límite %i ms', (ms) => { const ejecutar = () => validarRecuperacion(desafio(), usuarioId, 1, new Date(+inicio + ms)); if (ms < 1800000) expect(ejecutar).not.toThrow(); else expect(ejecutar).toThrow(); });
+test('CA-REC-03 no basta con no haber vencido si ya se consumió o invalidó', () => { expect(() => validarRecuperacion({ ...desafio(), consumidaEn: inicio }, usuarioId, 1, inicio)).toThrow(); expect(() => validarRecuperacion({ ...desafio(), invalidadaEn: inicio }, usuarioId, 1, inicio)).toThrow(); });
+test('CA-REC-07 propósito, titular, versión y token desconocido', () => { for (const valor of [null, { ...desafio(), proposito: 'cambio_correo' }, { ...desafio(), version: 2 }, { ...desafio(), usuarioId: idCuenta('550e8400-e29b-41d4-a716-446655440002') }]) expect(() => validarRecuperacion(valor, usuarioId, 1, inicio)).toThrow(); });
+test.each([14, 15, 128, 129])('CA-REC-10 %i puntos de código suplementarios completos', async (n) => { const p = '𠮷'.repeat(n); const validar = politicaNuevaContrasena(p, p, { preparada: async () => true, rechazada: async () => false }); if (n === 15 || n === 128) await expect(validar).resolves.toBeUndefined(); else await expect(validar).rejects.toThrow(); });
+test('CA-REC-10 confirmación distinta y catálogo rechazan sin normalizar espacios', async () => { await expect(politicaNuevaContrasena(' clave con espacios ', 'clave con espacios', { preparada: async () => true, rechazada: async () => false })).rejects.toThrow(); await expect(politicaNuevaContrasena(' clave con espacios ', ' clave con espacios ', { preparada: async () => true, rechazada: async () => true })).rejects.toMatchObject({ codigo: 'CONTRASENA_NO_ADMITIDA' }); });
+test('CA-REC-03 puertos: hash fuera de locks y reloj leído después del bloqueo', async () => {
+  let ahora = inicio; let bloqueada = false; let hashFuera = false;
+  const cuentas = { bloquear: async () => { bloqueada = true; return { id: usuarioId, correo: 'ficticio@example.invalid' }; } } as unknown as RepositorioCuentas;
+  const repo = { buscarPorDigest: async () => desafio(), bloquear: async () => { ahora = desafio().venceEn; return desafio(); }, establecerContrasena: async () => { throw new Error('No debe escribir tras el límite.'); } } as unknown as RepositorioRecuperaciones;
+  const caso = new ConsumirRecuperacion(cuentas, repo, { revocarTodas: async () => { throw new Error('No revocar.'); } }, { consultarRecuperacion: async () => null, ejecutar: async (_s, trabajo) => trabajo({ id: 'tx-ficticia' }) }, { ahora: () => ahora }, { uuid: () => '', secreto: () => '', digest: () => new Uint8Array(32) }, { crear: async () => { hashFuera = !bloqueada; return '$argon2id$ficticio'; }, verificar: async () => false }, { preparada: async () => true, rechazada: async () => false }, { programar: async () => { throw new Error('No avisar.'); } }, { recuperacion: () => ({ asunto: '', texto: '' }), avisoRecuperacion: () => ({ asunto: '', texto: '' }) });
+  await expect(caso.ejecutar('a'.repeat(43), { nuevaContrasena: ' nueva frase privada ', confirmacionContrasena: ' nueva frase privada ', version: 1 }, 'clave-ficticia-suficiente')).rejects.toMatchObject({ codigo: 'RECUPERACION_NO_VALIDA' }); expect(hashFuera).toBe(true);
+});

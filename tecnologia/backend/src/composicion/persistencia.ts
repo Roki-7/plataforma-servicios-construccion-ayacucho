@@ -7,7 +7,9 @@ import { Fotografias1794830400005 } from '../modulos/usuarios-acceso/infraestruc
 import { cuentaEntity, perfilHabilitadoEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/cuenta.entity.js';
 import { sesionEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/sesion.entity.js';
 import { fotografiaEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/fotografia.entity.js';
+import { Recuperaciones1794830400006 } from '../modulos/usuarios-acceso/infraestructura/migraciones/006-recuperaciones.js';
+import { recuperacionEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/recuperacion.entity.js';
 
 export function persistenciaFundacional(url: string) {
-  return crearDataSource(url, { migrations: [Cuentas1794830400001, Sesiones1794830400002, Idempotencia1794830400003, Avisos1794830400004, Fotografias1794830400005], entities: [cuentaEntity, perfilHabilitadoEntity, sesionEntity, fotografiaEntity] });
+  return crearDataSource(url, { migrations: [Cuentas1794830400001, Sesiones1794830400002, Idempotencia1794830400003, Avisos1794830400004, Fotografias1794830400005, Recuperaciones1794830400006], entities: [cuentaEntity, perfilHabilitadoEntity, sesionEntity, fotografiaEntity, recuperacionEntity] });
 }
