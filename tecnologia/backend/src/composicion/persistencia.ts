@@ -9,7 +9,9 @@ import { sesionEntity } from '../modulos/usuarios-acceso/infraestructura/persist
 import { fotografiaEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/fotografia.entity.js';
 import { Recuperaciones1794830400006 } from '../modulos/usuarios-acceso/infraestructura/migraciones/006-recuperaciones.js';
 import { recuperacionEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/recuperacion.entity.js';
+import { Consentimientos1794830400007 } from '../modulos/usuarios-acceso/infraestructura/migraciones/007-consentimientos.js';
+import { consentimientoEntity } from '../modulos/usuarios-acceso/infraestructura/persistencia/consentimiento.entity.js';
 
 export function persistenciaFundacional(url: string) {
-  return crearDataSource(url, { migrations: [Cuentas1794830400001, Sesiones1794830400002, Idempotencia1794830400003, Avisos1794830400004, Fotografias1794830400005, Recuperaciones1794830400006], entities: [cuentaEntity, perfilHabilitadoEntity, sesionEntity, fotografiaEntity, recuperacionEntity] });
+  return crearDataSource(url, { migrations: [Cuentas1794830400001, Sesiones1794830400002, Idempotencia1794830400003, Avisos1794830400004, Fotografias1794830400005, Recuperaciones1794830400006, Consentimientos1794830400007], entities: [cuentaEntity, perfilHabilitadoEntity, sesionEntity, fotografiaEntity, recuperacionEntity, consentimientoEntity] });
 }

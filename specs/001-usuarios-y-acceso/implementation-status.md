@@ -1,4 +1,269 @@
-# Estado de implementación: fundación, US1, US2 y US3 de 001
+# Estado de implementación: fundación, US1–US3 y US5 de 001
+
+Fecha local: 2026-11-17 (America/Mexico_City). Continuación autorizada:
+**solo US5, T063–T076**, desde la primera tarea pendiente T063.
+**14/14 implementadas y verificadas localmente**. Se conservan US1–US3 y TLS.
+El backlog mantiene **119 tareas: 76 terminadas y 43 pendientes**; la siguiente
+es **T077 (US4), no iniciada**. Se acreditan acumulativamente 36 de los 53 CA:
+11 REG, nueve SES, diez REC y seis PER nuevos. La auditoría posterior de esta
+sección complementa la evidencia histórica de REC sobre el código actual.
+Los otros 17 CA y la DoD global de CI, revisión y fusión permanecen pendientes.
+
+## Auditoría de regresión US3 → US5 (2026-11-17)
+
+Se compararon primero los JUnit y JSON históricos, sin reescribirlos. La diferencia
+de cifras corresponde a **selección de suites**, no a cinco o una pruebas borradas:
+el cierre US5 seleccionó fundación/registro/sesiones/perfil y dejó fuera recuperación.
+La justificación de aplazar T110 se refiere a las **nuevas variantes conjuntas de
+recuperación y edición de perfil**; no sustituye la regresión independiente de
+recuperación tras cambios compartidos. Esa ausencia se trató como un vacío y se
+cubrió ejecutando solamente las suites existentes de recuperación, sin desarrollar
+ni marcar T110 y sin iniciar US4.
+
+### Comandos e inclusión efectiva en los cierres
+
+Directorio de trabajo backend: `tecnologia/backend`. Los scripts de `package.json`
+seleccionan el proyecto Jest `unit`, `integration` o `contract`; `jest.config.mjs`
+descubre `test/<proyecto>/**/*.spec.ts`. El filtro adicional de US5 seleccionó los
+archivos cuyo nombre/ruta coincide con fundacion, registro, sesiones o perfil.
+
+| Nivel | Cierre US3 | Cierre US5 |
+|---|---|---|
+| U | `npm.cmd run test:unit` | `npm.cmd run test:unit -- --testPathPatterns fundacion registro sesiones perfil --no-cache` |
+| I | `npm.cmd run test:integration -- --runInBand` | `npm.cmd run test:integration -- --runInBand --testPathPatterns fundacion registro sesiones perfil --no-cache` |
+| C | `npm.cmd run test:contract -- --no-cache` | `npm.cmd run test:contract -- --testPathPatterns fundacion registro sesiones perfil --no-cache` |
+
+Los JUnit no contienen argv: estos comandos proceden del registro de ejecución y
+del cierre documentado. La inclusión real se comprobó por las identidades
+`classname + name`, multiplicidad, número de casos y estados en cada reporte,
+no deduciéndola únicamente del comando o del total.
+
+Las rutas I son relativas a `tecnologia/backend/test/integration/`; las C, a
+`tecnologia/backend/test/contract/`. Cada fila identifica un archivo en ambas raíces:
+
+| Archivo / suite | I US3 | I US5 | C US3 | C US5 |
+|---|---:|---:|---:|---:|
+| `fundacion.spec.ts` | 6 | 6 | 5 | 5 |
+| `usuarios-acceso/registro.spec.ts` | 10 | 10 | 26 | 26 |
+| `usuarios-acceso/sesiones.spec.ts` | 19 | 19 | 13 | 13 |
+| `usuarios-acceso/recuperacion.spec.ts` | 14 | 0 | 9 | 0 |
+| `usuarios-acceso/perfil.spec.ts` | 0 | 9 | 0 | 8 |
+| **Total** | **49** | **44** | **53** | **52** |
+
+Por tanto: **49 − 14 REC + 9 PER = 44** en integración y
+**53 − 9 REC + 8 PER = 52** en contrato. Los 35 casos I y 44 C comunes de
+fundación/US1/US2 permanecen presentes, con las mismas identidades y aprobados.
+
+La comparación también comprobó los demás niveles para evitar una conclusión
+incompleta sobre US1–US3:
+
+- U: US3 incluía `tecnologia/backend/test/unit/fundacion.spec.ts` y
+  `usuarios-acceso/{registro,sesiones,recuperacion}.spec.ts` bajo esa raíz;
+  10 + 32 + 15 + 11 = 68. US5 reemplazó recuperación por `perfil.spec.ts`
+  (14): 71. Los 11 REC quedaron fuera de ese comando.
+- V, desde `tecnologia/frontend`: US3 ejecutó `npm.cmd run test:unit` con
+  `test/unit/fundacion.test.ts` y
+  `test/unit/usuarios-acceso/{registro,sesiones,recuperacion}.test.tsx`;
+  7 + 7 + 9 + 6 = 29. US5 ejecutó `npm.cmd run test:unit -- test/unit/fundacion.test.ts test/unit/usuarios-acceso/registro.test.tsx test/unit/usuarios-acceso/sesiones.test.tsx test/unit/usuarios-acceso/perfil.test.tsx`;
+  añadió ocho PER y no seleccionó los seis REC: 31.
+- E, desde `tecnologia/frontend`: US3 ejecutó `npm.cmd run test:e2e:container`
+  y `npm.cmd run test:e2e:windows`, con `test/e2e/fundacion.spec.ts` y
+  `test/e2e/usuarios-acceso/{registro,sesiones,recuperacion}.spec.ts`.
+  Cada entorno tuvo nueve proyectos: 9 fundación + 18 REG + 9 SES + 9 REC = 45.
+  US5 pasó los cuatro archivos explícitos `test/e2e/fundacion.spec.ts`,
+  `test/e2e/usuarios-acceso/registro.spec.ts`, `sesiones.spec.ts` y `perfil.spec.ts`
+  (los tres últimos bajo `test/e2e/usuarios-acceso/`) a ambos scripts mediante
+  `npm.cmd run <script> -- <archivos>`; sustituyó nueve REC por nueve PER y
+  conservó el total 45. Las repeticiones posteriores de US5 seleccionaron solo
+  `test/e2e/usuarios-acceso/perfil.spec.ts`: no aportaban cobertura de REC.
+
+Los reportes comparados son los cuatro JUnit bajo
+`tecnologia/.local/evidencia/001/us3/` y `us5/`, más
+`us3/e2e-linux/playwright.json`, `us3/e2e-windows/playwright.json`,
+`us5/e2e-linux/playwright.json` y
+`us5/matriz-final/e2e-windows/playwright.json`, todos relativos a la misma raíz
+`tecnologia/.local/evidencia/001/`. Los reintentos/incidentes históricos de US3 y
+US5 siguen en sus carpetas; no explican esta diferencia de selección.
+
+### Comprobación de permanencia y cierre del vacío
+
+- Se inventariaron por hash los **20 archivos anteriores** de fundación, registro,
+  sesiones y recuperación, en backend U/I/C y frontend V/E. Permanecen iguales
+  al HEAD `7f19964a8453dd41db95ac1f283aca92c702d45d`, que contiene US3.
+  No se eliminaron casos ni se añadieron `skip`, `todo` u `only` a esas suites.
+- Los casos ausentes en US5 fueron exactamente REC: 11 U, 14 I, nueve C, seis V
+  y nueve E por entorno. Los casos nuevos fueron exclusivamente PER. No hay
+  desapariciones o renombres de casos de fundación/registro/sesiones.
+- No hubo casos omitidos en los reportes de cierre comparados. REC estuvo
+  **excluida por el filtro**, no marcada como skipped por el ejecutor.
+- Se repitieron únicamente los cinco archivos de recuperación ya existentes,
+  con PostgreSQL/Mailpit reales y TLS estricto donde corresponde. No se modificó
+  aplicación ni pruebas durante esta auditoría.
+
+| Ejecución complementaria | Comando | Resultado |
+|---|---|---:|
+| U, backend | `npm.cmd run test:unit -- --testPathPatterns=recuperacion --no-cache` | **11/11** |
+| I, backend | `npm.cmd run test:integration -- --runInBand --testPathPatterns=recuperacion --no-cache` | **14/14** |
+| C, backend | `npm.cmd run test:contract -- --testPathPatterns=recuperacion --no-cache` | **9/9** |
+| V, frontend | `npm.cmd run test:unit -- test/unit/usuarios-acceso/recuperacion.test.tsx --outputFile=../.local/evidencia/001/auditoria-us3-us5/frontend-recuperacion-junit.xml` | **6/6** |
+| E Linux, frontend | `npm.cmd run test:e2e:container -- --sin-construir test/e2e/usuarios-acceso/recuperacion.spec.ts` | **9/9** |
+| E Windows, frontend | `npm.cmd run test:e2e:windows -- test/e2e/usuarios-acceso/recuperacion.spec.ts` | **9/9** |
+
+Se reutilizó la imagen Linux verificada de US5 por el mismo digest. Los nuevos
+JUnit se dirigieron mediante `JEST_JUNIT_OUTPUT_DIR` y `JEST_JUNIT_OUTPUT_NAME`
+a `tecnologia/.local/evidencia/001/auditoria-us3-us5/`; Vitest usó `--outputFile`
+y Playwright `E2E_EVIDENCIA` en esa carpeta, sin sobrescribir los cierres.
+Las identidades de todos los REC repetidos coinciden con las ausentes de US5 y
+presentes en US3. Salidas 0, cero fallos/omisiones y cero reintentos E.
+
+La unión verificable de US5 y estas ejecuciones complementarias cubre 82 U,
+**58 I**, **61 C**, 37 V y 54 E por entorno, incluidos PER y todos los anteriores.
+Son casos únicos consolidados de ejecuciones disjuntas, **no** una ejecución
+monolítica nueva ni una acreditación de T110. Los totales históricos 49/53 y 44/52
+se conservan tal como se ejecutaron.
+
+Evidencia nueva ignorada: `tecnologia/.local/evidencia/001/auditoria-us3-us5/`.
+`inventario-inicial.json` registra cada identidad, diferencias, archivos y hashes;
+`comandos.json`, comandos y directorios; `verificacion.json`, comprobaciones y
+resultados consolidados; JUnit/JSON/HTML y `ejecucion.json`, resultados nuevos;
+`secretos-reportes.json`, inspección sin hallazgos de tokens, incluidos los ZIP
+HTML. Se comprobaron **83 archivos históricos sin ninguna alteración de hash**.
+
+**Resultado: regresión independiente de US1–US3 cubierta sobre el código actual,
+sin bloqueo real de esta auditoría.** T110 sigue pendiente de las variantes
+conjuntas nuevas y sus demás dependencias; T077/US4 no se inició. El corpus
+productivo aprobado y los demás pendientes/limitaciones históricos se mantienen.
+
+## Resultado de US5
+
+- `GET /api/v1/perfil` obtiene la cuenta desde la sesión vigente. Devuelve solo
+  el DTO privado Perfil: identidad, nombre de persona o empresa, correo de lectura,
+  teléfono/distrito/foto nullable, perfiles habilitados, versión y consentimiento
+  efectivo. No devuelve hash, tokens, HMAC ni datos de otra cuenta. La consulta
+  general permite usar los perfiles existentes tras recargar, sin la proyección
+  provisional en memoria que US1 mantenía hasta esta historia.
+- `PATCH /api/v1/perfil` admite únicamente nombre para mostrar, teléfono, distrito,
+  fotografía y decisión explícita de compartir teléfono, además de la versión.
+  Conserva los límites de 200/32/100 puntos de código, Unicode válido, nombre no
+  vacío y opcionales nullable. UUID, correo, contraseña, perfiles y administración
+  no son editables aquí. US6 y US7 continúan pendientes.
+- Bloqueo de cuenta→sesión y compare-and-set de versión; toda modificación efectiva
+  incrementa la versión del agregado. Un no-op no la incrementa. Campos no enviados,
+  identidad, credenciales y privacidad de registro permanecen intactos. La versión
+  obsoleta devuelve 409 sin sobrescritura. Resultado idempotente y cambios de
+  perfil, consentimiento y referencias de foto se confirman en el mismo commit.
+  El replay exige sesión vigente; otro cuerpo con la misma clave devuelve 409.
+- Migración `007-consentimientos.ts`: titular, HMAC del teléfono, fechas del servidor
+  y versión. Registrar un número no crea autorización. `true` explícito autoriza
+  el valor vigente o enviado; `false` retira. Cambiar el número revoca la autorización
+  anterior y no la revive al volver al número previo. El HMAC separa propósito,
+  cuenta y valor, y verifica claves conservadas ante rotación sin guardar otro
+  teléfono en claro en la tabla de consentimiento.
+- La proyección compartible **interna** de T069 queda entregada y probada en U/I/C:
+  allowlist de nombre, distrito y perfiles; teléfono solo con consentimiento
+  efectivo del mismo valor. Excluye correo, documentos, dirección exacta,
+  identificadores internos y credenciales. No crea endpoint público ni RF10.
+  US4 reutilizará esta función en T082.
+- `POST /perfil/fotografias` valida MIME, base64 canónico, contenido JPG/PNG/WEBP
+  y máximo de 10000000 bytes, almacena el objeto y crea una referencia propia
+  temporal con resultado idempotente. Subir no guarda todavía el perfil.
+  `GET /perfil/fotografias/{fotografiaId}` comprueba propietario antes del objeto
+  y devuelve solo JSON/base64. Foto ajena, inexistente o no utilizable → 404;
+  objeto ausente/corrupto → 503, sin publicar bucket ni clave.
+- PATCH solo vincula una foto propia utilizable. Reemplazar/quitar marca la anterior
+  para eliminación en el commit; no la borra antes de confirmar. Si falla DB,
+  conserva foto vigente, campos y consentimiento. Fallos de compensación dejan
+  huérfanos que la limpieza existente recupera. Las pruebas aíslan objetos con
+  prefijos únicos y comprueban eliminación y preservación de referencias activas.
+- Web `/cuenta` y `/habilitar-perfil`: consulta real, edición, incorporación de
+  perfiles y foto obtenida por API mediante object URL revocada al cambiar o
+  desmontar. La autorización del teléfono es un control independiente y se
+  desmarca al editar el valor. El formulario distingue carga temporal y guardado;
+  bloquea controles durante ambas operaciones. Un 409 conserva el borrador y
+  exige recarga explícita, sin reintentar con otra versión automáticamente.
+  Los cambios de correo/contraseña se indican como próximos flujos específicos.
+  No se presentan como operativos. Intentos pendientes se retiran al perder sesión.
+
+## Trazabilidad y pruebas de US5
+
+HU02 → RF05 → FR-015–018/021/031 → AC04/EQ-04 y EQ-07 → DA03/DA10 →
+ADR-002/003/004/005/006/011 → Usuarios y acceso → PR04/PR07/PR12 → 001.
+
+| Tareas | Componentes principales | Evidencia propia |
+|---|---|---|
+| T063, T068–T070 | Dominio de consentimiento/edición, migración/entidad, DTO privado y proyección compartible | 14 U sin DB: allowlist, Unicode/límites, valor autorizado, retiro/cambio y exclusión de privados. |
+| T064, T070–T071 | Consulta/actualización, repositorios de perfil/consentimiento y fotografías | 9 I: PostgreSQL real y S3 compatible, persistencia, dos ediciones simultáneas, replay, revocación previa, rollback completo, objetos ausentes y cleanup tras compensación fallida. |
+| T065, T069, T072 | Controladores de perfil/fotos y composición | 8 C: cuatro operaciones, DTO OpenAPI, 400/401/404/409/413/503, titularidad, propiedades prohibidas, proyección interna serializada y límite inclusivo de imagen. |
+| T066, T073–T074 | Casos web, Perfil/EditarPerfil y foto por API | 8 V: empresa/opcionales, errores, conflicto/borrador, autorización no heredada, carga temporal frente a guardado y revocación de object URL. |
+| T067, T075–T076 | Rutas, cuenta con ambos perfiles y pruebas E | Nueve proyectos por entorno: consulta/edición/recarga, foto, dos sesiones editoras independientes, conflicto y consentimiento true/false/cambio de número. |
+
+Archivos de prueba `perfil.spec.ts` en backend U/I/C y frontend E, y
+`perfil.test.tsx` en frontend V, bajo las raíces de la matriz normativa.
+Los nombres conservan CA-PER-01–06; `cobertura-us5.json` vincula cada CA con todos
+sus niveles requeridos. No es cobertura de líneas ni sustituye T115.
+
+## Verificación de US5 y regresiones pertinentes
+
+| Comprobación | Resultado |
+|---|---|
+| Backend U/I/C | **71/71**, **44/44**, **52/52**; 14/9/8 nuevas, más fundación/US1/US2; salida 0 |
+| Frontend V | **31/31**; ocho nuevas y 23 de fundación/US1/US2 |
+| Tipos, lint y compilación | Aprobados en ambos proyectos |
+| Arquitectura | Sin infracciones: 122 módulos y 368 dependencias |
+| Linux Chromium/Firefox/WebKit × 360/768/1366 | **45/45**, cero omitidos/reintentos; incluye nueve US5 y 36 de regresión |
+| US5 al reanudar, con consulta sincronizada | **9/9 Linux y 9/9 Windows**, cero omitidos/reintentos |
+| Windows nativo, misma matriz completa | **45/45**, cero omitidos/reintentos |
+| Imagen backend compilada | UID 1000, Argon2 nativo, salud 200/503/503; perfil/foto sin sesión 401/401; controles previos de sesiones/recuperación conservados |
+| Proxy HTTPS | Salud/web 200; excesos de 64 KiB/14 MB → 413 JSON y no-store |
+
+Se aplicó la migración 007 en validación; las suites verificaron todas las
+migraciones en DB aisladas. TLS, CA, certificados, hostname, Caddy, confianza y
+`ignoreHTTPSErrors:false` no se modificaron. Se conservan los controles negativos
+por proyecto y la limitación documentada del inspector SameSite de WebKit Windows.
+
+Las U/V iniciales fallaron por módulos ausentes antes de implementar. La prueba C
+de imagen grande descubrió un `RangeError` del formato byte de ajv-formats y un
+400 incorrecto: se reemplazó la expresión agrupada por validación base64 canónica
+acotada y se comprueba el tamaño decodificado antes del esquema. Se verificaron
+una imagen válida de exactamente 10000000 bytes y el rechazo 413 de 10000001,
+sin cambiar los límites ni el contrato. El primer filtro de Jest con alternancia
+se corrigió para npm/Windows; no llegó a ejecutar pruebas. No reapareció el cierre
+nativo histórico de Jest en la regresión final sin caché.
+
+Evidencia ignorada: `tecnologia/.local/evidencia/001/us5/`, con JUnit U/I/C/V,
+`cobertura-us5.json`, `verificacion.json`, salidas, `contenedor.json`, `proxy.json`,
+`secretos-reportes.json`, primera matriz Linux y smoke Chromium.
+`matriz-final/e2e-linux/` conserva el intento 7/9 y sus dos fallos;
+`matriz-final/e2e-windows/`, la matriz nativa completa 45/45.
+`reanudacion/e2e-linux/` y `reanudacion/e2e-windows/` conservan los 9/9
+recorridos de US5 en cada entorno tras corregir la sincronización.
+Se inspeccionan también los ZIP embebidos de los reportes HTML para patrones de
+token de recuperación, Bearer y cookie sin redactar, sin imprimir valores.
+
+La ejecución se reanudó tras el límite de uso. Se recuperaron los resultados de
+71 U, 44 I, 52 C, 31 V y ambas matrices completas 45/45. La repetición Linux
+posterior quedó en 7/9: WebKit 768/1366 agotó la aserción de cinco segundos mientras
+la pantalla mostraba «Cargando mi cuenta…». Al retomar, Docker y los servidores
+estaban detenidos. Se restauraron sin cambiar TLS. La prueba ahora espera el
+GET `/perfil` real con status 200 antes del contenido, también al recargar o abrir
+otro editor. Mantiene el presupuesto total y no introduce retry automático.
+No se cambió código funcional al reanudar; se repitieron los nueve proyectos
+US5 en Linux y Windows y pasaron tipos/lint afectados. El intento fallido se conserva.
+
+**Bloqueos de US5: ninguno.** Se detiene después de T076; T077/US4 y posteriores
+no se inician. La regresión **conjunta recuperación/perfil queda pendiente en
+T110**, según el orden corregido: esta entrega no la adelanta ni la acredita.
+US3 conserva sus diez CA y evidencia de la entrega anterior.
+
+El corpus completo, versionado y aprobado de producción sigue pendiente del
+despliegue; el fixture no lo sustituye y se rechaza en producción. Se conserva
+íntegro el histórico US1–US3, incluidos incidentes de Jest, navegación por
+fragmento, reportes redactados y limitaciones TLS/plataforma. La consulta de perfil
+que esos históricos reservaban a US5 queda resuelta aquí; sus estados y cifras
+anteriores no describen el estado actual. US4/US6/US7, cierre transversal,
+rendimiento/usabilidad y DoD global siguen pendientes.
+
+## Histórico: entrega de fundación, US1, US2 y US3
 
 Fecha local: 2026-11-16 (America/Mexico_City). Continuación autorizada:
 **solo US3, T049–T062**, desde la primera tarea pendiente T049.

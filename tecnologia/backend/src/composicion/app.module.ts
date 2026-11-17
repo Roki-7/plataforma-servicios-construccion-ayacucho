@@ -22,6 +22,14 @@ import { SolicitarRecuperacion } from '../modulos/usuarios-acceso/aplicacion/sol
 import { ConsumirRecuperacion } from '../modulos/usuarios-acceso/aplicacion/consumir-recuperacion.js';
 import { RecuperacionController, SERVICIOS_RECUPERACION } from '../modulos/usuarios-acceso/presentacion/recuperacion.controller.js';
 import { PlantillasSeguridad } from '../modulos/notificaciones/infraestructura/plantillas-seguridad.js';
+import { ConsultarPerfil } from '../modulos/usuarios-acceso/aplicacion/consultar-perfil.js';
+import { ActualizarPerfil } from '../modulos/usuarios-acceso/aplicacion/actualizar-perfil.js';
+import { Fotografias } from '../modulos/usuarios-acceso/aplicacion/fotografias.js';
+import { RepositorioPerfilPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/repositorio-perfil.js';
+import { RepositorioConsentimientosPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/repositorio-consentimientos.js';
+import { HuellasTelefonoHmac } from '../modulos/usuarios-acceso/infraestructura/seguridad/huellas-telefono.js';
+import { PerfilController, SERVICIOS_PERFIL } from '../modulos/usuarios-acceso/presentacion/perfil.controller.js';
+import { FotografiasController, SERVICIO_FOTOGRAFIAS } from '../modulos/usuarios-acceso/presentacion/fotografias.controller.js';
 import { HashArgon2id } from '../modulos/usuarios-acceso/infraestructura/seguridad/argon2id.js';
 import { CatalogoLocal } from '../modulos/usuarios-acceso/infraestructura/seguridad/catalogo-contrasenas.js';
 import { LectorSesionPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/lector-sesion.js';
@@ -52,7 +60,11 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   const cliente = new S3Client({ endpoint: config.s3.endpoint, region: config.s3.region, credentials: { accessKeyId: config.s3.accessKeyId, secretAccessKey: config.s3.secretAccessKey }, forcePathStyle: true, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
   const fotos = new FotografiasS3(cliente, config.s3.bucket, db, uow);
   const lector = new LectorSesionPostgres(db, reloj);
-  const cuentas = new RepositorioCuentasPostgres(db, uow);
+  const consentimientos = new RepositorioConsentimientosPostgres(uow,new HuellasTelefonoHmac(config.hmac,config.hmacId));
+  const cuentas = new RepositorioCuentasPostgres(db, uow, consentimientos);
+  const perfiles = new RepositorioPerfilPostgres(uow);
+  const serviciosPerfil = { consultar:new ConsultarPerfil(cuentas,lector,uow,reloj),actualizar:new ActualizarPerfil(cuentas,perfiles,consentimientos,fotos,idempotencia,lector,reloj) };
+  const servicioFotografias = new Fotografias(cuentas,fotos,idempotencia,lector,reloj);
   const registrar = new RegistrarCuenta(cuentas, idempotencia, hash, catalogo, reloj, new SecretosCrypto(), fotos);
   const habilitar = new HabilitarPerfil(cuentas, idempotencia, lector, reloj);
   const sesiones = new RepositorioSesionesPostgres(db, uow); const secretos = new SecretosCrypto(); const csrf = new CsrfHmac(config.hmac, config.hmacId);
@@ -70,7 +82,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   const salud = { disponible: async () => {
     try {
       await conectar();
-      const tablas: { lista: boolean }[] = await db.query("SELECT count(*)=7 AS lista FROM unnest(ARRAY['usuarios','perfiles_habilitados','sesiones','claves_idempotencia','avisos_pendientes','fotografias_perfil','recuperaciones_acceso']) t WHERE to_regclass(t) IS NOT NULL");
+      const tablas: { lista: boolean }[] = await db.query("SELECT count(*)=8 AS lista FROM unnest(ARRAY['usuarios','perfiles_habilitados','sesiones','claves_idempotencia','avisos_pendientes','fotografias_perfil','recuperaciones_acceso','consentimientos_telefono']) t WHERE to_regclass(t) IS NOT NULL");
       return tablas[0]?.lista === true && await catalogo.preparada();
     } catch { return false; }
   } };
@@ -80,7 +92,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   }, 60000);
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
-  @Module({ controllers: [SaludController, RegistroController, SesionesController, RecuperacionController], providers: [{ provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
+  @Module({ controllers: [SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
   class AppModule {}
   const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
   await configurarApi(app, { origen: config.origen, contrato: config.contrato });
@@ -88,5 +100,5 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   app.enableShutdownHooks();
   await app.init();
   if (opciones.worker !== false) worker.iniciar();
-  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion };
+  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion, consentimientos, perfiles, serviciosPerfil, servicioFotografias };
 }

@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-16. **Estado**: preparación, fundación, US1, US2 y US3 implementadas y verificadas;
+**Fecha**: 2026-11-17. **Estado**: preparación, fundación, US1–US3 y US5 implementadas y verificadas;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -9,7 +9,8 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
-US1 (T024–T036), US2 (T037–T048) y US3 (T049–T062) están verificadas; T063–T119 siguen pendientes.
+US1 (T024–T036), US2 (T037–T048), US3 (T049–T062) y US5 (T063–T076) están verificadas;
+T077–T119 siguen pendientes. La regresión conjunta recuperación/perfil permanece en T110.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -174,23 +175,23 @@ a US4; T082 conserva únicamente su integración y validación transversal poste
 
 ### Pruebas primero
 
-- [ ] T063 [P] [US5] Escribir U de CA-PER-03, CA-PER-04 y CA-PER-06 en `tecnologia/backend/test/unit/usuarios-acceso/perfil.spec.ts`; campos inválidos/prohibidos, proyección privada/compartible y consentimiento explícito vinculado al teléfono actual, retirada y cambio sin herencia de autorización.
-- [ ] T064 [P] [US5] Escribir I de CA-PER-01, CA-PER-02, CA-PER-03, CA-PER-04, CA-PER-05 y CA-PER-06 en `tecnologia/backend/test/integration/usuarios-acceso/perfil.spec.ts`; persistencia, dos ediciones/misma versión con un 409, rollback, conservación de campos no tocados y secretos, objeto/DB descoordinados, cleanup y teléfono privado por defecto.
-- [ ] T065 [P] [US5] Escribir C de GET/PATCH `/perfil`, POST `/perfil/fotografias` y GET `/perfil/fotografias/{fotografiaId}` para CA-PER-01, CA-PER-02, CA-PER-03, CA-PER-04, CA-PER-05 y CA-PER-06 en `tecnologia/backend/test/contract/usuarios-acceso/perfil.spec.ts`; sesión/titularidad, versión/Idempotency-Key, foto propia 404 ajena, JSON/base64/MIME/tamaño, additionalProperties=false y no correo/contraseña/UUID editables.
-- [ ] T066 [P] [US5] Escribir V de CA-PER-02 y CA-PER-03 en `tecnologia/frontend/test/unit/usuarios-acceso/perfil.test.tsx`; nombre persona/empresa, campos opcionales, foto, errores por campo y conflicto que no sobrescribe automáticamente el cambio guardado.
-- [ ] T067 [P] [US5] Escribir E de CA-PER-01, CA-PER-02, CA-PER-05 y CA-PER-06 en `tecnologia/frontend/test/e2e/usuarios-acceso/perfil.spec.ts`; consulta/edición/recarga, foto en objeto, dos editores y consentimiento true/false/cambio de número; T007.
+- [X] T063 [P] [US5] Escribir U de CA-PER-03, CA-PER-04 y CA-PER-06 en `tecnologia/backend/test/unit/usuarios-acceso/perfil.spec.ts`; campos inválidos/prohibidos, proyección privada/compartible y consentimiento explícito vinculado al teléfono actual, retirada y cambio sin herencia de autorización.
+- [X] T064 [P] [US5] Escribir I de CA-PER-01, CA-PER-02, CA-PER-03, CA-PER-04, CA-PER-05 y CA-PER-06 en `tecnologia/backend/test/integration/usuarios-acceso/perfil.spec.ts`; persistencia, dos ediciones/misma versión con un 409, rollback, conservación de campos no tocados y secretos, objeto/DB descoordinados, cleanup y teléfono privado por defecto.
+- [X] T065 [P] [US5] Escribir C de GET/PATCH `/perfil`, POST `/perfil/fotografias` y GET `/perfil/fotografias/{fotografiaId}` para CA-PER-01, CA-PER-02, CA-PER-03, CA-PER-04, CA-PER-05 y CA-PER-06 en `tecnologia/backend/test/contract/usuarios-acceso/perfil.spec.ts`; sesión/titularidad, versión/Idempotency-Key, foto propia 404 ajena, JSON/base64/MIME/tamaño, additionalProperties=false y no correo/contraseña/UUID editables.
+- [X] T066 [P] [US5] Escribir V de CA-PER-02 y CA-PER-03 en `tecnologia/frontend/test/unit/usuarios-acceso/perfil.test.tsx`; nombre persona/empresa, campos opcionales, foto, errores por campo y conflicto que no sobrescribe automáticamente el cambio guardado.
+- [X] T067 [P] [US5] Escribir E de CA-PER-01, CA-PER-02, CA-PER-05 y CA-PER-06 en `tecnologia/frontend/test/e2e/usuarios-acceso/perfil.spec.ts`; consulta/edición/recarga, foto en objeto, dos editores y consentimiento true/false/cambio de número; T007.
 
-### Implementación futura
+### Implementación verificada
 
-- [ ] T068 [US5] Crear entidad/puerto y migración de consentimiento en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/consentimiento-telefono.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/migraciones/007-consentimientos.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/consentimiento.entity.ts`: id/usuario_id «uuid PK / FK», «Titular.»; telefono_hmac «bytea», «Consentimiento vinculado al valor autorizado; no a cualquier teléfono futuro.»; autorizada_en/revocada_en «timestamptz nulo», «Autorización explícita o retiro.»; version «bigint», «Control de cambios junto a versión de perfil.»; «Registrar teléfono no crea consentimiento.» y «Cambiar el valor deja sin efecto la autorización para el valor anterior; compartir el nuevo requiere confirmación explícita.»; fecha/decisión del servidor y ninguna autorización implícita.
-- [ ] T069 [US5] Implementar consulta y DTO privado de perfil en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/consultar-perfil.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/perfil-resultado.ts`; cuenta desde sesión, solo campos Perfil de OpenAPI, opcionales nullable, perfiles, versión y estado efectivo de consentimiento, sin hashes/tokens/datos ajenos. Implementar también la proyección compartible interna en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/proyectar-perfil-compartible.ts`: excluir siempre correo/documentos/dirección exacta/credenciales y omitir teléfono salvo consentimiento efectivo de ese mismo valor. Debe estar disponible para CA-PER-04/CA-PER-06 de T063–T065 y el cierre T076; no crear endpoint, búsqueda ni perfil público RF10. US4 la reutiliza e integra en T082, sin ser prerrequisito de US5. Depende de T068 y T013.
-- [ ] T070 [US5] Implementar actualización en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/actualizar-perfil.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-consentimientos.ts`; allowlist nombre/teléfono/distrito/foto/decisión de compartir, límites literales de T030, compare-and-set de versión e incremento efectivo, foto propia utilizable, consentimiento del valor vigente/enviado e idempotencia en el commit; error conserva todo estado previo. Depende de T068–T069.
-- [ ] T071 [US5] Implementar subir/leer fotografía propia en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/fotografias.ts`; subir crea referencia temporal y resultado idempotente, PATCH vincula con versión, leer autoriza propietario antes del objeto y devuelve JSON/base64, validación de contenido/límite y limpieza sin eliminar foto vigente antes de commit. Depende de T019 y T070.
-- [ ] T072 [US5] Exponer GET/PATCH `/perfil` y las dos rutas de fotografía en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/perfil.controller.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/fotografias.controller.ts`; guard por operación, rechazar propiedades extra y no aceptar UUID de otra cuenta ni cambios de credenciales. Depende de T069–T071.
-- [ ] T073 [US5] Implementar lectura/edición web y carga coordinada de foto en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/perfil.ts`; mantener versión consultada, no reintentar 409 con sobrescritura ciega, distinguir carga temporal de guardado efectivo, confirmación de compartir separada de registrar teléfono y conservar datos no editados.
-- [ ] T074 [US5] Implementar pantalla/formulario de cuenta en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Perfil.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EditarPerfil.tsx`; nombre persona/empresa, opcionales, foto local obtenida por API con revocación de object URL, controles de consentimiento, errores y conflicto, correo/contraseña remitidos a sus flujos específicos. Depende de T073.
-- [ ] T075 [US5] Integrar cuenta, foto y habilitación en `tecnologia/backend/src/composicion/app.module.ts`, `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; exigir sesión real, mostrar ambos perfiles sin duplicar identidad y no presentar cambios de credenciales pendientes como operativos. Depende de T072 y T074.
-- [ ] T076 [US5] Ejecutar T063–T067 y regresión de registro/sesiones con datos aislados, verificando consultas y fotos protegidas, en `tecnologia/.local/evidencia/001/us5/`; comprobar explícitamente persistencia de cada campo, 409 sin sobrescritura, cleanup y proyección compartible T069 sin datos privados antes de cerrar la historia. La regresión conjunta con recuperación se ejecuta en T110 después de cerrar US3 y US5, sin bloquear su desarrollo independiente. Depende de T069 y T075.
+- [X] T068 [US5] Crear entidad/puerto y migración de consentimiento en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/consentimiento-telefono.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/migraciones/007-consentimientos.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/consentimiento.entity.ts`: id/usuario_id «uuid PK / FK», «Titular.»; telefono_hmac «bytea», «Consentimiento vinculado al valor autorizado; no a cualquier teléfono futuro.»; autorizada_en/revocada_en «timestamptz nulo», «Autorización explícita o retiro.»; version «bigint», «Control de cambios junto a versión de perfil.»; «Registrar teléfono no crea consentimiento.» y «Cambiar el valor deja sin efecto la autorización para el valor anterior; compartir el nuevo requiere confirmación explícita.»; fecha/decisión del servidor y ninguna autorización implícita.
+- [X] T069 [US5] Implementar consulta y DTO privado de perfil en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/consultar-perfil.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/perfil-resultado.ts`; cuenta desde sesión, solo campos Perfil de OpenAPI, opcionales nullable, perfiles, versión y estado efectivo de consentimiento, sin hashes/tokens/datos ajenos. Implementar también la proyección compartible interna en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/proyectar-perfil-compartible.ts`: excluir siempre correo/documentos/dirección exacta/credenciales y omitir teléfono salvo consentimiento efectivo de ese mismo valor. Debe estar disponible para CA-PER-04/CA-PER-06 de T063–T065 y el cierre T076; no crear endpoint, búsqueda ni perfil público RF10. US4 la reutiliza e integra en T082, sin ser prerrequisito de US5. Depende de T068 y T013.
+- [X] T070 [US5] Implementar actualización en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/actualizar-perfil.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-consentimientos.ts`; allowlist nombre/teléfono/distrito/foto/decisión de compartir, límites literales de T030, compare-and-set de versión e incremento efectivo, foto propia utilizable, consentimiento del valor vigente/enviado e idempotencia en el commit; error conserva todo estado previo. Depende de T068–T069.
+- [X] T071 [US5] Implementar subir/leer fotografía propia en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/fotografias.ts`; subir crea referencia temporal y resultado idempotente, PATCH vincula con versión, leer autoriza propietario antes del objeto y devuelve JSON/base64, validación de contenido/límite y limpieza sin eliminar foto vigente antes de commit. Depende de T019 y T070.
+- [X] T072 [US5] Exponer GET/PATCH `/perfil` y las dos rutas de fotografía en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/perfil.controller.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/fotografias.controller.ts`; guard por operación, rechazar propiedades extra y no aceptar UUID de otra cuenta ni cambios de credenciales. Depende de T069–T071.
+- [X] T073 [US5] Implementar lectura/edición web y carga coordinada de foto en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/perfil.ts`; mantener versión consultada, no reintentar 409 con sobrescritura ciega, distinguir carga temporal de guardado efectivo, confirmación de compartir separada de registrar teléfono y conservar datos no editados.
+- [X] T074 [US5] Implementar pantalla/formulario de cuenta en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Perfil.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EditarPerfil.tsx`; nombre persona/empresa, opcionales, foto local obtenida por API con revocación de object URL, controles de consentimiento, errores y conflicto, correo/contraseña remitidos a sus flujos específicos. Depende de T073.
+- [X] T075 [US5] Integrar cuenta, foto y habilitación en `tecnologia/backend/src/composicion/app.module.ts`, `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; exigir sesión real, mostrar ambos perfiles sin duplicar identidad y no presentar cambios de credenciales pendientes como operativos. Depende de T072 y T074.
+- [X] T076 [US5] Ejecutar T063–T067 y regresión de registro/sesiones con datos aislados, verificando consultas y fotos protegidas, en `tecnologia/.local/evidencia/001/us5/`; comprobar explícitamente persistencia de cada campo, 409 sin sobrescritura, cleanup y proyección compartible T069 sin datos privados antes de cerrar la historia. La regresión conjunta con recuperación se ejecuta en T110 después de cerrar US3 y US5, sin bloquear su desarrollo independiente. Depende de T069 y T075.
 
 ## Fase 7: US4 — Acceder únicamente a lo autorizado (P1)
 
@@ -530,15 +531,20 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
-La continuación autorizada completó únicamente US3: T049–T062, conservando US1 y US2.
-T001–T062 suman 62 tareas terminadas; las 57 restantes siguen pendientes.
-Los 11 CA-REG, nueve CA-SES y diez CA-REC pasan en sus niveles; los otros 23 CA siguen pendientes.
-Regresión: 68 U, 49 I y 53 C backend; 29 V frontend; 45 E por entorno en Linux
-y Windows (9 recuperación + 9 sesiones + 18 US1 + 9 fundación/TLS), sin omitidos ni reintentos.
+La continuación autorizada completó únicamente US5: T063–T076, conservando US1–US3.
+T001–T076 suman 76 tareas terminadas; las 43 restantes siguen pendientes.
+Se acreditan acumulativamente 36 CA: 11 REG, nueve SES, diez REC históricos y seis PER;
+los otros 17 siguen pendientes. US5 incluye la proyección compartible interna T069.
+Resultados recuperados: 71 U, 44 I y 52 C backend; 31 V frontend; 45 E por entorno
+en Linux y Windows (9 US5 + 9 sesiones + 18 US1 + 9 fundación/TLS).
+Al reanudar se corrigió la sincronización de consulta E y se verificaron otros
+9/9 proyectos US5 en cada entorno, sin omitidos ni reintentos. Se conserva el intento
+Linux 7/9 y los incidentes históricos. La regresión conjunta con recuperación no se
+adelanta ni se acredita aquí: sigue pendiente en T110.
 La lectura SameSite de WebKit Windows tiene la limitación documentada en el estado;
 la cabecera SameSite=Lax se exige en todos los motores, sin modificar cookies.
 Se conservan TLS, certificados y confianza previamente verificados.
 El corpus completo aprobado de producción continúa pendiente del despliegue;
 el fixture local no lo sustituye. Se conserva el registro de limitaciones e intentos.
-Siguiente tarea T063 (US5): no iniciada. Detención al completar US3.
+Siguiente tarea T077 (US4): no iniciada. Detención al completar US5.
 Consultar la evidencia y las comprobaciones en implementation-status.md.

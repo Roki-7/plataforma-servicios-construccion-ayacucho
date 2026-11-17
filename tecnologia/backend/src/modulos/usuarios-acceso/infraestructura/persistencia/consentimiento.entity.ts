@@ -1,0 +1,2 @@
+import { EntitySchema } from 'typeorm';
+export const consentimientoEntity = new EntitySchema({ name: 'ConsentimientoTelefono', tableName: 'consentimientos_telefono', columns: { id: { type: 'uuid', primary: true }, usuario_id: { type: 'uuid', unique: true }, telefono_hmac: { type: 'bytea', select: false }, autorizada_en: { type: 'timestamptz', nullable: true }, revocada_en: { type: 'timestamptz', nullable: true }, version: { type: 'bigint' } } });

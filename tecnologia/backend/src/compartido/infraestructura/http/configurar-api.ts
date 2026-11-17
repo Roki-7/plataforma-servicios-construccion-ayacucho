@@ -27,7 +27,11 @@ export async function configurarApi(app: INestApplication, config: { origen: str
   const contrato = JSON.parse(await readFile(config.contrato, 'utf8')) as DocumentoContrato;
   const ajv = new Ajv2020({ strict: false, allErrors: true });
   const aplicarFormatos = createRequire(import.meta.url)('ajv-formats') as (instance: Ajv2020) => void;
-  aplicarFormatos(ajv); ajv.addSchema(contrato, 'contrato');
+  aplicarFormatos(ajv);
+  // El formato byte del proveedor usa repetición agrupada y desborda la pila
+  // con imágenes admitidas de varios MB. Validar base64 canónico sin esa regex.
+  ajv.addFormat('byte', { type: 'string', validate: (s: string) => s.length <= 13333336 && s.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(s) && Buffer.from(s,'base64').toString('base64') === s });
+  ajv.addSchema(contrato, 'contrato');
   const rutas: Ruta[] = [];
   for (const [patron, metodos] of Object.entries(contrato.paths)) {
     for (const [metodo, operacion] of Object.entries(metodos)) {
@@ -78,6 +82,9 @@ export async function configurarApi(app: INestApplication, config: { origen: str
           if (!clave) throw new ErrorAplicacion(400, 'CABECERA_REQUERIDA', 'Falta Idempotency-Key.');
           if (clave.length < 16 || clave.length > 128) throw datosInvalidos();
         }
+        const imagen = ruta?.patron === '/perfil/fotografias' && req.method === 'POST' ? req.body : ruta?.patron === '/cuentas' ? req.body?.fotografia : undefined;
+        const contenido = imagen?.contenidoBase64;
+        if (typeof contenido === 'string' && (contenido.length > 13333336 || Buffer.byteLength(contenido,'base64') > 10000000)) throw new ErrorAplicacion(413,'ARCHIVO_DEMASIADO_GRANDE','La imagen supera 10 MB.');
         if (ruta?.validar && (!unicodeValido(req.body) || !ruta.validar(req.body))) {
           if (ruta.validar.errors?.some((e) => e.keyword === 'additionalProperties')) throw new ErrorAplicacion(400, 'PROPIEDAD_NO_ADMITIDA', 'Se envió un campo no permitido.');
           throw datosInvalidos();

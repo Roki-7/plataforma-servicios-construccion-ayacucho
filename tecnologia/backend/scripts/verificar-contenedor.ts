@@ -56,6 +56,8 @@ try {
   docker(['exec', correcto, 'node', '--input-type=module', '-e', verificarSesiones]);
   const verificarRecuperacion = `const r=await fetch('http://127.0.0.1:3000/api/v1/recuperaciones',{method:'POST',headers:{Origin:process.env.PUBLIC_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({correo:'cuenta-inexistente-smoke@example.invalid'})}); const b=await r.json(); if(r.status!==202||b.mensaje!=='Si el correo corresponde a una cuenta, recibirás instrucciones para recuperar el acceso'||r.headers.has('set-cookie'))process.exit(1); console.log('recuperacion:202; respuesta generica sin credenciales');`;
   docker(['exec', correcto, 'node', '--input-type=module', '-e', verificarRecuperacion]);
+  const verificarPerfil = `for(const ruta of ['/perfil','/perfil/fotografias/550e8400-e29b-41d4-a716-446655440000']){const r=await fetch('http://127.0.0.1:3000/api/v1'+ruta);if(r.status!==401||r.headers.has('set-cookie'))process.exit(1);}console.log('perfil/foto:401/401; sin acceso publico');`;
+  docker(['exec', correcto, 'node', '--input-type=module', '-e', verificarPerfil]);
   const uid = docker(['exec', correcto, 'node', '-e', 'console.log(process.getuid())']);
   if (uid === '0' || !/^\d+$/.test(uid)) throw new Error('El contenedor no se ejecuta sin privilegios.');
   docker(['exec', correcto, 'node', '--input-type=module', '-e', "import {hash,verify,argon2id} from 'argon2'; const h=await hash('Clave ficticia de prueba Linux',{type:argon2id,memoryCost:65536,timeCost:3,parallelism:4}); if(!await verify(h,'Clave ficticia de prueba Linux'))process.exit(1); console.log('argon2id:OK')"]);
@@ -64,7 +66,7 @@ try {
   const sinCorpus = await arrancar('sin-corpus', { CATALOGO_MANIFIESTO: '/validacion/catalogo/inexistente.json' }); await esperarSalud(sinCorpus, 503);
   const digest = docker(['image', 'inspect', imagen, '--format', '{{.Id}}']);
   const carpeta = resolve(local, 'evidencia/001'); await mkdir(carpeta, { recursive: true });
-  await writeFile(resolve(carpeta, 'contenedor.json'), JSON.stringify({ fecha: new Date().toISOString(), imagen, digest, uid: Number(uid), salud: [200, 503, 503], argon2id: 'verificado', sesiones: [401, 401], recuperacion: 202, alcance: 'Regresión fundacional con US1–US3 compiladas; rechazos de sesiones y recuperación genérica, sin sustituir CA' }, null, 2));
+  await writeFile(resolve(carpeta, 'contenedor.json'), JSON.stringify({ fecha: new Date().toISOString(), imagen, digest, uid: Number(uid), salud: [200, 503, 503], argon2id: 'verificado', sesiones: [401, 401], recuperacion: 202, perfil: [401,401], alcance: 'Regresión fundacional con US1–US3 y US5 compiladas; perfil/foto protegidos, sin sustituir CA ni la regresión conjunta T110' }, null, 2));
   process.stdout.write('Imagen verificada: usuario sin privilegios, Argon2id nativo y salud 200/503/503.\n');
 } catch {
   process.stderr.write('Comprobación de contenedor fallida o bloqueada. No se acredita T023 hasta resolver motor, construcción, configuración y arranque.\n'); process.exitCode = 1;
