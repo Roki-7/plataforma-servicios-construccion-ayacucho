@@ -5,7 +5,7 @@ export function claveIdempotencia(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) => n.toString(16).padStart(2, '0')).join('');
 }
 export class ApiUsuariosHttp implements ApiUsuarios {
-  constructor(private readonly accesoEnMemoria: () => string | undefined, private readonly solicitar: typeof fetch = fetch, private readonly base = '/api/v1') {
+  constructor(private readonly accesoEnMemoria: () => string | undefined, private readonly solicitar: typeof fetch = (...args) => fetch(...args), private readonly base = '/api/v1') {
     if (base !== '/api/v1') throw new Error('La API debe utilizar el mismo origen /api/v1.');
   }
   async enviar<K extends keyof OperacionesUsuarios>(nombre: K, entrada: OperacionesUsuarios[K]['entrada'], opciones: OpcionesPeticion = {}): Promise<OperacionesUsuarios[K]['salida']> {
@@ -24,7 +24,10 @@ export class ApiUsuariosHttp implements ApiUsuarios {
     let datos: unknown;
     try { datos = await respuesta.json(); } catch { throw new ErrorApi(503, 'DEPENDENCIA_NO_DISPONIBLE', 'Respuesta del servidor no válida.'); }
     if (!respuesta.ok) {
-      if (datos && typeof datos === 'object' && 'codigo' in datos && typeof datos.codigo === 'string' && 'mensaje' in datos && typeof datos.mensaje === 'string') throw new ErrorApi(respuesta.status, datos.codigo, datos.mensaje);
+      if (datos && typeof datos === 'object' && 'codigo' in datos && typeof datos.codigo === 'string' && 'mensaje' in datos && typeof datos.mensaje === 'string') {
+        const detalles = 'detalles' in datos && Array.isArray(datos.detalles) ? datos.detalles.filter((d): d is { campo?: string; motivo: string } => d && typeof d === 'object' && typeof d.motivo === 'string' && (d.campo === undefined || typeof d.campo === 'string')) : [];
+        throw new ErrorApi(respuesta.status, datos.codigo, datos.mensaje, detalles);
+      }
       throw new ErrorApi(503, 'DEPENDENCIA_NO_DISPONIBLE', 'Respuesta del servidor no válida.');
     }
     return datos as OperacionesUsuarios[K]['salida'];

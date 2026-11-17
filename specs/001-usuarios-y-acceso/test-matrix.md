@@ -1,6 +1,9 @@
 # Matriz de validación — 53 escenarios de 001
 
-**Estado de todas las filas**: planificadas, no implementadas ni ejecutadas.
+**Estado**: CA-REG-01–11 de US1 implementados y verificados en sus niveles U/I/C/V/E;
+los otros 42 CA siguen planificados. Resultados y evidencia en
+[implementation-status.md](implementation-status.md). Se conservan todos los
+criterios y niveles normativos de las 53 filas.
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).
 El alcance sigue siendo RF01–RF05 y HU01–HU02; las variantes no crean nuevos CA.
 Ninguna cifra de cobertura declarada prueba que las pruebas ya pasen.

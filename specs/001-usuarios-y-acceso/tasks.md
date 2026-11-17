@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-16. **Estado**: ejecución limitada a preparación y fundación;
+**Fecha**: 2026-11-16. **Estado**: preparación, fundación y US1 implementadas y verificadas;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -9,7 +9,7 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
-los archivos de aplicación y pruebas de T024 en adelante siguen siendo futuros.
+US1 (T024–T036) está implementada y verificada; T037–T119 siguen pendientes.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -89,22 +89,22 @@ integra al completar US2; los fixtures de sesión solo existen en validación.
 
 ### Pruebas primero
 
-- [ ] T024 [P] [US1] Escribir U de CA-REG-01, CA-REG-02, CA-REG-04, CA-REG-05, CA-REG-06, CA-REG-09, CA-REG-10 y CA-REG-11 en `tecnologia/backend/test/unit/usuarios-acceso/registro.spec.ts`; incluir opcionales, consentimiento, confirmación true/false/ausente, 14/15/128/129 puntos de código suplementarios, espacios, >72 bytes, rechazo de comunes/comprometidas y puertos sin DB.
-- [ ] T025 [P] [US1] Escribir I de CA-REG-01, CA-REG-03, CA-REG-04, CA-REG-06, CA-REG-07 y CA-REG-11 en `tecnologia/backend/test/integration/usuarios-acceso/registro.spec.ts`; diez altas simultáneas case-insensitive, habilitación concurrente/repetida, una cuenta/perfil, privacidad persistida, foto propia opcional y rollback/limpieza ante fallo de objeto o DB, catálogo ausente no omitido.
-- [ ] T026 [P] [US1] Escribir C de POST `/cuentas` y POST `/perfil/perfiles` para CA-REG-01, CA-REG-02, CA-REG-03, CA-REG-05, CA-REG-07, CA-REG-08, CA-REG-09 y CA-REG-11 en `tecnologia/backend/test/contract/usuarios-acceso/registro.spec.ts`; versión/Idempotency-Key, obligatoriedad, Unicode, sin administrador/secretos ni credenciales/cookie emitidas por registro y resultados/códigos OpenAPI.
-- [ ] T027 [P] [US1] Escribir V de CA-REG-02, CA-REG-05, CA-REG-09 y CA-REG-10 en `tecnologia/frontend/test/unit/usuarios-acceso/registro.test.tsx`; mensajes por campo, privacidad explícita, pegado/espacios y límites por puntos de código sin maxlength UTF-16 incorrecto.
-- [ ] T028 [P] [US1] Escribir E de CA-REG-01, CA-REG-04, CA-REG-06, CA-REG-08 y CA-REG-10 en `tecnologia/frontend/test/e2e/usuarios-acceso/registro.spec.ts`; backend real, foto opcional, ambos perfiles, adición con fixture de sesión en memoria por composición de validación, identidad/datos preservados y matriz responsive/navegadores de T007.
+- [X] T024 [P] [US1] Escribir U de CA-REG-01, CA-REG-02, CA-REG-04, CA-REG-05, CA-REG-06, CA-REG-09, CA-REG-10 y CA-REG-11 en `tecnologia/backend/test/unit/usuarios-acceso/registro.spec.ts`; incluir opcionales, consentimiento, confirmación true/false/ausente, 14/15/128/129 puntos de código suplementarios, espacios, >72 bytes, rechazo de comunes/comprometidas y puertos sin DB.
+- [X] T025 [P] [US1] Escribir I de CA-REG-01, CA-REG-03, CA-REG-04, CA-REG-06, CA-REG-07 y CA-REG-11 en `tecnologia/backend/test/integration/usuarios-acceso/registro.spec.ts`; diez altas simultáneas case-insensitive, habilitación concurrente/repetida, una cuenta/perfil, privacidad persistida, foto propia opcional y rollback/limpieza ante fallo de objeto o DB, catálogo ausente no omitido.
+- [X] T026 [P] [US1] Escribir C de POST `/cuentas` y POST `/perfil/perfiles` para CA-REG-01, CA-REG-02, CA-REG-03, CA-REG-05, CA-REG-07, CA-REG-08, CA-REG-09 y CA-REG-11 en `tecnologia/backend/test/contract/usuarios-acceso/registro.spec.ts`; versión/Idempotency-Key, obligatoriedad, Unicode, sin administrador/secretos ni credenciales/cookie emitidas por registro y resultados/códigos OpenAPI.
+- [X] T027 [P] [US1] Escribir V de CA-REG-02, CA-REG-05, CA-REG-09 y CA-REG-10 en `tecnologia/frontend/test/unit/usuarios-acceso/registro.test.tsx`; mensajes por campo, privacidad explícita, pegado/espacios y límites por puntos de código sin maxlength UTF-16 incorrecto.
+- [X] T028 [P] [US1] Escribir E de CA-REG-01, CA-REG-04, CA-REG-06, CA-REG-08 y CA-REG-10 en `tecnologia/frontend/test/e2e/usuarios-acceso/registro.spec.ts`; backend real, foto opcional, ambos perfiles, adición con fixture de sesión en memoria por composición de validación, identidad/datos preservados y matriz responsive/navegadores de T007.
 
-### Implementación futura
+### Implementación US1
 
-- [ ] T029 [US1] Implementar Cuenta, perfiles y política de nueva contraseña en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/cuenta.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/dominio/perfiles-habilitados.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/dominio/politica-contrasena.ts`; respetar «Cada cuenta tiene uno o dos perfiles», «Adición exige sesión y confirmación verdadera», «No retirar perfiles en 001.» e incremento de versión efectivo, sin verificación RF07 ni administración.
-- [ ] T030 [US1] Definir DTO/validadores de registro y habilitación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/registro.dto.ts`; aplicar literalmente «nombre hasta 200 puntos de código, correo hasta 320, teléfono hasta 32 y distrito hasta 100; validar ausencia de vacío en nombre/correo.»; campos obligatorios del contrato, opcionales nullable, perfiles cliente/prestador únicos 1–2, privacidad true/versión vigente y confirmación exacta; no formato nacional de teléfono ni zona RF06, validar foto JSON y Unicode completo.
-- [ ] T031 [US1] Implementar repositorio de cuentas/perfiles en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-cuentas.ts`; búsquedas canónicas con `lower(correo)` en DB, índice como autoridad para carreras, mutación versionada, inserción atómica de perfiles y mapeo de conflicto a 409 sin SQL. Depende de T029–T030 y T011.
-- [ ] T032 [US1] Implementar registro en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/registrar-cuenta.ts`; política+catálogo+Argon2 completos, cuenta/perfiles/privacidad/resultado idempotente en un commit y foto opcional almacenada antes con vinculación/compensación coordinadas; fallos no crean cuenta ni confirman éxito, no autenticar al registrar. Depende de T014–T019 y T031.
-- [ ] T033 [US1] Implementar adición de perfil faltante en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/habilitar-perfil.ts`; sesión/titularidad, confirmación explícita, versión esperada, PK compuesta e idempotencia, sin otra cuenta/credencial, sin pérdida de datos ni duplicado al repetir; devolver Perfil según OpenAPI, con telefonoCompartible=false mientras no exista consentimiento efectivo, sin depender del futuro GET de US5. Depende de T013, T016 y T031.
-- [ ] T034 [US1] Exponer POST `/cuentas` y POST `/perfil/perfiles` en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/registro.controller.ts` y registrarlos en `tecnologia/backend/src/composicion/app.module.ts`; autorización servidor en la adición, rechazo de propiedades extra y respuestas/cabeceras exactas del contrato. Depende de T032–T033.
-- [ ] T035 [US1] Implementar casos de uso web de registro/habilitación y formularios en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/registro.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Registro.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/HabilitarPerfil.tsx`; tres selecciones, política/confirmación, consentimiento, opcionales/foto y mensajes sin perder el valor completo de contraseña.
-- [ ] T036 [US1] Integrar rutas y composición web de registro/adición en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; conectar T035 al HTTP real, proteger entrada a habilitación según estado de sesión y ejecutar T024–T028 hasta verde, guardando resultados en `tecnologia/.local/evidencia/001/us1/`; sin presentar una sesión fixture como login entregado.
+- [X] T029 [US1] Implementar Cuenta, perfiles y política de nueva contraseña en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/cuenta.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/dominio/perfiles-habilitados.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/dominio/politica-contrasena.ts`; respetar «Cada cuenta tiene uno o dos perfiles», «Adición exige sesión y confirmación verdadera», «No retirar perfiles en 001.» e incremento de versión efectivo, sin verificación RF07 ni administración.
+- [X] T030 [US1] Definir DTO/validadores de registro y habilitación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/registro.dto.ts`; aplicar literalmente «nombre hasta 200 puntos de código, correo hasta 320, teléfono hasta 32 y distrito hasta 100; validar ausencia de vacío en nombre/correo.»; campos obligatorios del contrato, opcionales nullable, perfiles cliente/prestador únicos 1–2, privacidad true/versión vigente y confirmación exacta; no formato nacional de teléfono ni zona RF06, validar foto JSON y Unicode completo.
+- [X] T031 [US1] Implementar repositorio de cuentas/perfiles en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-cuentas.ts`; búsquedas canónicas con `lower(correo)` en DB, índice como autoridad para carreras, mutación versionada, inserción atómica de perfiles y mapeo de conflicto a 409 sin SQL. Depende de T029–T030 y T011.
+- [X] T032 [US1] Implementar registro en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/registrar-cuenta.ts`; política+catálogo+Argon2 completos, cuenta/perfiles/privacidad/resultado idempotente en un commit y foto opcional almacenada antes con vinculación/compensación coordinadas; fallos no crean cuenta ni confirman éxito, no autenticar al registrar. Depende de T014–T019 y T031.
+- [X] T033 [US1] Implementar adición de perfil faltante en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/habilitar-perfil.ts`; sesión/titularidad, confirmación explícita, versión esperada, PK compuesta e idempotencia, sin otra cuenta/credencial, sin pérdida de datos ni duplicado al repetir; devolver Perfil según OpenAPI, con telefonoCompartible=false mientras no exista consentimiento efectivo, sin depender del futuro GET de US5. Depende de T013, T016 y T031.
+- [X] T034 [US1] Exponer POST `/cuentas` y POST `/perfil/perfiles` en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/registro.controller.ts` y registrarlos en `tecnologia/backend/src/composicion/app.module.ts`; autorización servidor en la adición, rechazo de propiedades extra y respuestas/cabeceras exactas del contrato. Depende de T032–T033.
+- [X] T035 [US1] Implementar casos de uso web de registro/habilitación y formularios en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/registro.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Registro.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/HabilitarPerfil.tsx`; tres selecciones, política/confirmación, consentimiento, opcionales/foto y mensajes sin perder el valor completo de contraseña.
+- [X] T036 [US1] Integrar rutas y composición web de registro/adición en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; conectar T035 al HTTP real, proteger entrada a habilitación según estado de sesión y ejecutar T024–T028 hasta verde, guardando resultados en `tecnologia/.local/evidencia/001/us1/`; sin presentar una sesión fixture como login entregado.
 
 ## Fase 4: US2 — Iniciar, mantener y cerrar la sesión (P1)
 
@@ -530,9 +530,11 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
-La ejecución posterior autorizada se limita a T001–T023 y marca únicamente tareas
-verificadas. T001–T023 están completadas; T007 pasó los nueve proyectos en el
-ejecutor Linux aislado y los nueve proyectos Windows nativos con TLS activo.
-La CA del usuario fue aceptada y verificada; T024–T119 no se iniciaron. Las pruebas técnicas
-de fundación no aprueban los 53 CA.
+La continuación autorizada completó y verificó únicamente US1: T024–T036.
+T001–T036 suman 36 tareas terminadas; las 83 restantes siguen pendientes.
+Los 11 CA-REG pasan en los niveles de la matriz; los otros 42 CA no se declaran aprobados.
+Regresión: 42 U, 16 I y 31 C backend; 14 V frontend; 27 E por entorno en Linux
+y Windows (18 US1 + 9 fundación/TLS), sin omitidos ni reintentos.
+Se conservan TLS, certificados y confianza previamente verificados.
+Siguiente tarea T037 (US2): no iniciada. Detención antes de US2.
 Consultar la evidencia y las comprobaciones en implementation-status.md.

@@ -1,10 +1,104 @@
-# Estado de implementación: preparación y fundación de 001
+# Estado de implementación: fundación y US1 de 001
 
-Fecha: 2026-11-16. Alcance autorizado: T001–T023. No se iniciaron T024–T119.
-**Completadas y verificadas: 23/23**, T001–T023. T007 verificada en Linux aislado y Windows nativo.
-El backlog conserva 119 tareas: 23 completadas y 96 pendientes.
-Se mantienen los 32 requisitos locales, las siete historias y los 53 escenarios
-de aceptación; ninguno de esos escenarios se declara aprobado en esta entrega.
+Fecha local: 2026-11-16 (America/Mexico_City). Continuación autorizada: solo
+**US1, T024–T036**, desde la primera tarea pendiente T024. **13/13 verificadas**.
+Con la fundación anterior, el backlog conserva **119 tareas: 36 completadas y
+83 pendientes**. La siguiente es **T037 (US2), no iniciada**.
+Se mantienen los 32 requisitos, siete historias y 53 escenarios: se verificaron
+los **11 CA-REG de US1** en los niveles de la matriz; los otros 42 siguen pendientes.
+Esto es un corte local verificado, no la entrega completa de 001 ni un cumplimiento
+de su DoD de CI, revisión y fusión.
+
+## Resultado de US1
+
+- Registro real mediante `POST /api/v1/cuentas`: cliente, prestador o ambos;
+  nombre de persona/empresa, correo único sin distinguir mayúsculas, contraseña
+  completa y confirmación, privacidad explícita vigente `001-v1` con fecha servidor.
+  Teléfono/distrito nullable y foto opcional JPG/PNG/WEBP en Garage/S3, validada y
+  vinculada a su propietario. Sin sesión automática, tokens, cookies, administración
+  ni verificación profesional.
+- `POST /api/v1/perfil/perfiles`: exige Bearer autoritativo, Origin, clave
+  idempotente, confirmación verdadera y versión. Bloquea cuenta→sesión, vuelve a
+  comprobar sesión y reloj tras el bloqueo y conserva identidad, credenciales y
+  datos. Un perfil ya presente no se duplica ni incrementa la versión; una versión
+  obsoleta da 409. Sesión válida antes del replay y reintentos concurrentes seguros.
+- Dominio/Aplicación puros, repositorio PostgreSQL, DTO y controlador conectados
+  desde composición. Índice único como autoridad; resultado idempotente, cuenta,
+  perfiles y metadatos de foto en el mismo commit. La compensación y el limpiador
+  fundacional atienden los objetos de altas fallidas.
+- Web en `/registro` y `/habilitar-perfil`, tres selecciones, consentimiento,
+  opcionales, foto y mensajes. Contraseñas de 15–128 puntos de código sin trim,
+  normalización, corte a 72 bytes ni `maxlength` UTF-16; pegado permitido.
+  Corregida la invocación nativa de `fetch` que impedía enviar desde el navegador.
+  Sin sesión, la incorporación muestra entrada protegida. La prueba E usa una
+  sesión ficticia en memoria por composición exclusiva de modo `validation`,
+  rotulada expresamente; no se entrega login ni endpoint de fixtures.
+
+| Tareas | Archivos principales | Verificación |
+|---|---|---|
+| T024, T029 | `dominio/cuenta.ts`, `perfiles-habilitados.ts`, `politica-contrasena.ts`; `test/unit/usuarios-acceso/registro.spec.ts` | 32 U propias: campos, perfiles, confirmaciones, privacidad, ASCII/Unicode 14/15/128/129, espacios y puertos sin DB. |
+| T025, T031–T033 | `infraestructura/persistencia/repositorio-cuentas.ts`, `aplicacion/registrar-cuenta.ts`, `habilitar-perfil.ts`; `test/integration/usuarios-acceso/registro.spec.ts` | 10 I propias: PostgreSQL aislado y Garage reales, diez altas concurrentes, carreras de habilitación, replay, revocación, datos preservados, catálogo y rollback con compensación real de foto. |
+| T026, T030, T034 | `presentacion/registro.dto.ts`, `registro.controller.ts`, `composicion/app.module.ts`; `test/contract/usuarios-acceso/registro.spec.ts` | 26 C propias: OpenAPI sin cambios, selección, obligatorios, versiones/cabeceras, límites Unicode/ASCII, prohibición administrativa, errores, sin secretos/cookies. |
+| T027, T035 | Web `aplicacion/registro.ts`, `presentacion/Registro.tsx`, `HabilitarPerfil.tsx`; `test/unit/usuarios-acceso/registro.test.tsx` | 7 V propias: errores por campo, aceptación explícita, puntos de código y pegado real con espacios. |
+| T028, T036 | Web `composicion/App.tsx`, `usuarios-acceso.ts`; `test/e2e/usuarios-acceso/registro.spec.ts`, helpers de fixtures | 18 E propias por entorno + 9 regresiones de fundación/TLS: **27/27 Linux y 27/27 Windows**, tres motores × 360/768/1366. |
+
+Las rutas backend de la tabla son relativas a `tecnologia/backend/src/` o
+`tecnologia/backend/test/`; las web, a `tecnologia/frontend/src/` o su `test/`.
+Los cinco archivos de pruebas y sus CA exactos conservan la trazabilidad de
+[test-matrix.md](test-matrix.md) y [docs/trazabilidad.md](../../docs/trazabilidad.md).
+
+## Pruebas y regresiones de este corte
+
+| Grupo | Resultado final, incluida fundación |
+|---|---|
+| Backend `test:unit` | 42/42 |
+| Backend `test:integration -- --runInBand` | 16/16, servicios reales y DB aisladas |
+| Backend `test:contract` | 31/31 |
+| Frontend `test:unit` | 14/14 |
+| Tipos, lint y build de ambos proyectos | Aprobados |
+| `test:architecture` | Sin infracciones; Dominio/Aplicación independientes |
+| `test:e2e:container` | 27/27, sin omitidos ni reintentos; UID 1001 |
+| `test:e2e:windows` | 27/27, sin omitidos ni reintentos; 2,5 min |
+| `test:container` backend | Imagen Linux, UID 1000, Argon2 nativo, salud 200/503/503 |
+| `test:proxy` | TLS válido, salud/web 200, límites 64 KiB/14 MB → 413 JSON/no-store |
+
+TLS conservado: Caddyfile, certificados/CA, scripts de preparación y confianza,
+validación de hostname y `ignoreHTTPSErrors:false` intactos. Cada uno de los nueve
+proyectos por entorno vuelve a rechazar el certificado de control no confiable.
+Windows mantiene la CA previa solo en CurrentUser/Root; no se reinstaló.
+El build productivo no contiene la ruta de importación del fixture de validación.
+La configuración de pruebas impide snapshots automáticos con campos privados;
+capturas, vídeos y trazas siguen desactivados.
+
+Evidencia local ignorada en `tecnologia/.local/evidencia/001/us1/`:
+
+- `backend-unit-junit.xml`, `backend-integration-junit.xml`,
+  `backend-contract-junit.xml`, `frontend-junit.xml`, `verificacion.json`.
+- `e2e-linux/`: JSON/JUnit/HTML, `tls.json`, `ejecucion.json` y digest
+  `sha256:d77517360730068037f7f413eaadac49633f446621d0bba861d75583b0f7d7af`.
+- `e2e-windows-final/`: JSON/JUnit/HTML y `ejecucion.json` con huellas y resultado.
+- `proxy.json`, `contenedor.json`; imagen backend verificada
+  `sha256:53e90ef8c4d32cb5e368cb2e99fd6a7bdea9b0d1153a238f525e13dbaffdbe6f`.
+
+Pruebas U/V escritas primero: fallaron inicialmente por módulos ausentes antes de
+implementar. Se añadieron I/C/E antes del código; servicios reales se ejecutaron
+al iniciar Docker Desktop. SWC necesitó el acceso nativo fuera del sandbox ya
+identificado en fundación. Los primeros E detectaron `fetch` y la importación de
+fixture; corregidos y verificados. El intento Windows `e2e-windows/` quedó 26/27:
+WebKit 360 confirmó la operación, pero agotó 30 s durante la limpieza del fixture
+con construcción/pruebas simultáneas. El presupuesto del test se ajustó a 60 s,
+sin SLA nuevo ni reintento automático; la matriz final quedó 27/27.
+
+**Bloqueos actuales de US1: ninguno.** El corpus completo de producción sigue
+siendo entrada del despliegue; las pruebas usan el fixture permitido y no lo
+presentan como corpus completo. Se detiene la ejecución antes de US2: no se
+implementan inicio, renovación o cierre de sesión, ni historias posteriores.
+No se ejecutan T037–T119 ni se marca el MVP completo.
+
+## Histórico: preparación y fundación T001–T023
+
+La entrega anterior verificó 23 tareas y dejó las historias pendientes. Se conserva
+a continuación su evidencia histórica; sus límites se refieren a aquel corte.
 
 ## Resultado y trazabilidad técnica
 
@@ -197,7 +291,8 @@ T007 cumple sus criterios en Linux reproducible y en Windows nativo. No quedan
 bloqueos de confianza pendientes en estos entornos verificados. Los 53 CA
 funcionales siguen pendientes. La configuración conserva `ignoreHTTPSErrors:false`,
 la validación de certificados y nombres y el rechazo del certificado de control.
-No comenzar T024.
+Ese corte se detuvo antes de T024; la continuación US1 documentada arriba supera
+ese límite histórico y se detiene ahora antes de T037.
 
 El corpus completo aprobado de producción es una entrada del despliegue,
 conforme a research; esta entrega prepara únicamente el fixture local.
@@ -209,4 +304,5 @@ No distribuye ni descarga contraseñas. El fixture se rechaza en producción.
 `test:coverage:001` informa T115 pendiente y sale con error deliberadamente;
 todavía no es el comprobador de cobertura funcional. No se ejecutaron recorridos
 de registro, login, recuperación, edición, correo o contraseña, ni se ofrecen
-como implementados. El único endpoint entregado es salud.
+como implementados en aquel corte. Entonces el único endpoint entregado era salud;
+el alcance actual de US1 se describe al inicio de este documento.

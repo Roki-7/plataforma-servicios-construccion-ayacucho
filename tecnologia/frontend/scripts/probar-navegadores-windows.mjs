@@ -13,7 +13,7 @@ assert.notEqual(process.env.NODE_TLS_REJECT_UNAUTHORIZED, '0');
 assert.ok(process.env.npm_execpath, 'Ejecute mediante npm run test:e2e:windows.');
 const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const local = resolve(frontend, '../.local');
-const evidencia = resolve(local, 'evidencia/001/e2e-windows-native');
+const evidencia = resolve(process.env.E2E_EVIDENCIA ?? resolve(local, 'evidencia/001/e2e-windows-native'));
 execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', resolve(frontend, '../scripts/diagnosticar-tls.ps1'), '-ExigirConfianzaWindows'], { stdio: 'inherit' });
 const caPath = resolve(local, 'tls/ca.crt');
 const ca = new X509Certificate(await readFile(caPath));

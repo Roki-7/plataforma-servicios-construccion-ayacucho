@@ -1,6 +1,6 @@
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { openSync, closeSync } from 'node:fs';
-import { mkdir, access, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, access, writeFile, readFile, unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { randomUUID, X509Certificate } from 'node:crypto';
@@ -9,7 +9,7 @@ import { strict as assert } from 'node:assert';
 const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const local = resolve(frontend, '../.local');
 const ca = resolve(local, 'tls/ca.crt');
-const evidencia = resolve(local, 'evidencia/001');
+const evidencia = resolve(process.env.E2E_EVIDENCIA ?? resolve(local, 'evidencia/001'));
 const imagen = 'ayacucho-001-e2e:fundacion';
 const marca = randomUUID(); const nombre = `ayacucho-001-e2e-${marca}`;
 await access(ca); await mkdir(resolve(evidencia, 'e2e-linux'), { recursive: true });
@@ -29,10 +29,18 @@ if (!sinConstruir) {
 const inspeccion = docker(['image', 'inspect', imagen, '--format', '{{.Id}}']);
 assert.equal(inspeccion.status, 0, 'No existe la imagen de navegadores.');
 const fecha = new Date().toISOString(); let codigo = 1;
+const backend = resolve(frontend, '../backend');
+const helper = [resolve(backend, 'node_modules/tsx/dist/cli.mjs'), resolve(backend, 'test/soporte/fixture-registro-e2e.ts')];
+const fixtures = JSON.parse(execFileSync(process.execPath, [...helper, 'crear-matriz'], { cwd: backend, encoding: 'utf8' }));
+const archivoFixtures = resolve(local, `pruebas/us1-fixtures-${marca}.json`);
+await mkdir(resolve(local, 'pruebas'), { recursive: true });
+await writeFile(archivoFixtures, JSON.stringify(fixtures), { mode: 0o600 });
 try {
   const resultado = docker(['run', '--init', '--name', nombre, '--label', `ayacucho.e2e=${marca}`, '--network', 'ayacucho-001-validacion_default', '--shm-size=1g',
     '--mount', `type=bind,source=${ca},target=/validacion/ca.crt,readonly`,
     '--mount', `type=bind,source=${evidencia},target=/app/.local/evidencia/001`,
+    '--mount', `type=bind,source=${archivoFixtures},target=/validacion/fixtures-us1.json,readonly`,
+    '--env', 'E2E_FIXTURES_US1=/validacion/fixtures-us1.json',
     imagen, ...process.argv.slice(2).filter((arg) => arg !== '--sin-construir')], { stdio: 'inherit' });
   codigo = resultado.status ?? 1;
   if (codigo === 0) {
@@ -41,11 +49,13 @@ try {
     assert.equal(tls.caSha256, new X509Certificate(await readFile(ca)).fingerprint256);
     assert.equal(tls.servidorSha256, new X509Certificate(await readFile(resolve(local, 'tls/localhost.crt'))).fingerprint256);
   }
-  await writeFile(resolve(evidencia, 'e2e-linux/ejecucion.json'), JSON.stringify({ fecha, imagen, digest: inspeccion.stdout.trim(), plataformaNavegadores: 'linux', origen: 'https://localhost:8443', resultado: codigo, ca: 'Solo certificado público montado readonly; sin claves ni env del host', puertosPublicados: false }, null, 2));
+  await writeFile(resolve(evidencia, 'e2e-linux/ejecucion.json'), JSON.stringify({ fecha, imagen, digest: inspeccion.stdout.trim(), plataformaNavegadores: 'linux', origen: 'https://localhost:8443', resultado: codigo, ca: 'Certificado público readonly; sin claves TLS ni env del host', fixtures: 'Sesiones sintéticas US1 por proyecto, montaje efímero readonly y retirada al finalizar', puertosPublicados: false }, null, 2));
 } finally {
   const etiqueta = docker(['inspect', '--format', '{{index .Config.Labels "ayacucho.e2e"}}', nombre]);
   if (etiqueta.status === 0 && etiqueta.stdout.trim() === marca && nombre === `ayacucho-001-e2e-${marca}`) {
     assert.equal(docker(['rm', '-f', nombre]).status, 0, 'No se pudo retirar el contenedor efímero.');
   }
+  try { execFileSync(process.execPath, [...helper, 'cerrar', ...Object.values(fixtures).map((f) => f.perfil.cuentaId)], { cwd: backend, stdio: 'ignore' }); }
+  finally { await unlink(archivoFixtures); }
 }
 process.exitCode = codigo;

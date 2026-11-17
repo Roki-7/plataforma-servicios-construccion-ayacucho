@@ -1,10 +1,10 @@
 import { test, expect } from '../soporte/validacion.js';
 
-test('Fundación: aplicación base y salud técnica, sin historias de usuario', async ({ page, request, browser, browserName, correoApi }, info) => {
+test('Fundación: aplicación base, salud técnica y confianza TLS', async ({ page, request, browser, browserName, correoApi }, info) => {
   info.annotations.push({ type: 'navegador', description: `${browserName} ${browser.version()}` });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Plataforma Ayacucho' })).toBeVisible();
-  await expect(page.getByRole('textbox')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Crear cuenta', exact: true })).toBeVisible();
   const salud = await request.get('/api/v1/salud');
   expect(salud.status()).toBe(200);
   expect(await salud.json()).toEqual({ estado: 'disponible' });

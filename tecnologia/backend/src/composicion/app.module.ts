@@ -5,7 +5,11 @@ import type { Configuracion } from './configuracion.js';
 import { persistenciaFundacional } from './persistencia.js';
 import { UnidadDeTrabajoPostgres } from '../compartido/infraestructura/postgres/unidad-de-trabajo.js';
 import { IdempotenciaPostgres } from '../compartido/infraestructura/idempotencia.js';
-import { RelojServidor } from '../modulos/usuarios-acceso/infraestructura/seguridad/crypto.js';
+import { RelojServidor, SecretosCrypto } from '../modulos/usuarios-acceso/infraestructura/seguridad/crypto.js';
+import { RepositorioCuentasPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/repositorio-cuentas.js';
+import { RegistrarCuenta } from '../modulos/usuarios-acceso/aplicacion/registrar-cuenta.js';
+import { HabilitarPerfil } from '../modulos/usuarios-acceso/aplicacion/habilitar-perfil.js';
+import { RegistroController, REGISTRAR_CUENTA, HABILITAR_PERFIL } from '../modulos/usuarios-acceso/presentacion/registro.controller.js';
 import { HashArgon2id } from '../modulos/usuarios-acceso/infraestructura/seguridad/argon2id.js';
 import { CatalogoLocal } from '../modulos/usuarios-acceso/infraestructura/seguridad/catalogo-contrasenas.js';
 import { LectorSesionPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/lector-sesion.js';
@@ -36,6 +40,9 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   const cliente = new S3Client({ endpoint: config.s3.endpoint, region: config.s3.region, credentials: { accessKeyId: config.s3.accessKeyId, secretAccessKey: config.s3.secretAccessKey }, forcePathStyle: true, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
   const fotos = new FotografiasS3(cliente, config.s3.bucket, db, uow);
   const lector = new LectorSesionPostgres(db, reloj);
+  const cuentas = new RepositorioCuentasPostgres(db, uow);
+  const registrar = new RegistrarCuenta(cuentas, idempotencia, hash, catalogo, reloj, new SecretosCrypto(), fotos);
+  const habilitar = new HabilitarPerfil(cuentas, idempotencia, lector, reloj);
   const salud = { disponible: async () => {
     try {
       await conectar();
@@ -49,7 +56,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   }, 60000);
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
-  @Module({ controllers: [SaludController], providers: [{ provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
+  @Module({ controllers: [SaludController, RegistroController], providers: [{ provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
   class AppModule {}
   const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false });
   await configurarApi(app, { origen: config.origen, contrato: config.contrato });

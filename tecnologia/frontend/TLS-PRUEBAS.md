@@ -174,7 +174,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local
 ```
 
 El último comando construye y ejecuta los nueve proyectos de forma secuencial,
-monta únicamente la CA pública y la carpeta de evidencia, y retira solo el
+monta la CA pública, la carpeta de evidencia y las sesiones sintéticas efímeras
+descritas abajo, y retira solo el
 contenedor identificado por su nombre/etiqueta únicos. `-- --sin-construir` permite
 reutilizar la imagen local para diagnosticar; reconstruir después de cambiar
 código, configuración o lockfile. El primer uso descarga la imagen y necesita red.
@@ -183,6 +184,29 @@ Cada proyecto comprueba UI base, salud del backend real y Mailpit. También debe
 rechazar un certificado autofirmado de control en `https://localhost:9443`.
 La clave de ese control se genera dentro de `/tmp` del contenedor y se elimina
 con este. El control no introduce un endpoint de negocio ni un escenario CA.
+
+### Recorridos US1
+
+Cada proyecto añade registro como cliente, prestador y ambos (con/sin opcionales
+y foto), y habilitación con una sesión ficticia vigente. El frontend debe
+iniciarse con `npm run dev -- --mode validation`; el build de producción excluye
+la importación del fixture. Playwright intercepta un módulo de composición y
+mantiene el Bearer en memoria; no se expone un endpoint de login o de fixtures.
+El backend real valida esa sesión y sus permisos en PostgreSQL.
+
+Windows crea y retira una cuenta ficticia por test. Linux prepara en el host
+nueve cuentas independientes y monta solo sus sesiones sintéticas en un JSON
+efímero readonly, nunca `backend.env`, `fixtures.json` ni claves TLS. Al finalizar
+retira las cuentas/sesiones y borra ese JSON. No copia el archivo a la imagen.
+No ejecutar dos matrices contra la misma instancia web al medir sus tiempos.
+Los tests de US1 disponen de 60 segundos, incluida preparación y limpieza; no es
+un SLA del producto. Se conservan cero reintentos automáticos.
+Se desactiva el contexto automático de fallos de Playwright para impedir que
+copie los valores de los campos privados; capturas, vídeos y trazas siguen apagados.
+
+`E2E_EVIDENCIA` permite separar las ejecuciones sin cambiar TLS. Para US1 usar
+`../.local/evidencia/001/us1/e2e-windows` con el runner Windows y
+`../.local/evidencia/001/us1` con Linux (añade `e2e-linux/`).
 
 La configuración mantiene `ignoreHTTPSErrors:false`. No se admiten flags que
 omitan errores de certificado ni `NODE_TLS_REJECT_UNAUTHORIZED=0`. El runner

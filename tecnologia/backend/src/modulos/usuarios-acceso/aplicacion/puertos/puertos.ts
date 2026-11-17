@@ -1,5 +1,6 @@
 import type { IdCuenta, PerfilHabilitado } from '../../dominio/identificadores.js';
 import type { ContextoTransaccion } from '../../../../compartido/aplicacion/transaccion.js';
+import type { RegistroCuenta, PerfilCuenta } from '../../dominio/cuenta.js';
 export type { ContextoTransaccion, UnidadDeTrabajo } from '../../../../compartido/aplicacion/transaccion.js';
 
 export interface Reloj { ahora(): Date }
@@ -15,6 +16,12 @@ export interface CuentaLectura { readonly id: IdCuenta; readonly correo: string;
 export interface RepositorioCuentas {
   buscarPorCorreo(correo: string, tx?: ContextoTransaccion): Promise<CuentaLectura | null>;
   bloquear(id: IdCuenta, tx: ContextoTransaccion): Promise<CuentaLectura | null>;
+}
+export interface RepositorioRegistro {
+  crear(id: IdCuenta, datos: RegistroCuenta, phc: string, ahora: Date, foto: FotografiaAlmacenada | undefined, tx: ContextoTransaccion): Promise<void>;
+  perfilBloqueado(id: IdCuenta, tx: ContextoTransaccion): Promise<PerfilCuenta>;
+  exigirSesion(identidad: IdentidadAutenticada, ahora: Date, tx: ContextoTransaccion): Promise<void>;
+  habilitar(id: IdCuenta, perfil: PerfilHabilitado, ahora: Date, tx: ContextoTransaccion): Promise<void>;
 }
 export interface RepositorioSesiones { revocarTodas(cuentaId: IdCuenta, tx: ContextoTransaccion): Promise<void> }
 export interface FotografiaAlmacenada { readonly id: string; readonly objetoClave: string; readonly mime: string; readonly bytes: number; readonly checksum: Uint8Array }

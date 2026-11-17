@@ -4,5 +4,5 @@ export interface ApiUsuarios {
   enviar<K extends keyof OperacionesUsuarios>(operacion: K, entrada: OperacionesUsuarios[K]['entrada'], opciones?: OpcionesPeticion): Promise<OperacionesUsuarios[K]['salida']>;
 }
 export class ErrorApi extends Error {
-  constructor(readonly http: number, readonly codigo: string, mensaje: string) { super(mensaje); this.name = 'ErrorApi'; }
+  constructor(readonly http: number, readonly codigo: string, mensaje: string, readonly detalles: readonly { campo?: string; motivo: string }[] = []) { super(mensaje); this.name = 'ErrorApi'; }
 }

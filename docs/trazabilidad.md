@@ -39,13 +39,23 @@ Documentos de origen: [HU](01-analisis-de-sistema/02-historias-de-usuario.md) ·
 
 Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y ADR-013 (stack).
 
-La funcionalidad 001 dispone de su fundación técnica en `tecnologia/backend`
+La funcionalidad 001 dispone de fundación y US1 verificadas en `tecnologia/backend`
 y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
-vincula T001–T023 con archivos y verificaciones. Sus pruebas técnicas no acreditan
-todavía los 32 requisitos locales ni los 53 escenarios funcionales: las historias
-US1–US7 y sus pruebas permanecen pendientes. T007 pasó sus nueve proyectos en
-Linux aislado y en Windows nativo con TLS activo y rechazo de certificados no
-confiables; la instalación y retirada de la CA local quedan documentadas.
+vincula T001–T036 con archivos y resultados: 11 CA-REG comprobados; US2–US7 y los
+otros 42 CA permanecen pendientes. Los nueve proyectos de Linux y Windows
+conservan TLS activo y rechazo de certificados no confiables. No acredita la
+entrega completa de 001 ni todos los 32 requisitos locales.
+
+| Cadena de US1 | Componentes construidos | Prueba ejecutada |
+|---|---|---|
+| HU01 → RF01 → FR-001–003/021–022 → AC09/EQ-04 → DA03/DA07 → ADR-002/003/005/006 → Usuarios y acceso | `tecnologia/backend/src/modulos/usuarios-acceso/dominio/cuenta.ts`, `politica-contrasena.ts`, `aplicacion/registrar-cuenta.ts`, repositorio y controlador de registro | `tecnologia/backend/test/unit/usuarios-acceso/registro.spec.ts`, `test/integration/usuarios-acceso/registro.spec.ts`, `test/contract/usuarios-acceso/registro.spec.ts`: CA-REG-01–05, 08–11 según niveles de la matriz. |
+| HU01 → RF01 (apoyo HU02/RF05) → FR-028–029 → EQ-04 → DA03 → ADR-002/005/006 → Usuarios y acceso | `dominio/perfiles-habilitados.ts`, `aplicacion/habilitar-perfil.ts`, `presentacion/registro.controller.ts`, composición backend | Las mismas suites backend: CA-REG-06/07; confirmación, titularidad, versión, replay, concurrencia y ausencia de administración. |
+| HU01 → RF01 → FR-019/021 → EQ-07 → DA10 → ADR-004/011 → web y fotografías propias | `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Registro.tsx`, `HabilitarPerfil.tsx`, `aplicacion/registro.ts`, composición y adaptador HTTP; foto por adaptador S3 fundacional | `tecnologia/frontend/test/unit/usuarios-acceso/registro.test.tsx` y `test/e2e/usuarios-acceso/registro.spec.ts`: 7 V y 18 E por entorno; 360/768/1366 × Chromium/Firefox/WebKit, backend real. |
+
+Las rutas abreviadas de componentes y pruebas son relativas a las mismas raíces
+backend/frontend de cada fila. La [matriz normativa](../specs/001-usuarios-y-acceso/test-matrix.md)
+conserva la relación exacta de cada CA con sus niveles. La adición usa una sesión
+ficticia exclusivamente en validación; no se entrega RF02/login en este corte.
 
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
@@ -80,7 +90,7 @@ confiables; la instalación y retirada de la CA local quedan documentadas.
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | Planificada | `specs/001-…` |
+| 001 | Usuarios y acceso | HU01, HU02 | Parcial: fundación y US1 verificadas | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |

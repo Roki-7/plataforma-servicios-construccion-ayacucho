@@ -1,0 +1,32 @@
+import { describe, expect, test } from '@jest/globals';
+import { validarCuentaNueva, PRIVACIDAD_VERSION } from '../../../src/modulos/usuarios-acceso/dominio/cuenta.js';
+import { politicaNuevaContrasena } from '../../../src/modulos/usuarios-acceso/dominio/politica-contrasena.js';
+import { perfilesIniciales, agregarPerfil } from '../../../src/modulos/usuarios-acceso/dominio/perfiles-habilitados.js';
+import { RegistrarCuenta } from '../../../src/modulos/usuarios-acceso/aplicacion/registrar-cuenta.js';
+import type { RepositorioRegistro } from '../../../src/modulos/usuarios-acceso/aplicacion/puertos/puertos.js';
+import type { Idempotencia } from '../../../src/compartido/aplicacion/idempotencia.js';
+
+const entrada = () => ({ nombreMostrar: 'Constructora de prueba', correo: 'persona@example.invalid', contrasena: ' valor completo sin mezclar ', confirmacionContrasena: ' valor completo sin mezclar ', perfiles: ['cliente'], politicaPrivacidadAceptada: true, politicaPrivacidadVersion: PRIVACIDAD_VERSION });
+describe('US1 reglas sin DB', () => {
+  test('CA-REG-01 opcionales y persona/empresa', () => { expect(() => validarCuentaNueva(entrada())).not.toThrow(); expect(() => validarCuentaNueva({ ...entrada(), telefono: null, distrito: 'Distrito libre' })).not.toThrow(); });
+  test.each(['nombreMostrar', 'correo', 'contrasena', 'confirmacionContrasena', 'perfiles', 'politicaPrivacidadVersion'])('CA-REG-02 obligatorio %s', (campo) => { const dato: Record<string, unknown> = entrada(); delete dato[campo]; expect(() => validarCuentaNueva(dato)).toThrow(); });
+  test('CA-REG-02 correo y confirmación exacta', () => { expect(() => validarCuentaNueva({ ...entrada(), correo: 'invalido' })).toThrow(); expect(() => validarCuentaNueva({ ...entrada(), confirmacionContrasena: 'valor diferente completo' })).toThrow(); });
+  test('CA-REG-04 ambos en la misma selección, sin administrador', () => { expect(perfilesIniciales(['cliente', 'prestador'])).toEqual(['cliente', 'prestador']); for (const p of [[], ['administrador'], ['cliente', 'cliente']]) expect(() => perfilesIniciales(p)).toThrow(); });
+  test.each([false, undefined])('CA-REG-05 privacidad %s', (valor) => { expect(() => validarCuentaNueva({ ...entrada(), politicaPrivacidadAceptada: valor })).toThrow(); });
+  test('CA-REG-05 versión vigente', () => { expect(() => validarCuentaNueva({ ...entrada(), politicaPrivacidadVersion: 'anterior' })).toThrow(); });
+  test.each([true, false, undefined])('CA-REG-06 confirmación %s', (confirmacion) => { if (confirmacion === true) expect(agregarPerfil(['cliente'], 'prestador', confirmacion)).toEqual(['cliente', 'prestador']); else expect(() => agregarPerfil(['cliente'], 'prestador', confirmacion)).toThrow(); });
+  test.each([14, 15, 128, 129])('CA-REG-09 Unicode suplementario %i puntos', async (n) => { const p = '𠮷'.repeat(n); const trabajo = politicaNuevaContrasena(p, p, { preparada: async () => true, rechazada: async () => false }); if (n === 15 || n === 128) await expect(trabajo).resolves.toBeUndefined(); else await expect(trabajo).rejects.toThrow(); });
+  test.each([14, 15, 128, 129])('CA-REG-09 ASCII %i puntos', async (n) => { const p = 'x'.repeat(n); const trabajo = politicaNuevaContrasena(p, p, { preparada: async () => true, rechazada: async () => false }); if (n === 15 || n === 128) await expect(trabajo).resolves.toBeUndefined(); else await expect(trabajo).rejects.toThrow(); });
+  test('CA-REG-10 espacios sin mezcla, sin normalizar ni cortar a 72 bytes', async () => { const observados: string[] = []; const p = ' '.repeat(15); await politicaNuevaContrasena(p, p, { preparada: async () => true, rechazada: async (v) => { observados.push(v); return false; } }); expect(observados).toEqual([p]); expect(() => validarCuentaNueva({ ...entrada(), contrasena: 'a'.repeat(72) + 'uno', confirmacionContrasena: 'a'.repeat(72) + 'dos' })).toThrow(); });
+  test.each(['comun', 'comprometida'])('CA-REG-11 rechaza %s sin omitir catálogo', async () => { await expect(politicaNuevaContrasena('clave rechazada completa', 'clave rechazada completa', { preparada: async () => true, rechazada: async () => true })).rejects.toMatchObject({ codigo: 'CONTRASENA_NO_ADMITIDA' }); });
+  test('CA-REG-11 catálogo ausente y Unicode inválido', async () => { await expect(politicaNuevaContrasena('clave de prueba completa', 'clave de prueba completa', { preparada: async () => false, rechazada: async () => false })).rejects.toMatchObject({ http: 503 }); expect(() => validarCuentaNueva({ ...entrada(), nombreMostrar: '\ud800' })).toThrow(); });
+  test('CA-REG-01 CA-REG-04 registro coordina puertos sin DB ni autenticación', async () => {
+    const escrituras: unknown[] = []; const hashes: string[] = [];
+    const repositorio = { crear: async (...args: unknown[]) => { escrituras.push(args); } } as unknown as RepositorioRegistro;
+    const idempotencia: Idempotencia = { ejecutar: async (_s, trabajo) => trabajo({ id: 'tx-ficticia' }) };
+    const registrar = new RegistrarCuenta(repositorio, idempotencia, { crear: async (p) => { hashes.push(p); return '$argon2id$ficticio'; }, verificar: async () => false }, { preparada: async () => true, rechazada: async () => false }, { ahora: () => new Date('2026-11-16T00:00:00Z') }, { uuid: () => '550e8400-e29b-41d4-a716-446655440000', secreto: () => { throw new Error('No debe emitir credenciales.'); }, digest: () => new Uint8Array() }, { almacenar: async () => { throw new Error('Foto ausente.'); }, leerPropia: async () => { throw new Error(); }, eliminarObjeto: async () => undefined });
+    const d = { ...entrada(), perfiles: ['cliente' as const, 'prestador' as const] }; validarCuentaNueva(d);
+    expect(await registrar.ejecutar(d, 'clave-ficticia-128-bits')).toMatchObject({ http: 201, cuerpo: { perfiles: ['cliente', 'prestador'], version: 1 } }); expect(escrituras).toHaveLength(1); expect(hashes).toEqual([d.contrasena]);
+  });
+  test.each([['nombreMostrar', 200], ['correo', 320], ['telefono', 32], ['distrito', 100]] as const)('CA-REG-02 límite Unicode de %s', (campo, max) => { if (campo === 'correo') { expect(() => validarCuentaNueva({ ...entrada(), correo: 'a'.repeat(309) + '@ejemplo.pe' })).not.toThrow(); expect(() => validarCuentaNueva({ ...entrada(), correo: 'a'.repeat(310) + '@ejemplo.pe' })).toThrow(); } else { expect(() => validarCuentaNueva({ ...entrada(), [campo]: '𠮷'.repeat(max) })).not.toThrow(); expect(() => validarCuentaNueva({ ...entrada(), [campo]: '𠮷'.repeat(max + 1) })).toThrow(); } });
+});
