@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { ErrorAplicacion, datosInvalidos } from '../../dominio/errores.js';
 import { eventoPeticion } from './logs-seguros.js';
 
-interface Operacion { requestBody?: { content: { 'application/json': { schema: AnySchemaObject } } }; parameters?: { $ref?: string }[]; 'x-limite-cuerpo-bytes': number }
+interface Operacion { requestBody?: { content: { 'application/json': { schema: AnySchemaObject } } }; parameters?: { $ref?: string }[]; security?: Record<string, string[]>[]; 'x-limite-cuerpo-bytes': number }
 type DocumentoContrato = AnySchemaObject & { paths: Record<string, Record<string, Operacion>> };
 interface Ruta { patron: string; regex: RegExp; metodo: string; operacion: Operacion; validar?: ValidateFunction; parametros: { nombre: string; validar: ValidateFunction }[] }
 function responder(res: Response, error: ErrorAplicacion): void {
@@ -54,6 +54,9 @@ export async function configurarApi(app: INestApplication, config: { origen: str
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Content-Type-Options', 'nosniff');
     const ruta = rutas.find((r) => r.metodo === req.method && r.regex.test(req.path));
+    // Marca del servidor, nunca tomada de body/headers. El guard también aplica
+    // Bearer contractual si un controlador omite accidentalmente el decorador.
+    res.locals['requiereBearer']=ruta?.operacion.security?.some(s=>Object.hasOwn(s,'bearerAuth'))??false;
     if (config.registrar) res.on('finish', () => config.registrar?.(eventoPeticion(req.method, ruta?.patron, res.statusCode)));
     const limite = ruta?.operacion['x-limite-cuerpo-bytes'] ?? 65536;
     if (Number(req.headers['content-length'] ?? 0) > limite) { responder(res, new ErrorAplicacion(413, 'CUERPO_DEMASIADO_GRANDE', 'El cuerpo supera el límite permitido.')); req.resume(); return; }

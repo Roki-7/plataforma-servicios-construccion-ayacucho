@@ -39,10 +39,10 @@ Documentos de origen: [HU](01-analisis-de-sistema/02-historias-de-usuario.md) ·
 
 Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y ADR-013 (stack).
 
-La funcionalidad 001 dispone de fundación, US1–US3 y US5 verificadas en `tecnologia/backend`
+La funcionalidad 001 dispone de fundación y US1–US5 verificadas en `tecnologia/backend`
 y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
-vincula T001–T076 con archivos y resultados: 11 CA-REG, nueve CA-SES, diez CA-REC
-históricos y seis CA-PER comprobados. US4/US6/US7 y los otros 17 CA permanecen pendientes.
+vincula T001–T085 con archivos y resultados: 11 CA-REG, nueve CA-SES, diez CA-REC,
+seis CA-PER y siete CA-AUT comprobados (43/53). US6/US7 y los otros diez CA permanecen pendientes.
 La regresión conjunta recuperación/perfil queda en T110. Los nueve proyectos de Linux y Windows
 conservan TLS activo y rechazo de certificados no confiables. No acredita la
 entrega completa de 001 ni todos los 32 requisitos locales.
@@ -90,7 +90,7 @@ Su evidencia se conserva; la regresión conjunta con perfil se ejecutará en T11
 | HU02 → RF05 → FR-015–016/018/021 → EQ-04/EQ-07 → DA03/DA10 → ADR-004/006/011 → fotografía propia | `aplicacion/fotografias.ts`, `presentacion/fotografias.controller.ts`, puertos de perfil y almacenamiento/limpieza S3 existentes; formato base64 canónico acotado en HTTP | I/C anteriores: imagen propia temporal y posterior vinculación, 404 ajena, firma/MIME, 10000000 bytes aceptados y 10000001 rechazados, objeto ausente y compensación/cleanup sin perder foto vigente. |
 | HU02 → RF05 → FR-015–016/019/031 → EQ-07 → DA10 → ADR-003/004/006/011 → web | `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/perfil.ts`, `presentacion/Perfil.tsx`, `EditarPerfil.tsx`, composición y rutas `/cuenta` y `/habilitar-perfil` | `tecnologia/frontend/test/unit/usuarios-acceso/perfil.test.tsx` (8 V), `test/e2e/usuarios-acceso/perfil.spec.ts` (nueve proyectos por entorno): persistencia/recarga, dos editores, 409 sin sobrescritura, consentimiento del mismo valor y object URL revocada; PR07/PR12. |
 
-US5 completa T063–T076. Regresión pertinente recuperada: 71 U, 44 I, 52 C, 31 V y
+**Registro histórico del cierre US5:** US5 completa T063–T076. Regresión pertinente recuperada: 71 U, 44 I, 52 C, 31 V y
 45 E por entorno, con fundación/US1/US2. La reanudación corrige la sincronización
 de la prueba con el GET real de perfil y verifica otros 9/9 proyectos US5 en Linux
 y Windows; conserva el intento Linux 7/9 y el historial. Sin cambios de TLS ni
@@ -99,6 +99,30 @@ credenciales, administración o endpoint público RF10. Evidencia ignorada en
 El corpus completo aprobado de producción continúa pendiente del despliegue;
 el fixture no lo sustituye. T077/US4 y siguientes, T110 conjunto recuperación/perfil,
 las limitaciones históricas y la DoD global siguen pendientes. No se acredita 001 completa.
+
+## Cierre US4: permisos, titularidad y privacidad
+
+| Cadena de US4 | Componentes construidos | Prueba ejecutada |
+|---|---|---|
+| HU01 → RF04 → FR-012–014/029 → AC04/EQ-04 → DA03 → ADR-002/003/005/006 → Usuarios y acceso | `aplicacion/evaluar-acceso.ts`, `api-publica.ts`, guard y validación HTTP; perfiles actuales y revalidación dentro de transacción en cuentas/sesiones | `tecnologia/backend/test/unit/usuarios-acceso/permisos.spec.ts` (7 U), `test/integration/usuarios-acceso/permisos.spec.ts` (10 I) y `test/contract/usuarios-acceso/permisos.spec.ts` (16 C), CA-AUT-01–07 según matriz; PR04. |
+| HU01/HU02 → RF04/RF05 → FR-017/031 → AC04/EQ-04 → DA03 → ADR-006 → proyección interna | API pública interna reutiliza `aplicacion/proyectar-perfil-compartible.ts` de T069, sin duplicación ni endpoint RF10 | U/C permisos: CA-AUT-06, serialización sin correo/documentos/dirección/credenciales; teléfono solo con consentimiento efectivo del mismo valor. |
+| HU01 → RF04 → FR-012/019 → AC04/EQ-04, AC07/EQ-07 → DA03/DA10 → ADR-004/006 → web | `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstadoAcceso.tsx`, `Perfil.tsx` y `composicion/App.tsx` | `tecnologia/frontend/test/e2e/usuarios-acceso/permisos.spec.ts`: 27 E por entorno, CA-AUT-02 cliente/prestador/ambos × nueve proyectos; servidor rechaza cuerpo manipulado y mantiene datos. |
+
+US4 cierra T077–T085. Regresión completa sin filtros de historias: **89 U, 68 I,
+77 C y 37 V**; E cubre **81 casos distintos por entorno** por unión de matrices
+80/81 y repeticiones manuales secuenciales de SES Linux 9/9 y REG Windows 18/18.
+Los dos fallos iniciales se conservan; no son matrices monolíticas 81/81.
+Incluye fundación/registro/sesiones/recuperación/
+perfil/permisos (V conserva sus cinco suites existentes). La comparación por caso y
+multiplicidad conserva la unión US5 + auditoría REC: 82/58/61/37/54 por entorno,
+añadiendo únicamente 7 U/10 I/16 C/27 E de US4. Los históricos no se reescriben.
+Comandos, inventario de archivos/rutas, siete CA-AUT, reportes y limitaciones en el
+[estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
+y `tecnologia/.local/evidencia/001/us4/`. No cambia TLS, administración ni contratos.
+T086/US6 y US7 no iniciadas. T110 conserva nuevas variantes y recuperación/perfil
+conjuntas; corpus productivo aprobado pendiente antes del despliegue. La limitación
+histórica del inspector SameSite WebKit Windows sigue documentada; cabecera Lax
+exigida. Sin bloqueo actual de US4; 001 y la DoD global aún no están completas.
 
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
@@ -133,7 +157,7 @@ las limitaciones históricas y la DoD global siguen pendientes. No se acredita 0
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | Parcial: fundación, US1–US3 y US5 verificadas | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | Parcial: fundación y US1–US5 verificadas | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |

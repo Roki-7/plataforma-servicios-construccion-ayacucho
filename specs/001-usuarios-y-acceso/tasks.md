@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-17. **Estado**: preparación, fundación, US1–US3 y US5 implementadas y verificadas;
+**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US5 implementadas y verificadas;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -9,8 +9,8 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
-US1 (T024–T036), US2 (T037–T048), US3 (T049–T062) y US5 (T063–T076) están verificadas;
-T077–T119 siguen pendientes. La regresión conjunta recuperación/perfil permanece en T110.
+US1 (T024–T036), US2 (T037–T048), US3 (T049–T062), US5 (T063–T076) y US4 (T077–T085) están verificadas;
+T086–T119 siguen pendientes; siguiente T086 (US6), no iniciada. La regresión conjunta recuperación/perfil permanece en T110.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -195,6 +195,9 @@ a US4; T082 conserva únicamente su integración y validación transversal poste
 
 ## Fase 7: US4 — Acceder únicamente a lo autorizado (P1)
 
+**Estado**: T077–T085 implementadas y verificadas; siete CA-AUT en sus niveles.
+Resultados completos, comandos e inclusión efectiva en implementation-status.md.
+
 **Origen**: HU01/RF04; FR-012–014, FR-017–018, FR-029, FR-031.
 **Objetivo**: completar y verificar la matriz de identidad, perfiles y titularidad,
 incluida la proyección compartible interna; ninguna ruta pública RF10.
@@ -205,18 +208,18 @@ proviene de la fase 2 y la referencia administrativa no exige consola ni alta.
 
 ### Pruebas primero
 
-- [ ] T077 [P] [US4] Escribir U de CA-AUT-03, CA-AUT-04, CA-AUT-05 y CA-AUT-06 en `tecnologia/backend/test/unit/usuarios-acceso/permisos.spec.ts`; rol sin titularidad, dos titulares, ambos perfiles sin bypass, intento de elevación y proyección compartible sin correo/documento/dirección/credenciales ni teléfono no autorizado.
-- [ ] T078 [P] [US4] Escribir I de CA-AUT-01, CA-AUT-02, CA-AUT-03, CA-AUT-05 y CA-AUT-07 en `tecnologia/backend/test/integration/usuarios-acceso/permisos.spec.ts`; visitante/vencido/revocado, titulares positivos, ID/foto ajenos, rol insuficiente y UUID inmutable, comparando estado antes/después sin construir recursos de otros módulos.
-- [ ] T079 [P] [US4] Escribir C de CA-AUT-01, CA-AUT-02, CA-AUT-03, CA-AUT-04, CA-AUT-05, CA-AUT-06 y CA-AUT-07 en `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts`; todas las rutas protegidas existentes, campos administrativos/UUID/cuentaId extra, 401/403/404 sin filtraciones y proyección interna serializada en harness de contrato sin crear endpoint RF10; incorporar a la misma matriz las rutas US6/US7 al existir en T097/T107.
-- [ ] T080 [P] [US4] Escribir E de CA-AUT-02 en `tecnologia/frontend/test/e2e/usuarios-acceso/permisos.spec.ts`; cliente/prestador/ambos leen y editan sus campos, con backend real y T007; verificar rechazo servidor de peticiones manipuladas aunque se oculte el control visual.
+- [X] T077 [P] [US4] Escribir U de CA-AUT-03, CA-AUT-04, CA-AUT-05 y CA-AUT-06 en `tecnologia/backend/test/unit/usuarios-acceso/permisos.spec.ts`; rol sin titularidad, dos titulares, ambos perfiles sin bypass, intento de elevación y proyección compartible sin correo/documento/dirección/credenciales ni teléfono no autorizado.
+- [X] T078 [P] [US4] Escribir I de CA-AUT-01, CA-AUT-02, CA-AUT-03, CA-AUT-05 y CA-AUT-07 en `tecnologia/backend/test/integration/usuarios-acceso/permisos.spec.ts`; visitante/vencido/revocado, titulares positivos, ID/foto ajenos, rol insuficiente y UUID inmutable, comparando estado antes/después sin construir recursos de otros módulos.
+- [X] T079 [P] [US4] Escribir C de CA-AUT-01, CA-AUT-02, CA-AUT-03, CA-AUT-04, CA-AUT-05, CA-AUT-06 y CA-AUT-07 en `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts`; todas las rutas protegidas existentes, campos administrativos/UUID/cuentaId extra, 401/403/404 sin filtraciones y proyección interna serializada en harness de contrato sin crear endpoint RF10; incorporar a la misma matriz las rutas US6/US7 al existir en T097/T107.
+- [X] T080 [P] [US4] Escribir E de CA-AUT-02 en `tecnologia/frontend/test/e2e/usuarios-acceso/permisos.spec.ts`; cliente/prestador/ambos leen y editan sus campos, con backend real y T007; verificar rechazo servidor de peticiones manipuladas aunque se oculte el control visual.
 
 ### Implementación futura
 
-- [ ] T081 [US4] Completar API pública interna y evaluación de autorización en `tecnologia/backend/src/modulos/usuarios-acceso/api-publica.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/evaluar-acceso.ts`; identidad/sesión, perfiles vigentes y titularidad mediante puertos propios, sin exponer repositorios ni tipos ORM y sin permiso implícito administrativo sobre cuenta ajena. Depende de T077–T080 y T013.
-- [ ] T082 [US4] Integrar la proyección compartible ya implementada en T069 mediante `tecnologia/backend/src/modulos/usuarios-acceso/api-publica.ts` y verificarla transversalmente con CA-AUT-06 en `tecnologia/backend/test/unit/usuarios-acceso/permisos.spec.ts` y `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` de T077/T079; reutilizar `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/proyectar-perfil-compartible.ts` sin una segunda implementación, comprobar datos excluidos y consentimiento del mismo teléfono. No crear rutas, búsqueda ni perfil público RF10. Depende de T069 y T081.
-- [ ] T083 [US4] Aplicar evaluación uniforme y allowlist a registro, habilitación, perfil/fotos y sesiones en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/guard-sesion.ts` y `tecnologia/backend/src/compartido/infraestructura/http/configurar-api.ts`; comprobar DB por operación y ausencia de permisos extra/inmutables, conservar distinción 401/403/404 y estado protegido ante rechazo. Depende de T081–T082 y endpoints existentes; rutas posteriores reutilizan la política desde su creación.
-- [ ] T084 [US4] Integrar estado de permisos y mensajes en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstadoAcceso.tsx` y `tecnologia/frontend/src/composicion/App.tsx`; solo mostrar acciones pertinentes sin convertir ocultación de UI en autorización y sin exponer datos de otras cuentas en errores.
-- [ ] T085 [US4] Ejecutar T077–T080 y matriz PR04 positiva/negativa en `tecnologia/.local/evidencia/001/us4/`; visitante, cliente, prestador, ambos y referencia administrativa sobre las rutas disponibles, datos antes/después y ausencia de acceso por rol sin titularidad; reservar repetición extendida a US6/US7 en T110.
+- [X] T081 [US4] Completar API pública interna y evaluación de autorización en `tecnologia/backend/src/modulos/usuarios-acceso/api-publica.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/evaluar-acceso.ts`; identidad/sesión, perfiles vigentes y titularidad mediante puertos propios, sin exponer repositorios ni tipos ORM y sin permiso implícito administrativo sobre cuenta ajena. Depende de T077–T080 y T013.
+- [X] T082 [US4] Integrar la proyección compartible ya implementada en T069 mediante `tecnologia/backend/src/modulos/usuarios-acceso/api-publica.ts` y verificarla transversalmente con CA-AUT-06 en `tecnologia/backend/test/unit/usuarios-acceso/permisos.spec.ts` y `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` de T077/T079; reutilizar `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/proyectar-perfil-compartible.ts` sin una segunda implementación, comprobar datos excluidos y consentimiento del mismo teléfono. No crear rutas, búsqueda ni perfil público RF10. Depende de T069 y T081.
+- [X] T083 [US4] Aplicar evaluación uniforme y allowlist a registro, habilitación, perfil/fotos y sesiones en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/guard-sesion.ts` y `tecnologia/backend/src/compartido/infraestructura/http/configurar-api.ts`; comprobar DB por operación y ausencia de permisos extra/inmutables, conservar distinción 401/403/404 y estado protegido ante rechazo. Depende de T081–T082 y endpoints existentes; rutas posteriores reutilizan la política desde su creación.
+- [X] T084 [US4] Integrar estado de permisos y mensajes en `tecnologia/frontend/src/features/usuarios-acceso/presentacion/EstadoAcceso.tsx` y `tecnologia/frontend/src/composicion/App.tsx`; solo mostrar acciones pertinentes sin convertir ocultación de UI en autorización y sin exponer datos de otras cuentas en errores.
+- [X] T085 [US4] Ejecutar T077–T080 y matriz PR04 positiva/negativa en `tecnologia/.local/evidencia/001/us4/`; visitante, cliente, prestador, ambos y referencia administrativa sobre las rutas disponibles, datos antes/después y ausencia de acceso por rol sin titularidad; reservar repetición extendida a US6/US7 en T110.
 
 ## Fase 8: US6 — Cambiar el correo de acceso (P1)
 
@@ -531,6 +534,25 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
+La continuación autorizada de US4 completó únicamente T077–T085, conservando US1–US3 y US5.
+T001–T085 suman **85 tareas terminadas y 34 pendientes**. Acumulado **43/53 CA**:
+11 REG, nueve SES, diez REC, seis PER y siete AUT; quedan diez de US6/US7.
+Ejecuciones completas sin filtros: 89 U, 68 I y 77 C (seis suites por nivel),
+37 V (cinco suites) y 81 casos E distintos cubiertos por entorno (seis archivos ×
+nueve proyectos): matrices iniciales 80/81; repeticiones secuenciales SES Linux 9/9
+y REG Windows 18/18. No son matrices monolíticas 81/81; fallos iniciales conservados.
+REC está incluida y sus casos anteriores se contrastan por identidad, sin bajas.
+Pasan typecheck/lint/build, arquitectura, contenedor y proxy; TLS se conserva.
+Evidencia e inventario: tecnologia/.local/evidencia/001/us4/ y implementation-status.md.
+La proyección interna de T069 se reutiliza en T082; no se añade administración ni RF10.
+T110 conserva las nuevas variantes transversales y recuperación/perfil conjuntas pendientes.
+El corpus productivo completo aprobado sigue pendiente antes del despliegue.
+Se conservan todos los incidentes históricos y la limitación SameSite del inspector
+WebKit Windows; la cabecera Lax continúa exigida. **Sin bloqueo actual de US4**.
+Siguiente tarea **T086 (US6), no iniciada**. Detención al completar T085.
+
+**Registro histórico del cierre anterior de US5 (estado de aquel momento):**
+
 La continuación autorizada completó únicamente US5: T063–T076, conservando US1–US3.
 T001–T076 suman 76 tareas terminadas; las 43 restantes siguen pendientes.
 Se acreditan acumulativamente 36 CA: 11 REG, nueve SES, diez REC históricos y seis PER;

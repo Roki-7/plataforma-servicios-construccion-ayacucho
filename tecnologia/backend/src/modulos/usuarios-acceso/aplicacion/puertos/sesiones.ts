@@ -1,8 +1,8 @@
-import type { IdCuenta } from '../../dominio/identificadores.js';
+import type { IdCuenta, PerfilHabilitado } from '../../dominio/identificadores.js';
 import type { Sesion } from '../../dominio/sesion.js';
 import type { ControlIntentos } from '../../dominio/control-intentos.js';
 import type { ContextoTransaccion, RepositorioSesiones } from './puertos.js';
-export interface CuentaAutenticable extends ControlIntentos { id: IdCuenta; versionCredencial: bigint }
+export interface CuentaAutenticable extends ControlIntentos { id: IdCuenta; versionCredencial: bigint; perfiles: readonly PerfilHabilitado[] }
 export interface RepositorioAutenticacion extends RepositorioSesiones {
   bloquearCuenta(id: IdCuenta, tx: ContextoTransaccion): Promise<CuentaAutenticable | null>;
   guardarIntentos(id: IdCuenta, control: ControlIntentos, tx: ContextoTransaccion): Promise<void>;

@@ -30,6 +30,8 @@ import { RepositorioConsentimientosPostgres } from '../modulos/usuarios-acceso/i
 import { HuellasTelefonoHmac } from '../modulos/usuarios-acceso/infraestructura/seguridad/huellas-telefono.js';
 import { PerfilController, SERVICIOS_PERFIL } from '../modulos/usuarios-acceso/presentacion/perfil.controller.js';
 import { FotografiasController, SERVICIO_FOTOGRAFIAS } from '../modulos/usuarios-acceso/presentacion/fotografias.controller.js';
+import { EvaluarAcceso } from '../modulos/usuarios-acceso/aplicacion/evaluar-acceso.js';
+import { ApiUsuariosAcceso } from '../modulos/usuarios-acceso/api-publica.js';
 import { HashArgon2id } from '../modulos/usuarios-acceso/infraestructura/seguridad/argon2id.js';
 import { CatalogoLocal } from '../modulos/usuarios-acceso/infraestructura/seguridad/catalogo-contrasenas.js';
 import { LectorSesionPostgres } from '../modulos/usuarios-acceso/infraestructura/persistencia/lector-sesion.js';
@@ -64,6 +66,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   const cuentas = new RepositorioCuentasPostgres(db, uow, consentimientos);
   const perfiles = new RepositorioPerfilPostgres(uow);
   const serviciosPerfil = { consultar:new ConsultarPerfil(cuentas,lector,uow,reloj),actualizar:new ActualizarPerfil(cuentas,perfiles,consentimientos,fotos,idempotencia,lector,reloj) };
+  const evaluarAcceso=new EvaluarAcceso(lector);const usuariosAcceso=new ApiUsuariosAcceso(evaluarAcceso,serviciosPerfil.consultar);
   const servicioFotografias = new Fotografias(cuentas,fotos,idempotencia,lector,reloj);
   const registrar = new RegistrarCuenta(cuentas, idempotencia, hash, catalogo, reloj, new SecretosCrypto(), fotos);
   const habilitar = new HabilitarPerfil(cuentas, idempotencia, lector, reloj);
@@ -100,5 +103,5 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   app.enableShutdownHooks();
   await app.init();
   if (opciones.worker !== false) worker.iniciar();
-  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion, consentimientos, perfiles, serviciosPerfil, servicioFotografias };
+  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion, consentimientos, perfiles, serviciosPerfil, servicioFotografias, usuariosAcceso, evaluarAcceso };
 }

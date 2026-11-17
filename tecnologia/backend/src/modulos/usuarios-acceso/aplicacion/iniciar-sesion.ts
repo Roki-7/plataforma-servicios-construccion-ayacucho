@@ -2,6 +2,7 @@ import type { RepositorioCuentas, UnidadDeTrabajo, HashContrasena, Reloj, Genera
 import type { RepositorioAutenticacion, ProteccionCsrf, EmisionSesion } from './puertos/sesiones.js';
 import { evaluarIntento } from '../dominio/control-intentos.js';
 import { datosInvalidos, ErrorAplicacion } from '../dominio/errores.js';
+import { exigirTitularidad } from '../dominio/politica-acceso.js';
 const invalidas = () => new ErrorAplicacion(401, 'CREDENCIALES_INVALIDAS', 'Correo o contraseña incorrectos.');
 export class IniciarSesion {
   constructor(private readonly cuentas: RepositorioCuentas, private readonly sesiones: RepositorioAutenticacion, private readonly uow: UnidadDeTrabajo, private readonly hash: HashContrasena, private readonly reloj: Reloj, private readonly secretos: GeneradorSecretos, private readonly csrf: ProteccionCsrf) {}
@@ -16,6 +17,7 @@ export class IniciarSesion {
       if (evaluacion.estado !== bloqueada) await this.sesiones.guardarIntentos(cuenta.id, evaluacion.estado, tx);
       if (evaluacion.espera) return new ErrorAplicacion(429, 'CUENTA_TEMPORALMENTE_BLOQUEADA', 'Espere antes de volver a intentarlo.', [], evaluacion.espera);
       if (!evaluacion.permitido) return invalidas();
+      exigirTitularidad(cuenta.id,bloqueada.id,bloqueada.perfiles);
       const tokenAcceso = this.secretos.secreto(); const renovacion = this.secretos.secreto(); const venceEn = new Date(+ahora + 604800000);
       await this.sesiones.crear({ id: this.secretos.uuid(), usuarioId: cuenta.id, accesoDigest: this.secretos.digest(tokenAcceso), renovacionDigest: this.secretos.digest(renovacion), accesoVenceEn: new Date(+ahora + 900000), renovacionVenceEn: venceEn, autenticadaConContrasenaEn: ahora, creadaEn: ahora, renovadaEn: ahora, revocadaEn: null, version: 1n }, tx);
       return { renovacion, venceEn, respuesta: { tokenAcceso, tipo: 'Bearer', expiraEnSegundos: 900, renovacionVenceEn: venceEn.toISOString(), autenticacionConContrasenaEn: ahora.toISOString(), csrfToken: this.csrf.emitir(renovacion) } };

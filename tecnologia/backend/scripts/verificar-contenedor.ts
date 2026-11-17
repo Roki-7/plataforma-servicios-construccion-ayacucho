@@ -66,7 +66,7 @@ try {
   const sinCorpus = await arrancar('sin-corpus', { CATALOGO_MANIFIESTO: '/validacion/catalogo/inexistente.json' }); await esperarSalud(sinCorpus, 503);
   const digest = docker(['image', 'inspect', imagen, '--format', '{{.Id}}']);
   const carpeta = resolve(local, 'evidencia/001'); await mkdir(carpeta, { recursive: true });
-  await writeFile(resolve(carpeta, 'contenedor.json'), JSON.stringify({ fecha: new Date().toISOString(), imagen, digest, uid: Number(uid), salud: [200, 503, 503], argon2id: 'verificado', sesiones: [401, 401], recuperacion: 202, perfil: [401,401], alcance: 'Regresión fundacional con US1–US3 y US5 compiladas; perfil/foto protegidos, sin sustituir CA ni la regresión conjunta T110' }, null, 2));
+  await writeFile(resolve(carpeta, 'contenedor.json'), JSON.stringify({ fecha: new Date().toISOString(), imagen, digest, uid: Number(uid), salud: [200, 503, 503], argon2id: 'verificado', sesiones: [401, 401], recuperacion: 202, perfil: [401,401], alcance: 'Regresión fundacional con US1–US5 compiladas; perfil/foto protegidos, sin sustituir CA ni nuevas variantes conjuntas T110' }, null, 2));
   process.stdout.write('Imagen verificada: usuario sin privilegios, Argon2id nativo y salud 200/503/503.\n');
 } catch {
   process.stderr.write('Comprobación de contenedor fallida o bloqueada. No se acredita T023 hasta resolver motor, construcción, configuración y arranque.\n'); process.exitCode = 1;

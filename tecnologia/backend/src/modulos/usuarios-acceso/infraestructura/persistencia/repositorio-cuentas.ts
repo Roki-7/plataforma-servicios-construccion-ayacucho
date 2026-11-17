@@ -5,6 +5,7 @@ import type { RegistroCuenta, PerfilCuenta } from '../../dominio/cuenta.js';
 import { idCuenta, type IdCuenta, type PerfilHabilitado } from '../../dominio/identificadores.js';
 import { ErrorAplicacion } from '../../dominio/errores.js';
 import type { RepositorioConsentimientos } from '../../aplicacion/puertos/perfil.js';
+import { exigirTitularidad } from '../../dominio/politica-acceso.js';
 interface Fila { id: string; correo: string; nombre_mostrar: string; contrasena_hash: string; version: string; version_credencial: string; telefono: string | null; distrito: string | null; fotografia_id: string | null }
 export class RepositorioCuentasPostgres implements RepositorioCuentas, RepositorioRegistro {
   constructor(private readonly db: DataSource, private readonly uow: UnidadDeTrabajoPostgres, private readonly consentimientos?: RepositorioConsentimientos) {}
@@ -24,6 +25,9 @@ export class RepositorioCuentasPostgres implements RepositorioCuentas, Repositor
     const perfiles: { perfil: PerfilHabilitado }[] = await q.query('SELECT perfil FROM perfiles_habilitados WHERE usuario_id=$1 ORDER BY perfil', [id]);
     return { cuentaId: f.id, correo: f.correo, nombreMostrar: f.nombre_mostrar, telefono: f.telefono, distrito: f.distrito, fotografiaId: f.fotografia_id, perfiles: perfiles.map((p) => p.perfil), telefonoCompartible: await this.consentimientos?.efectivo(id,f.telefono,tx) ?? false, version: Number(f.version) };
   }
-  async exigirSesion(i: IdentidadAutenticada, ahora: Date, tx: ContextoTransaccion): Promise<void> { const filas: { id: string }[] = await this.uow.runner(tx).query('SELECT id FROM sesiones WHERE id=$1 AND usuario_id=$2 AND revocada_en IS NULL AND acceso_vence_en>$3 AND version=$4 FOR UPDATE', [i.sesionId, i.cuentaId, ahora, i.versionSesion.toString()]); if (!filas[0]) throw new ErrorAplicacion(401, 'SESION_NO_VALIDA', 'Sesión no válida.'); }
+  async exigirSesion(i: IdentidadAutenticada, ahora: Date, tx: ContextoTransaccion): Promise<void> {
+    const q=this.uow.runner(tx);const filas: { id: string }[] = await q.query('SELECT id FROM sesiones WHERE id=$1 AND usuario_id=$2 AND revocada_en IS NULL AND acceso_vence_en>$3 AND version=$4 FOR UPDATE', [i.sesionId, i.cuentaId, ahora, i.versionSesion.toString()]); if (!filas[0]) throw new ErrorAplicacion(401, 'SESION_NO_VALIDA', 'Sesión no válida.');
+    const perfiles:{perfil:PerfilHabilitado}[]=await q.query('SELECT perfil FROM perfiles_habilitados WHERE usuario_id=$1 ORDER BY perfil',[i.cuentaId]);exigirTitularidad(i.cuentaId,i.cuentaId,perfiles.map(p=>p.perfil));
+  }
   async habilitar(id: IdCuenta, perfil: PerfilHabilitado, ahora: Date, tx: ContextoTransaccion): Promise<void> { const q = this.uow.runner(tx); await q.query('INSERT INTO perfiles_habilitados(usuario_id,perfil,habilitado_en,confirmado_por_titular_en) VALUES($1,$2,$3,$3)', [id, perfil, ahora]); await q.query('UPDATE usuarios SET version=version+1,actualizada_en=$2 WHERE id=$1', [id, ahora]); }
 }

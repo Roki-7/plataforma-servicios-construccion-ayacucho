@@ -1,9 +1,11 @@
 # Matriz de validación — 53 escenarios de 001
 
-**Estado**: CA-REG-01–11 de US1, CA-SES-01–09 de US2, CA-REC-01–10 de US3 y
-CA-PER-01–06 de US5 implementados y verificados en sus niveles aplicables U/I/C/V/E;
-los otros 17 CA siguen planificados. US3 conserva su evidencia histórica; la regresión
-conjunta recuperación/perfil permanece pendiente en T110. Resultados y evidencia en
+**Estado**: CA-REG-01–11 de US1, CA-SES-01–09 de US2, CA-REC-01–10 de US3,
+CA-PER-01–06 de US5 y CA-AUT-01–07 de US4 implementados y verificados en sus
+niveles aplicables U/I/C/V/E: **43/53 CA**; los diez de US6/US7 siguen planificados.
+US4 ejecuta todas las suites existentes, incluida REC; comparación de casos sin bajas.
+Las nuevas variantes conjuntas recuperación/perfil y el cierre transversal permanecen
+pendientes en T110. Resultados, comandos, archivos y evidencia en
 [implementation-status.md](implementation-status.md). Se conservan todos los
 criterios y niveles normativos de las 53 filas.
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).

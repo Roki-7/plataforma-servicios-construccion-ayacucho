@@ -1,4 +1,188 @@
-# Estado de implementación: fundación, US1–US3 y US5 de 001
+# Estado de implementación: fundación y US1–US5 de 001
+
+Fecha local: 2026-11-17 (America/Mexico_City). Continuación autorizada:
+**solo US4, T077–T085, nueve tareas implementadas y verificadas localmente**.
+Se conservan US1–US3, US5 y TLS. El backlog mantiene **119 tareas: 85 terminadas
+y 34 pendientes**. La siguiente es **T086 (US6), no iniciada**. Se acreditan
+acumulativamente **43/53 CA**: 11 REG, nueve SES, diez REC, seis PER y siete AUT.
+Los diez CA de US6/US7 y la DoD global permanecen pendientes.
+
+## Cierre de US4: permisos, titularidad y privacidad
+
+`aplicacion/evaluar-acceso.ts` aplica identidad/sesión vigente, perfiles habilitados
+y titularidad mediante el puerto propio `LectorSesion`. No conserva permisos en
+caché ni acepta roles enviados por el cliente. `api-publica.ts` entrega identidad
+mínima y autorización interna, sin repositorios, tipos ORM o credenciales. La
+composición la conecta a los adaptadores actuales; no se construyen otros módulos.
+La lectura del servidor se repite por operación. Las escrituras de perfil,
+fotografías e incorporación de perfiles vuelven a comprobar sesión y perfiles
+después del bloqueo de cuenta; inicio, bootstrap CSRF, renovación y cierre comprueban
+los perfiles actuales dentro de su transacción. Tener ambos perfiles no permite
+operar sobre otro titular. El cierre usa la sesión Bearer, aunque se envíe una
+cookie de otra cuenta.
+
+El guard conserva su interfaz fundacional y comparte la evaluación de acceso.
+Además del decorador, exige el Bearer indicado por el contrato mediante una marca
+interna del middleware; un controlador que omita el decorador no queda abierto.
+Las allowlists existentes rechazan identificadores, propiedades administrativas
+y campos extra. Se comprueban 401 por ausencia/vencimiento/revocación, 403 por
+permiso insuficiente, 404 indistinguible para foto ajena/inexistente y 400 por
+campos no admitidos. El rechazo conserva datos y no emite credenciales. Un error
+de PostgreSQL produce 503, sin autorización alternativa. Las fotos ajenas se
+rechazan antes de consultar el objeto privado en S3.
+
+T082 reutiliza **sin modificar ni duplicar** la proyección de T069. La API interna
+solo permite nombre para mostrar, distrito, perfiles y teléfono si el consentimiento
+efectivo corresponde al mismo valor. Excluye correo, documentos, dirección exacta
+y credenciales. No se añade endpoint, búsqueda ni perfil público RF10. La web
+incorpora `EstadoAcceso.tsx`, mensajes seguros y limpieza del estado al perder sesión;
+la autorización se comprueba en el servidor incluso con peticiones manipuladas.
+
+La referencia administrativa es un fixture adversarial que señala esa condición;
+no es un nuevo rol persistido ni un administrador creado por registro. Las pruebas
+demuestran que esa marca no otorga derechos sobre otra cuenta. PostgreSQL exige
+uno o dos perfiles válidos: la ausencia de perfiles se inyecta dentro de una
+transacción revertida o mediante el puerto de prueba. No se deshabilitan constraints
+ni se atribuye a esos casos una cuenta inválida persistida. El cambio real de
+cliente a prestador en DB confirma la ausencia de caché de permisos.
+
+### Comandos y suites efectivamente incluidas
+
+Se usó Node 24 local, lockfiles y dependencias existentes. U/I/C/V se ejecutaron
+en Windows nativo; I/C usan PostgreSQL 18 real en bases aisladas y los servicios
+locales de validación. Desde `tecnologia/backend`,
+`JEST_JUNIT_OUTPUT_DIR` apunta en absoluto a `tecnologia/.local/evidencia/001/us4/`
+y `JEST_JUNIT_OUTPUT_NAME` a `backend-<nivel>-junit.xml`, por ejecución:
+
+| Nivel | Comando | Archivos incluidos bajo `test/<nivel>/` | Aprobadas |
+|---|---|---|---:|
+| U | `npm.cmd run test:unit -- --no-cache` | `fundacion.spec.ts` y `usuarios-acceso/{registro,sesiones,recuperacion,perfil,permisos}.spec.ts` | 89 |
+| I | `npm.cmd run test:integration -- --runInBand --no-cache` | Los mismos seis nombres bajo `test/integration/` | 68 |
+| C | `npm.cmd run test:contract -- --no-cache` | Los mismos seis nombres bajo `test/contract/` | 77 |
+
+Desde `tecnologia/frontend`:
+
+| Nivel/entorno | Comando | Inclusión efectiva | Aprobadas |
+|---|---|---|---:|
+| V, Windows | `npm.cmd run test:unit -- --outputFile=../.local/evidencia/001/us4/frontend-junit.xml` | `test/unit/fundacion.test.ts` y `usuarios-acceso/{registro,sesiones,recuperacion,perfil}.test.tsx` | 37 |
+| E, Linux Docker | `npm.cmd run test:e2e:container` | `test/e2e/fundacion.spec.ts` y `usuarios-acceso/{registro,sesiones,recuperacion,perfil,permisos}.spec.ts`; nueve proyectos | 80/81 inicialmente; cierre por repetición indicada abajo |
+| E, Windows nativo | `npm.cmd run test:e2e:windows` | Los mismos seis archivos y nueve proyectos | 80/81 inicialmente; cierre por repetición indicada abajo |
+| E, Linux, repetición secuencial | `npm.cmd run test:e2e:container -- --sin-construir test/e2e/usuarios-acceso/sesiones.spec.ts` | Solo sesiones, nueve proyectos; misma imagen y fuente | 9/9 |
+| E, Windows, repetición secuencial | `npm.cmd run test:e2e:windows -- test/e2e/usuarios-acceso/registro.spec.ts` | Solo registro/incorporación, nueve proyectos | 18/18 |
+
+Los comandos completos no usan filtros de rutas, historias, grep ni proyectos.
+Recuperación está incluida en **todos** los niveles. Cada matriz E usa un worker,
+Chromium/Firefox/WebKit × 360/768/1366, backend real, datos ficticios aislados,
+Mailpit y HTTPS estricto. `E2E_EVIDENCIA` separa `us4/` (el runner Linux crea
+`e2e-linux/`) y `us4/e2e-windows/`; Windows usa `PLAYWRIGHT_BROWSERS_PATH` absoluto
+a `tecnologia/.local/ms-playwright/`. Las matrices completas tuvieron un fallo de
+espera por entorno; las suites afectadas se repitieron de forma manual y secuencial,
+sin cambios de código, tiempos o aserciones. La unión por identidad y multiplicidad
+cubre **81 casos distintos aprobados por entorno**, con cero fallos pendientes,
+sin omitidos ni reintentos automáticos. No se presenta como una ejecución monolítica
+81/81. Smoke complementario de US4: `npm.cmd run test:e2e --
+test/e2e/usuarios-acceso/permisos.spec.ts --project=chromium-360 --workers=1`, 3/3.
+
+| Suite | U | I | C | V | E por entorno |
+|---|---:|---:|---:|---:|---:|
+| Fundación | 10 | 6 | 5 | 7 | 9 |
+| Registro US1 | 32 | 10 | 26 | 7 | 18 |
+| Sesiones US2 | 15 | 19 | 13 | 9 | 9 |
+| Recuperación US3 | 11 | 14 | 9 | 6 | 9 |
+| Perfil US5 | 14 | 9 | 8 | 8 | 9 |
+| Permisos US4 | 7 | 10 | 16 | — | 27 |
+| **Total de casos distintos cubiertos** | **89** | **68** | **77** | **37** | **81** |
+
+La comparación por identidad de caso y multiplicidad conserva los **82 U, 58 I,
+61 C, 37 V y 54 E por entorno** de la unión US5 + auditoría REC. Las únicas
+adiciones son 7 U, diez I, 16 C y 27 E por entorno de US4. Se conservan las fuentes
+de los 20 archivos de pruebas fundacionales/US1–US3 inventariados en la auditoría, y las huellas
+de los reportes históricos. Esta ejecución completa acredita la regresión
+independiente de esas historias; **no sustituye las nuevas variantes de T110**.
+Además, `fuentes-anteriores.json` acredita los 25 archivos de suites anteriores,
+incluidos los de perfil, sin cambios contra HEAD.
+
+También pasan typecheck, lint y build de ambas aplicaciones, y
+`npm.cmd run test:architecture`: cero infracciones, 125 módulos y 388 dependencias.
+`npm.cmd run test:container` recompila la imagen Linux: UID 1000, Argon2id nativo,
+salud 200/503/503, sesiones 401/401, recuperación genérica 202 y perfil/foto 401/401.
+`npm.cmd run test:proxy` verifica salud/web 200 y excesos 413. Las matrices de
+navegador verifican confianza TLS y rechazo de certificados no confiables, con
+CA/certificados/proxy/confianza anteriores conservados.
+
+### Rutas y trazabilidad de los siete CA-AUT
+
+T079 cubre las **ocho operaciones privadas actuales**, bajo `/api/v1`:
+seis Bearer (`GET/PATCH /perfil`, `POST /perfil/perfiles`, `POST /perfil/fotografias`,
+`GET /perfil/fotografias/{fotografiaId}`, `DELETE /sesiones/actual`) y dos con cookie
+(`GET /sesiones/csrf`, `POST /sesiones/renovacion`). Las cinco operaciones públicas
+existentes son registro, inicio, solicitud/consumo de recuperación y salud. Las
+cuatro operaciones futuras de US6/US7 siguen sin implementar: `POST
+/sesiones/reautenticacion`, `POST /perfil/cambios-correo`, `POST
+/perfil/cambios-correo/{token}/confirmacion` y `POST /perfil/cambios-contrasena`.
+La matriz se ampliará en T097/T107 y se repetirá en T110; su ausencia actual está
+delimitada, no es una exclusión silenciosa.
+
+| CA | Evidencia ejecutada conforme a matriz | Tareas |
+|---|---|---|
+| CA-AUT-01 | I/C: visitante, vencimiento, revocación; seis rutas Bearer y dos de cookie; sin datos ni emisión | T078/T079/T083/T085 |
+| CA-AUT-02 | I/C/E: cliente, prestador y ambos consultan/editan su cuenta; fotos propias; petición manipulada rechazada | T078–T080/T085 |
+| CA-AUT-03 | U/I/C: dos titulares, ID/foto ajenos, sesión propia al cerrar, estado conservado | T077–T079/T081/T085 |
+| CA-AUT-04 | U/C: ninguna marca o campo concede administración; perfiles inválidos rechazados | T077/T079/T083/T085 |
+| CA-AUT-05 | U/I/C: rol sin titularidad, perfiles vigentes, revalidación tras lock y DB caída sin bypass | T077–T079/T081/T083/T085 |
+| CA-AUT-06 | U/C: proyección interna serializada y consentimiento del mismo teléfono, sin privados | T077/T079/T082/T085 |
+| CA-AUT-07 | I/C: UUID, cuentaId y privilegios extra inmutables; sin cambios parciales | T078/T079/T083/T085 |
+
+Evidencia local ignorada: `tecnologia/.local/evidencia/001/us4/`. Incluye JUnit U/I/C/V,
+`e2e-linux/`, `e2e-windows/`, `repeticion-linux/e2e-linux/` y `repeticion-windows/`
+con JSON/JUnit/HTML, versiones y TLS; `verificacion.json`,
+`comandos-y-suites.json` con archivos y casos exactos, `cobertura-us4.json`, códigos de
+salida, imagen/proxy, huellas históricas y `secretos-reportes.json`. Los reportes
+sanitizados no conservan tokens de acceso/renovación/recuperación sin redacción;
+capturas, vídeos y trazas siguen desactivados. La comprobación incluye el ZIP
+embebido en HTML. Los documentos normativos y contratos no se modificaron.
+
+### Incidentes conservados y pendientes
+
+Antes de implementar se observó el fallo unitario por módulos de US4 todavía
+ausentes. En la ejecución aislada posterior, integración dio 9/10 porque el
+wrapper de fallo seguía activo durante el GET de verificación. Se corrigió la
+restauración del wrapper en la prueba y la ejecución completa dio 68/68. El
+contrato aislado no llegó a ejecutarse por el corte secuencial: su código propagado
+no representa una suite ejecutada. El guard mantuvo su constructor original para
+conservar los mocks fundacionales. No se modificaron las pruebas previas.
+
+El primer intento Windows se interrumpió al detectar una ruta de navegadores
+inexistente. Se conservan los registros parciales bajo
+`intento-windows-ruta-incorrecta/`; la matriz posterior usa la ruta instalada correcta; su cierre se acredita
+junto con la repetición de la suite afectada. La matriz completa de Linux acabó 80/81:
+WebKit 360 seguía mostrando «Cerrando sesión…» al vencer la aserción de cinco segundos.
+La de Windows acabó 80/81: WebKit 768 agotó 60 segundos esperando el primer campo
+del registro, antes de enviar el alta. Ambas matrices se estaban ejecutando en
+paralelo; esa circunstancia es una posible causa de latencia, no una causa probada.
+Se conservaron los dos fallos y se repitieron secuencialmente las suites existentes
+de sesiones Linux (9/9) y registro Windows (18/18), sin ampliar tiempos, desactivar
+validaciones ni cambiar el código probado. No se reprodujeron los fallos. Las
+repeticiones manuales están identificadas y no se ocultan bajo `flaky: 0` del runner.
+Estos intentos adicionales no aumentan los 81 casos distintos del total.
+Se conservan además el incidente US5 Linux 7/9 y todos los históricos
+US1–US3, incluida la limitación del inspector SameSite WebKit Windows: informa
+None aunque la cabecera es Lax. Se sigue exigiendo la cabecera Lax en cada motor.
+
+**Sin bloqueo actual de US4.** T086–T109 (US6/US7) no iniciadas; T110 mantiene la
+regresión conjunta recuperación/perfil, barreras/rollback y variantes transversales
+extendidas. T111–T119, CI, cobertura global, rendimiento/usabilidad, revisión y fusión
+siguen pendientes según el plan. El **corpus productivo completo aprobado continúa
+pendiente antes del despliegue**: el fixture de validación no lo sustituye y se
+rechaza en producción. No se declara 001 terminada ni desplegada. Detención al
+cerrar T085, antes de US6.
+
+## Registro histórico de US5 y auditoría US3 → US5
+
+El contenido siguiente se conserva como evidencia histórica del estado previo;
+sus cifras y tareas pendientes corresponden a aquel cierre. El estado vigente
+es el cierre de US4 documentado arriba.
+
 
 Fecha local: 2026-11-17 (America/Mexico_City). Continuación autorizada:
 **solo US5, T063–T076**, desde la primera tarea pendiente T063.

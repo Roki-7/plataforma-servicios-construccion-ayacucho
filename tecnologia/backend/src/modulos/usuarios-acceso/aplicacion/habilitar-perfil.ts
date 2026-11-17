@@ -4,12 +4,13 @@ import type { RepositorioRegistro, Reloj, LectorSesion } from './puertos/puertos
 import { agregarPerfil } from '../dominio/perfiles-habilitados.js';
 import { datosInvalidos, ErrorAplicacion } from '../dominio/errores.js';
 import type { PerfilHabilitado } from '../dominio/identificadores.js';
+import { identidadVigente } from './consultar-perfil.js';
 export class HabilitarPerfil {
   constructor(private readonly repositorio: RepositorioRegistro, private readonly idempotencia: Idempotencia, private readonly lector: LectorSesion, private readonly reloj: Reloj) {}
   async ejecutar(d: { version: number; perfil: PerfilHabilitado; confirmacionExplicita: true }, clave: string, token: string): Promise<ResultadoIdempotente> {
     if (!Number.isSafeInteger(d.version) || d.version < 1) throw datosInvalidos(); agregarPerfil(['cliente'], d.perfil, d.confirmacionExplicita);
-    const identidad = await this.lector.leer(token); if (!identidad) throw new ErrorAplicacion(401, 'SESION_NO_VALIDA', 'Sesión no válida.');
-    return this.idempotencia.ejecutar({ ambito: { tipo: 'usuario', id: identidad.cuentaId }, autorizar: async () => { const vigente = await this.lector.leer(token); if (!vigente) throw new ErrorAplicacion(401, 'SESION_NO_VALIDA', 'Sesión no válida.'); return vigente.cuentaId; }, metodo: 'POST', rutaLogica: '/perfil/perfiles', clave, cuerpo: d }, async (tx) => {
+    const identidad = await identidadVigente(this.lector,token);
+    return this.idempotencia.ejecutar({ ambito: { tipo: 'usuario', id: identidad.cuentaId }, autorizar: async () => (await identidadVigente(this.lector,token)).cuentaId, metodo: 'POST', rutaLogica: '/perfil/perfiles', clave, cuerpo: d }, async (tx) => {
       const perfil = await this.repositorio.perfilBloqueado(identidad.cuentaId, tx);
       await this.repositorio.exigirSesion(identidad, this.reloj.ahora(), tx);
       if (perfil.version !== d.version) throw new ErrorAplicacion(409, 'VERSION_DESACTUALIZADA', 'La cuenta cambió. Actualice su versión.');

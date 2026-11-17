@@ -4,12 +4,16 @@ import type { ContextoTransaccion } from '../../aplicacion/puertos/puertos.js';
 import type { CuentaAutenticable, RepositorioAutenticacion } from '../../aplicacion/puertos/sesiones.js';
 import type { ControlIntentos } from '../../dominio/control-intentos.js';
 import type { Sesion } from '../../dominio/sesion.js';
-import { idCuenta, type IdCuenta } from '../../dominio/identificadores.js';
+import { idCuenta, type IdCuenta, type PerfilHabilitado } from '../../dominio/identificadores.js';
 import { dependenciaNoDisponible } from '../../dominio/errores.js';
 interface Fila { id: string; usuario_id: string; acceso_digest: Buffer; renovacion_digest: Buffer; acceso_vence_en: Date; renovacion_vence_en: Date; autenticada_con_contrasena_en: Date | null; creada_en: Date; renovada_en: Date; revocada_en: Date | null; version: string }
 export class RepositorioSesionesPostgres implements RepositorioAutenticacion {
   constructor(private readonly db: DataSource, private readonly uow: UnidadDeTrabajoPostgres) {}
-  async bloquearCuenta(id: IdCuenta, tx: ContextoTransaccion): Promise<CuentaAutenticable | null> { const filas: { id: string; version_credencial: string; fallos_consecutivos: number; bloqueada_hasta: Date | null }[] = await this.uow.runner(tx).query('SELECT id,version_credencial,fallos_consecutivos,bloqueada_hasta FROM usuarios WHERE id=$1 FOR UPDATE', [id]); const f = filas[0]; return f ? { id: idCuenta(f.id), versionCredencial: BigInt(f.version_credencial), fallosConsecutivos: f.fallos_consecutivos, bloqueadaHasta: f.bloqueada_hasta } : null; }
+  async bloquearCuenta(id: IdCuenta, tx: ContextoTransaccion): Promise<CuentaAutenticable | null> {
+    const q=this.uow.runner(tx);const filas: { id: string; version_credencial: string; fallos_consecutivos: number; bloqueada_hasta: Date | null }[] = await q.query('SELECT id,version_credencial,fallos_consecutivos,bloqueada_hasta FROM usuarios WHERE id=$1 FOR UPDATE', [id]);const f=filas[0];if(!f)return null;
+    const perfiles:{perfil:PerfilHabilitado}[]=await q.query('SELECT perfil FROM perfiles_habilitados WHERE usuario_id=$1 ORDER BY perfil',[id]);
+    return {id:idCuenta(f.id),versionCredencial:BigInt(f.version_credencial),fallosConsecutivos:f.fallos_consecutivos,bloqueadaHasta:f.bloqueada_hasta,perfiles:perfiles.map(p=>p.perfil)};
+  }
   async guardarIntentos(id: IdCuenta, c: ControlIntentos, tx: ContextoTransaccion): Promise<void> { await this.uow.runner(tx).query('UPDATE usuarios SET fallos_consecutivos=$2,bloqueada_hasta=$3 WHERE id=$1', [id, c.fallosConsecutivos, c.bloqueadaHasta]); }
   async crear(s: Sesion, tx: ContextoTransaccion): Promise<void> { await this.uow.runner(tx).query('INSERT INTO sesiones(id,usuario_id,acceso_digest,acceso_vence_en,renovacion_digest,renovacion_vence_en,autenticada_con_contrasena_en,creada_en,renovada_en) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$8)', [s.id, s.usuarioId, Buffer.from(s.accesoDigest), s.accesoVenceEn, Buffer.from(s.renovacionDigest), s.renovacionVenceEn, s.autenticadaConContrasenaEn, s.creadaEn]); }
   async localizarRenovacion(digest: Uint8Array): Promise<{ id: string; usuarioId: IdCuenta } | null> { try { const filas: { id: string; usuario_id: string }[] = await this.db.query('SELECT id,usuario_id FROM sesiones WHERE renovacion_digest=$1', [Buffer.from(digest)]); return filas[0] ? { id: filas[0].id, usuarioId: idCuenta(filas[0].usuario_id) } : null; } catch { throw dependenciaNoDisponible(); } }
