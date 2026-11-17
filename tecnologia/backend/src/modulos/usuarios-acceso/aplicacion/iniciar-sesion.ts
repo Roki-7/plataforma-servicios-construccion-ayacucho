@@ -13,6 +13,10 @@ export class IniciarSesion {
     const resultado = await this.uow.ejecutar(async (tx): Promise<EmisionSesion | ErrorAplicacion> => {
       const bloqueada = await this.sesiones.bloquearCuenta(cuenta.id, tx); const ahora = this.reloj.ahora();
       if (!bloqueada || bloqueada.versionCredencial !== cuenta.versionCredencial) return invalidas();
+      // El correo puede cambiar mientras Argon2 trabaja fuera del bloqueo.
+      // Resolver de nuevo con la misma clave canónica DB antes de emitir sesión.
+      const vigente = await this.cuentas.buscarPorCorreo(datos.correo, tx);
+      if (!vigente || vigente.id !== cuenta.id) return invalidas();
       const evaluacion = evaluarIntento(bloqueada, correcta, ahora);
       if (evaluacion.estado !== bloqueada) await this.sesiones.guardarIntentos(cuenta.id, evaluacion.estado, tx);
       if (evaluacion.espera) return new ErrorAplicacion(429, 'CUENTA_TEMPORALMENTE_BLOQUEADA', 'Espere antes de volver a intentarlo.', [], evaluacion.espera);

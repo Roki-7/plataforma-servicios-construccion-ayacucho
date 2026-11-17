@@ -1,4 +1,193 @@
-# Estado de implementación: fundación y US1–US5 de 001
+# Estado de implementación: US6 implementada; cierre diagnóstico pendiente
+
+Fecha local: 2026-11-17 (America/Mexico_City). Alcance: **solo US6, T086–T099**.
+Se conservan US1–US5 y TLS. **T086–T098 verificadas; T099 permanece pendiente** por
+la petición adicional de determinar la causa del 503 histórico de recuperación.
+No se presenta como resuelto un fallo cuya causa original no se pudo demostrar.
+Balance: **98/119 tareas terminadas, 21 pendientes**. Las pruebas acreditan
+**49/53 CA**, incluidos los seis CA-COR; US6 aún no tiene cierre completo.
+**US7 no iniciada. T110 y el corpus productivo siguen pendientes.**
+
+## Correcciones comprobadas al retomar
+
+**Correo anterior durante un login concurrente.** La barrera nueva de CA-COR-06
+reprodujo un 200 indebido: el login encontraba el correo anterior y verificaba su
+contraseña fuera del lock; otra petición confirmaba el cambio antes de emitir la
+sesión. `aplicacion/iniciar-sesion.ts` ahora vuelve a resolver el correo con la
+misma canonización PostgreSQL **después de bloquear la cuenta**, comprobando que
+todavía identifica al mismo UUID. Conserva la revalidación de versión de contraseña.
+La prueba final recibe 401, sin Set-Cookie y sin crear otra sesión. No se compara
+el correo con reglas Unicode distintas en JavaScript ni se revocan sesiones existentes.
+
+**Reloj de fixtures.** Los fixtures nuevos de correo tomaban la marca de contraseña
+de `clock_timestamp()` mientras la aplicación decide con `RelojServidor` de Node;
+el caso de actividad también restaba 301 segundos al reloj DB. Esa sincronización
+entre relojes no era una precondición válida para esos tests. El helper nuevo
+`cuentaCorreoFicticia` usa una marca Node como el login productivo, y la prueba
+actividad/refresh deriva la marca de `e.reloj.ahora()`. Las pruebas de frontera
+inyectan explícitamente el mismo reloj de decisión. **La política no cambió:**
+0–300000 ms inclusive; 300001, marca ausente o futura requieren reautenticación.
+No se amplió el intervalo, añadió tolerancia ni modificó la configuración horaria
+del host/Docker. Una muestra diagnóstica posterior midió desfase DB/Node de 0–3 ms;
+esa muestra no prueba cuál era el desfase durante el intento fallido anterior.
+
+**503 histórico: investigación y bloqueo.** En
+`post-correccion/backend-integration-junit.xml`, CA-REC-08 reset/login esperaba 200
+y recibió 503. El reporte conserva el HTTP y stack de la aserción, pero no la
+excepción original convertida a `DEPENDENCIA_NO_DISPONIBLE`. Se revisaron los logs
+de PostgreSQL del intervalo: no apareció timeout/deadlock de servidor que explique
+ese caso. No se atribuye retrospectivamente a locks, memoria, reloj o código sin
+evidencia. Se añadieron observadores de diagnóstico **solo en herramientas ignoradas**:
+registran etapa/código/clase, nunca SQL, parámetros, contraseñas o tokens.
+Recuperación aislada14/14, correo16/16 y la integración completa 84/84 con observador
+pasaron; también la ejecución final completa por archivos pasó84/84 sin observador.
+La carrera de recuperación final pasó y conserva la garantía de revocar sesiones.
+**La causa histórica no se reprodujo ni se pudo recuperar de los datos originales.**
+Esta es la condición pendiente de T099; no se declara que repetir la suite la reparó.
+
+## Flujo US6 implementado
+
+La solicitud exige sesión y perfiles vigentes, titularidad, versión actual y marca
+de contraseña de **esa misma sesión**, de antigüedad inclusiva 0–300 segundos.
+Actividad y renovación no reinician la marca. Reautenticación compara la contraseña
+completa fuera del lock y revalida credencial/sesión después; solo acredita su sesión,
+sin crear o renovar tokens. Los intentos fallidos respetan y confirman el bloqueo5/15.
+La barrera reset/reautenticación impide acreditar una sesión ya revocada.
+
+La migración008 y el repositorio propio crean desafíos separados de recuperación:
+FK titular/sesión, nuevo correo y canónico con `correo_001/lower`, digest único,
+30 minutos, autenticación acreditada, uso único y versión. Solicitud+Outbox cifrado+
+resultado idempotente se confirman juntos. **No reservan el destino ni cambian el
+correo vigente.** La plantilla envía verificación al nuevo destinatario con base
+HTTPS confiable y fragmento; el worker reintenta el mismo desafío y limpia el payload.
+Un fallo de entrega conserva el correo anterior y el destino anterior de recuperación.
+
+Confirmación exige sesión válida del mismo titular, propósito/token vigentes,
+versiones actuales de perfil y desafío, y unicidad al commit por índice. **No exige
+otra vez 300 segundos.** Correo+versiones+consumo+resultado se confirman atómicamente;
+se conserva UUID, hash/versión de credencial, perfiles, datos, sesiones y renovaciones.
+No se añaden invalidaciones por versión de credencial ni revocación global no aprobadas.
+Dos cuentas verificando el mismo destino tienen una ganadora y un409; un error
+después de escribir revierte correo, consumo y resultado. El nuevo correo pasa
+a identificar login y recuperación; el anterior deja de identificar esa cuenta.
+
+Las tres rutas nuevas aplican guard/origen/allowlists y **no emiten Set-Cookie**.
+Solicitud/confirmación exigen Idempotency-Key; reautenticación no es idempotente.
+Replay exacto con sesión válida conserva el resultado, incluso tras vencer el desafío,
+sin nuevas mutaciones/avisos. Misma clave con otro cuerpo/token da409; otra clave
+con enlace usado da422. La sesión vencida/revocada no permite saltar autenticación
+por replay. GET no consume. CorreoWeb conserva cuerpo y clave ante respuesta perdida,
+consulta versión actual y permite resolver409; formularios conservan el correo
+vigente y el servidor decide recencia. Fragmento solo en memoria/historial limpio,
+sin almacenamiento local. No se implementa el cambio de contraseña de US7.
+
+## Versiones y ejecuciones
+
+**Versión final:** `F3-a6f68f56d2e7d9bb`, base Git
+`013f02040fb99dd645da15724351f32324cacb08` más los cambios locales de US6.
+`tecnologia/.local/evidencia/001/us6/version-final.json` y `final-f3/version.json`
+contienen las **185 huellas de fuente/configuración/lockfiles/contrato**.
+Las matrices registran la huella antes/después; ambas deben coincidir con F3.
+La API se reinició tras la corrección; no se atribuyen los E anteriores a esa API nueva.
+
+| Etapa | Versión probada | Resultado y acreditación |
+|---|---|---|
+| Implementación inicial | V0 lógica: antes de revalidar correo en login y alinear fixtures | U97/I83/V46; C inicial nativo sin JUnit, repetición88/88. Linux 90/90. Windows interrumpida: al menos62 aprobados, sin reporte final acreditado. |
+| Carrera de correo, RED | V0 | Una prueba seleccionada recibió 200 en vez401; quince no seleccionadas. Diagnóstico, no cobertura completa. |
+| Primera corrección de login | V1 lógica: login corregido, fixtures aún con reloj DB | `post-correccion/`: U97; I74 aprobadas/10 fallidas (REC503 y nueveCOR); C nativo. Conservada. |
+| Revisión de fixtures | V2 lógica, cambios que integra F3 | `validacion-final/`: U97/C88 y estáticos0; I termina nativamente tras recuperación, sin JUnit final. No se acredita como84/84. |
+| Diagnóstico al retomar | Fuente final F3, observadores declarados | REC14/14, COR16/16 y completa I84/84; no se reprodujo el503. |
+| Final F3, backend | Huella F3 contemporánea | U97/I84 completos; C88 por seis archivos62 casos y repetición diagnóstica registro26/26. No es C monolítica sin repeticiones. |
+| Final F3, frontend | Huella F3 | V46/46, seis archivos; tipos/lint/build0. |
+| Final F3, E Linux | Huella F3 antes/después | 90/90, sin omitidos ni reintentos automáticos. |
+| Final F3, E Windows | Huella F3 antes/después | 90/90, sin omitidos ni reintentos automáticos. |
+
+V0/V1/V2 son asociaciones lógicas reconstruidas por las correcciones y el orden
+de ejecución; no existía una huella completa contemporánea de cada intento.
+La identificación criptográfica verificable corresponde a F3. Las fuentes no
+cambiaron durante los ensayos F3. Los intentos parciales no se suman como casos nuevos.
+
+## Comandos y suites incluidas
+
+Backend Windows/Node24, PostgreSQL18 real en bases aisladas. Para acotar la
+inestabilidad nativa de Jest Windows se ejecutó cada archivo completo en un
+proceso secuencial, con el mismo Jest/SWC y sin relajar aserciones ni plazos:
+
+`node tecnologia/.local/pruebas/backend-completo-us6.mjs`
+
+El orquestador descubre **los siete archivos de cada grupo** y llama al CLI Jest
+con `--selectProjects <unit|integration|contract> --runInBand --no-cache
+--runTestsByPath <archivo>`. No selecciona nombres de casos ni excluye historias.
+`final-f3/{unit,integration,contract}-ejecuciones.json` conserva las 21 invocaciones,
+archivos, huella y salidas. Los nombres bajo cada `backend/test/<grupo>/` son:
+`fundacion.spec.ts` y `usuarios-acceso/{correo,perfil,permisos,recuperacion,registro,sesiones}.spec.ts`.
+La primera pasada F3 C dejó registro con0xC0000409; la repetición con un observador
+que solo registra inicio/fin de casos pasó26/26. `contract-consolidado.json` y
+`backend-contract-verificado-junit.xml` mantienen esa unión explícita de siete archivos.
+
+Frontend: `npm.cmd run test:unit -- --maxWorkers=1
+--outputFile=../.local/evidencia/001/us6/final-f3/frontend-junit.xml`.
+Seis archivos: `test/unit/fundacion.test.ts` y
+`usuarios-acceso/{registro,sesiones,recuperacion,perfil,correo}.test.tsx`.
+
+Navegadores: `node tecnologia/.local/pruebas/navegadores-f3.mjs linux` y luego
+`... windows`, que ejecutan respectivamente `npm run test:e2e:container` y
+`npm run test:e2e:windows`, **sin filtros**, siete archivos y nueve proyectos,
+un worker. Los archivos E son `test/e2e/fundacion.spec.ts` y
+`usuarios-acceso/{registro,sesiones,recuperacion,perfil,permisos,correo}.spec.ts`.
+Chromium/Firefox/WebKit ×360/768/1366; diez casos por proyecto. En chromium-360
+de cada entorno se espera **301 segundos reales** antes de confirmar; los otros
+ocho proyectos verifican el mismo recorrido sin repetir esa espera física.
+No existe backdoor de reloj en la aplicación. Las fronteras exactas se prueban U/I.
+
+| Suite | U | I | C | V | E por entorno |
+|---|---:|---:|---:|---:|---:|
+| Fundación | 10 | 6 | 5 | 7 | 9 |
+| Registro US1 | 32 | 10 | 26 | 7 | 18 |
+| Sesiones US2 | 15 | 19 | 13 | 9 | 9 |
+| Recuperación US3 | 11 | 14 | 9 | 6 | 9 |
+| Perfil US5 | 14 | 9 | 8 | 8 | 9 |
+| Permisos US4 ampliada | 7 | 10 | 19 | — | 27 |
+| Correo US6 | 8 | 16 | 8 | 9 | 9 |
+| **Total final** | **97** | **84** | **88** | **46** | **90** |
+
+La comparación por identidad y multiplicidad conserva los 89 U/68 I/77 C/37 V/81 E
+del cierre US4; se añaden8 U/16 I/8 C/9 V/9 E de correo y tresC de permisos. REC sigue
+incluida. Los233 archivos históricos inventariados permanecen sin cambios.
+Tipos/lint/build de ambas aplicaciones pasan; arquitectura0 infracciones,139 módulos/
+450 dependencias. La imagen Linux recompilada y proxy pasan; certificados, CA,
+confianza, TLS, contratos y políticas aprobadas intactos. No acredita rendimiento.
+
+## Trazabilidad, evidencia y pendientes
+
+CA-COR-01/05/06: I/C/E; CA-COR-02/03: U/I/C; CA-COR-04: I/C. V adicional cubre
+pendiente, petición de contraseña, errores y reintentos. T097 amplía permisos a
+las tres rutas nuevas: nueve Bearer y dos de cookie; queda futura solo la ruta US7.
+Cadena: HU02/RF05, apoyo HU01/RF02/RF04 → FR-001/023/024/032 → AC04/EQ-04,
+AC07/EQ-07 → DA03/DA04/DA10 → ADR-002/003/004/005/006/009 → Usuarios y acceso/
+API mínima de Notificaciones → U/I/C/V/E; PR04/PR07/PR13 y regresión PR14.
+
+Evidencia en `tecnologia/.local/evidencia/001/us6/`: originales y parciales,
+diagnóstico y `final-f3/`; `verificacion-f3.json`, `comandos-y-suites-f3.json`,
+`cobertura-us6-f3.json`, huellas y examen de secretos, incluido ZIP de HTML.
+Los reportes de C con proceso abortado no se sustituyen por el resultado posterior.
+La inestabilidad Windows 0xC0000409 sigue sin causa demostrada; registrar una
+repetición aprobada no equivale a reparar ese fallo nativo. Se conservan también
+US5Linux7/9, timeoutsWebKitUS4 y limitación del inspector SameSiteWebKitWindows;
+la cabecera Lax sigue comprobándose y TLS no se relaja.
+
+**Bloqueo de cierre:** no se ha cumplido la petición de identificar causalmente el
+503 original. Su ejecución descartó la excepción interna y no se ha conseguido
+reproducirlo con diagnóstico; no hay un fallo funcional actual demostrado en F3.
+T099 queda pendiente y US6 no se declara cerrada. T100/US7 no iniciada; T110,
+corpus productivo completo aprobado y DoD global/CI/rendimiento/usabilidad/revisión/
+fusión permanecen pendientes. El fixture local no sustituye el corpus productivo.
+
+## Registro histórico de US4 y anteriores
+
+Se conserva a continuación todo el cuerpo del estado previo. Sus cifras y tareas
+pendientes son históricas; el estado vigente es el informe F3 anterior.
+
 
 Fecha local: 2026-11-17 (America/Mexico_City). Continuación autorizada:
 **solo US4, T077–T085, nueve tareas implementadas y verificadas localmente**.

@@ -1,13 +1,16 @@
 # Matriz de validación — 53 escenarios de 001
 
-**Estado**: CA-REG-01–11 de US1, CA-SES-01–09 de US2, CA-REC-01–10 de US3,
-CA-PER-01–06 de US5 y CA-AUT-01–07 de US4 implementados y verificados en sus
-niveles aplicables U/I/C/V/E: **43/53 CA**; los diez de US6/US7 siguen planificados.
-US4 ejecuta todas las suites existentes, incluida REC; comparación de casos sin bajas.
-Las nuevas variantes conjuntas recuperación/perfil y el cierre transversal permanecen
-pendientes en T110. Resultados, comandos, archivos y evidencia en
-[implementation-status.md](implementation-status.md). Se conservan todos los
-criterios y niveles normativos de las 53 filas.
+**Estado**: CA-REG-01–11, CA-SES-01–09, CA-REC-01–10, CA-AUT-01–07,
+CA-PER-01–06 y CA-COR-01–06 probados en sus niveles: **49/53 CA**.
+Los cuatro CA-CLA de US7 permanecen planificados. US6 T086–T098 verificadas;
+T099 pendiente por la causa no determinada del503histórico de recuperación.
+F3-a6f68f56d2e7d9bb: 97U/84I/88C/46V y matrices completas90/90 en Linux y Windows.
+C se acredita por archivos y una repetición de registro tras aborto nativo;
+resultados iniciales/parciales/finales separados en
+[implementation-status.md](implementation-status.md). Todas las pruebas previas
+se conservan por identidad y multiplicidad. Ningún nivel normativo se modifica.
+T110 mantiene variantes transversales y recuperación/perfil conjuntas pendientes.
+
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).
 El alcance sigue siendo RF01–RF05 y HU01–HU02; las variantes no crean nuevos CA.
 Ninguna cifra de cobertura declarada prueba que las pruebas ya pasen.

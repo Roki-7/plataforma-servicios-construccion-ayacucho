@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US5 implementadas y verificadas;
+**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US5 verificadas; US6 T086–T098 verificadas, T099 pendiente;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -10,7 +10,7 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
 US1 (T024–T036), US2 (T037–T048), US3 (T049–T062), US5 (T063–T076) y US4 (T077–T085) están verificadas;
-T086–T119 siguen pendientes; siguiente T086 (US6), no iniciada. La regresión conjunta recuperación/perfil permanece en T110.
+US6 está implementada: T086–T098 verificadas. T099 conserva el bloqueo de diagnóstico del 503 histórico; T100–T119 siguen pendientes. US7 no iniciada. La regresión conjunta recuperación/perfil permanece en T110.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -223,6 +223,12 @@ proviene de la fase 2 y la referencia administrativa no exige consola ni alta.
 
 ## Fase 8: US6 — Cambiar el correo de acceso (P1)
 
+**Estado**: T086–T098 implementadas y verificadas en F3-a6f68f56d2e7d9bb.
+T099 permanece pendiente: falta identificar la causa del 503 histórico de recuperación
+solicitada al retomar. Las verificaciones funcionales finales pasan; no se declara
+resuelto ese incidente por una repetición aprobada. Detalle y evidencia en
+[implementation-status.md](implementation-status.md). US7 no iniciada.
+
 **Origen**: HU02/RF05; apoyo HU01/RF02/RF04; FR-001, FR-023–024, FR-032.
 **Objetivo**: recencia de la misma sesión al solicitar y verificación del nuevo
 destino antes de cambiar identidad de acceso, con concurrencia/versiones.
@@ -232,22 +238,22 @@ Requiere sesiones, perfil versionado, correo y controles de acceso previos.
 
 ### Pruebas primero
 
-- [ ] T086 [P] [US6] Escribir U de CA-COR-02 y CA-COR-03 en `tecnologia/backend/test/unit/usuarios-acceso/correo.spec.ts`; 299.999/300/300.001 s, marca ausente/futura, misma sesión, actividad/renovación no renuevan marca y reautenticación válida sí.
-- [ ] T087 [P] [US6] Escribir I de CA-COR-01, CA-COR-02, CA-COR-03, CA-COR-04, CA-COR-05 y CA-COR-06 en `tecnologia/backend/test/integration/usuarios-acceso/correo.spec.ts`; dos cuentas confirman mismo destino con un 409, correo anterior intacto hasta commit/verificación, fallo de entrega/token vencido, no reservar destino, conservación de UUID/perfiles/datos, reautenticación concurrente con reset y no exigir otra vez 300 s al confirmar.
-- [ ] T088 [P] [US6] Escribir C de POST `/sesiones/reautenticacion`, POST `/perfil/cambios-correo` y POST `/perfil/cambios-correo/{token}/confirmacion` para CA-COR-01, CA-COR-02, CA-COR-03, CA-COR-04, CA-COR-05 y CA-COR-06 en `tecnologia/backend/test/contract/usuarios-acceso/correo.spec.ts`; marca cliente ignorada/rechazada, sesión/titularidad/propósito, versión de perfil/desafío, idempotencia, errores y ningún Set-Cookie en estos endpoints.
-- [ ] T089 [P] [US6] Escribir pruebas V adicionales de recencia, pedir contraseña, cambio pendiente y confirmación en `tecnologia/frontend/test/unit/usuarios-acceso/correo.test.tsx`; servidor decide, actividad no rehabilita ventana y error de verificación mantiene correo anterior.
-- [ ] T090 [P] [US6] Escribir E de CA-COR-01, CA-COR-05 y CA-COR-06 en `tecnologia/frontend/test/e2e/usuarios-acceso/correo.spec.ts`; reautenticación si procede, enlace Mailpit al destino nuevo, confirmación tras pasar 300 s pero antes de vencer desafío, misma identidad, nuevo login sí/anterior no y recuperación al destino vigente; T007.
+- [X] T086 [P] [US6] Escribir U de CA-COR-02 y CA-COR-03 en `tecnologia/backend/test/unit/usuarios-acceso/correo.spec.ts`; 299.999/300/300.001 s, marca ausente/futura, misma sesión, actividad/renovación no renuevan marca y reautenticación válida sí.
+- [X] T087 [P] [US6] Escribir I de CA-COR-01, CA-COR-02, CA-COR-03, CA-COR-04, CA-COR-05 y CA-COR-06 en `tecnologia/backend/test/integration/usuarios-acceso/correo.spec.ts`; dos cuentas confirman mismo destino con un 409, correo anterior intacto hasta commit/verificación, fallo de entrega/token vencido, no reservar destino, conservación de UUID/perfiles/datos, reautenticación concurrente con reset y no exigir otra vez 300 s al confirmar.
+- [X] T088 [P] [US6] Escribir C de POST `/sesiones/reautenticacion`, POST `/perfil/cambios-correo` y POST `/perfil/cambios-correo/{token}/confirmacion` para CA-COR-01, CA-COR-02, CA-COR-03, CA-COR-04, CA-COR-05 y CA-COR-06 en `tecnologia/backend/test/contract/usuarios-acceso/correo.spec.ts`; marca cliente ignorada/rechazada, sesión/titularidad/propósito, versión de perfil/desafío, idempotencia, errores y ningún Set-Cookie en estos endpoints.
+- [X] T089 [P] [US6] Escribir pruebas V adicionales de recencia, pedir contraseña, cambio pendiente y confirmación en `tecnologia/frontend/test/unit/usuarios-acceso/correo.test.tsx`; servidor decide, actividad no rehabilita ventana y error de verificación mantiene correo anterior.
+- [X] T090 [P] [US6] Escribir E de CA-COR-01, CA-COR-05 y CA-COR-06 en `tecnologia/frontend/test/e2e/usuarios-acceso/correo.spec.ts`; reautenticación si procede, enlace Mailpit al destino nuevo, confirmación tras pasar 300 s pero antes de vencer desafío, misma identidad, nuevo login sí/anterior no y recuperación al destino vigente; T007.
 
-### Implementación futura
+### Implementación y verificación; cierre pendiente
 
-- [ ] T091 [US6] Crear dominio/migración/entidad de cambios de correo en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/cambio-correo.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/migraciones/008-cambios-correo.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/cambio-correo.entity.ts`: id/usuario_id «uuid PK / FK», «Titular y cambio.»; sesion_solicitante_id «uuid FK sesiones», «Registro de la sesión que acreditó recencia.»; nuevo_correo/nuevo_correo_canonico «text», «Privados; no alteran aún usuarios.correo.»; token_digest «bytea único», «Token de verificación distinto del de recuperación.»; solicitada_en/vence_en «timestamptz», «Caducidad técnica de 30 minutos para este desafío.»; autenticacion_acreditada_en «timestamptz», «Marca con contraseña que autorizó la solicitud; no enviada por cliente.»; confirmada_en/invalidada_en «timestamptz nulo», «No completar dos veces.»; version «bigint, inicial 1», «Control del desafío.»; correo válido <=320 y canónico con la misma función DB.
-- [ ] T092 [US6] Implementar repositorio de cambios en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-cambios-correo.ts`; FK/propiedad, locks cuenta→sesión al solicitar y cuenta→desafío al confirmar, versiones esperadas y unicidad del destino en commit, sin reservar correo al solicitar. Depende de T091.
-- [ ] T093 [US6] Implementar reautenticación en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/reautenticar-sesion.ts`; verificar actual completa fuera de lock y revalidar version_credencial/sesión tras lock antes de actualizar únicamente la marca de esa sesión; fallo no acredita autenticación ni crea/renueva sesión. Depende de T043 y T014; extender barrera reset/reautenticación de T087.
-- [ ] T094 [US6] Implementar solicitud de correo en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/solicitar-cambio-correo.ts`; exigir sesión/versión y literalmente «antigüedad de autenticación entre 0 y 300 segundos inclusive», marca servidor de esa misma sesión; ausente/futura/>300 exige contraseña, actividad/refresh no cuentan; desafío+correo cifrado al nuevo destino+resultado en una transacción y conservar correo vigente. Depende de T092–T093.
-- [ ] T095 [US6] Implementar confirmación en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/confirmar-cambio-correo.ts`; sesión válida mismo titular, token de propósito correcto vigente/no usado y versiones actuales de perfil/desafío, unicidad revalidada por índice, correo+versión+consumo+resultado en commit, mismo UUID/credenciales/perfiles/datos y sin exigir de nuevo 300 s ni revocar sesiones globalmente. Depende de T092 y T094.
-- [ ] T096 [US6] Añadir plantilla de verificación en `tecnologia/backend/src/modulos/notificaciones/infraestructura/plantillas-seguridad.ts`; enlace web con token/versión en fragmento, base confiable, nuevo destinatario, vencimiento, cifrado/limpieza y mismo desafío al reintentar; no consumir mediante GET. Depende de T094–T095.
-- [ ] T097 [US6] Exponer reautenticación y solicitud/confirmación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/reautenticacion.controller.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/correo.controller.ts` y `tecnologia/backend/src/composicion/app.module.ts`; guard/origen, idempotencia donde OpenAPI exige, 403 REAUTENTICACION_REQUERIDA y versión/desafío según contrato; ampliar matriz de `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` con estas rutas. Depende de T093–T096.
-- [ ] T098 [US6] Implementar caso de uso y formularios web en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/correo.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/CambiarCorreo.tsx`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Reautenticar.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/ConfirmarCorreo.tsx`; pendiente conserva anterior, respuesta servidor decide recencia, confirmar con sesión válida y versiones actualizadas, fragmento solo en memoria/historial limpio, sin renovación de cookie ni secretos en URL posterior.
+- [X] T091 [US6] Crear dominio/migración/entidad de cambios de correo en `tecnologia/backend/src/modulos/usuarios-acceso/dominio/cambio-correo.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/migraciones/008-cambios-correo.ts` y `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/cambio-correo.entity.ts`: id/usuario_id «uuid PK / FK», «Titular y cambio.»; sesion_solicitante_id «uuid FK sesiones», «Registro de la sesión que acreditó recencia.»; nuevo_correo/nuevo_correo_canonico «text», «Privados; no alteran aún usuarios.correo.»; token_digest «bytea único», «Token de verificación distinto del de recuperación.»; solicitada_en/vence_en «timestamptz», «Caducidad técnica de 30 minutos para este desafío.»; autenticacion_acreditada_en «timestamptz», «Marca con contraseña que autorizó la solicitud; no enviada por cliente.»; confirmada_en/invalidada_en «timestamptz nulo», «No completar dos veces.»; version «bigint, inicial 1», «Control del desafío.»; correo válido <=320 y canónico con la misma función DB.
+- [X] T092 [US6] Implementar repositorio de cambios en `tecnologia/backend/src/modulos/usuarios-acceso/infraestructura/persistencia/repositorio-cambios-correo.ts`; FK/propiedad, locks cuenta→sesión al solicitar y cuenta→desafío al confirmar, versiones esperadas y unicidad del destino en commit, sin reservar correo al solicitar. Depende de T091.
+- [X] T093 [US6] Implementar reautenticación en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/reautenticar-sesion.ts`; verificar actual completa fuera de lock y revalidar version_credencial/sesión tras lock antes de actualizar únicamente la marca de esa sesión; fallo no acredita autenticación ni crea/renueva sesión. Depende de T043 y T014; extender barrera reset/reautenticación de T087.
+- [X] T094 [US6] Implementar solicitud de correo en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/solicitar-cambio-correo.ts`; exigir sesión/versión y literalmente «antigüedad de autenticación entre 0 y 300 segundos inclusive», marca servidor de esa misma sesión; ausente/futura/>300 exige contraseña, actividad/refresh no cuentan; desafío+correo cifrado al nuevo destino+resultado en una transacción y conservar correo vigente. Depende de T092–T093.
+- [X] T095 [US6] Implementar confirmación en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/confirmar-cambio-correo.ts`; sesión válida mismo titular, token de propósito correcto vigente/no usado y versiones actuales de perfil/desafío, unicidad revalidada por índice, correo+versión+consumo+resultado en commit, mismo UUID/credenciales/perfiles/datos y sin exigir de nuevo 300 s ni revocar sesiones globalmente. Depende de T092 y T094.
+- [X] T096 [US6] Añadir plantilla de verificación en `tecnologia/backend/src/modulos/notificaciones/infraestructura/plantillas-seguridad.ts`; enlace web con token/versión en fragmento, base confiable, nuevo destinatario, vencimiento, cifrado/limpieza y mismo desafío al reintentar; no consumir mediante GET. Depende de T094–T095.
+- [X] T097 [US6] Exponer reautenticación y solicitud/confirmación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/reautenticacion.controller.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/correo.controller.ts` y `tecnologia/backend/src/composicion/app.module.ts`; guard/origen, idempotencia donde OpenAPI exige, 403 REAUTENTICACION_REQUERIDA y versión/desafío según contrato; ampliar matriz de `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` con estas rutas. Depende de T093–T096.
+- [X] T098 [US6] Implementar caso de uso y formularios web en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/correo.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/CambiarCorreo.tsx`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Reautenticar.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/ConfirmarCorreo.tsx`; pendiente conserva anterior, respuesta servidor decide recencia, confirmar con sesión válida y versiones actualizadas, fragmento solo en memoria/historial limpio, sin renovación de cookie ni secretos en URL posterior.
 - [ ] T099 [US6] Conectar rutas de cambio/confirmación en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; ejecutar T086–T090, permisos ampliados y regresiones de acceso/recuperación, guardar resultados reales en `tecnologia/.local/evidencia/001/us6/` y comprobar destino anterior/nuevo sin revocación global inferida.
 
 ## Fase 9: US7 — Cambiar la contraseña desde la cuenta (P1)
@@ -534,6 +540,26 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
+La continuación de US6 verifica T086–T098; **T099 queda pendiente** por el diagnóstico
+causal del503 histórico de recuperación, no reproducido con observadores posteriores.
+T001–T098 suman **98 tareas terminadas y 21 pendientes**. US6 no se declara cerrada.
+**49/53 CA** probados:11 REG,9 SES,10 REC,7 AUT,6 PER,6 COR; cuatro CA-CLA futuros.
+Versión final F3-a6f68f56d2e7d9bb: **97 U/84 I/88 C/46 V/90 E Linux/90 E Windows**.
+Backend incluye los siete archivos completos de cada nivel; C conserva el aborto
+nativo inicial de registro y su repetición26/26, unido a los otros seis archivos62.
+V incluye seis archivos; cada matriz E incluye siete archivos/nueveproyectos,
+sin omisiones ni reintentos automáticos y espera real301 s en chromium-360.
+La barrera login/cambio de correo pasó de 200 indebido a401 sin emitir sesión;
+fixtures usan el reloj de decisión, sin cambiar la ventana inclusiva0–300 s.
+No se han eliminado casos previos;233 reportes históricos conservan sus huellas.
+Resultados iniciales, parciales y finales separados, fuentes y comandos en
+implementation-status.md y tecnologia/.local/evidencia/001/us6/.
+La causa del503 original sigue sin demostrarse; la inestabilidad nativa Windows
+0xC0000409 también se conserva sin atribución causal. TLS y contratos intactos.
+**T099 pendiente; US7 no iniciada. T110 y corpus productivo aprobado pendientes.**
+
+**Registro histórico del cierre US4 (estado de aquel momento):**
+
 La continuación autorizada de US4 completó únicamente T077–T085, conservando US1–US3 y US5.
 T001–T085 suman **85 tareas terminadas y 34 pendientes**. Acumulado **43/53 CA**:
 11 REG, nueve SES, diez REC, seis PER y siete AUT; quedan diez de US6/US7.

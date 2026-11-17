@@ -1,0 +1,4 @@
+import {EntitySchema} from 'typeorm';
+export const cambioCorreoEntity=new EntitySchema({name:'CambioCorreo',tableName:'cambios_correo',columns:{
+ id:{type:'uuid',primary:true},usuarioId:{type:'uuid',name:'usuario_id'},sesionSolicitanteId:{type:'uuid',name:'sesion_solicitante_id'},nuevoCorreo:{type:'text',name:'nuevo_correo'},nuevoCorreoCanonico:{type:'text',name:'nuevo_correo_canonico',generatedType:'STORED',asExpression:'lower(nuevo_correo COLLATE correo_001)',insert:false,update:false},tokenDigest:{type:'bytea',name:'token_digest',select:false},solicitadaEn:{type:'timestamptz',name:'solicitada_en'},venceEn:{type:'timestamptz',name:'vence_en'},autenticacionAcreditadaEn:{type:'timestamptz',name:'autenticacion_acreditada_en'},confirmadaEn:{type:'timestamptz',name:'confirmada_en',nullable:true},invalidadaEn:{type:'timestamptz',name:'invalidada_en',nullable:true},version:{type:'bigint',default:1}
+}});

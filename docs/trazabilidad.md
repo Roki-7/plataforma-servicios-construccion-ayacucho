@@ -41,8 +41,8 @@ Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y 
 
 La funcionalidad 001 dispone de fundación y US1–US5 verificadas en `tecnologia/backend`
 y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
-vincula T001–T085 con archivos y resultados: 11 CA-REG, nueve CA-SES, diez CA-REC,
-seis CA-PER y siete CA-AUT comprobados (43/53). US6/US7 y los otros diez CA permanecen pendientes.
+vincula T001–T098 verificadas y T099 pendiente con archivos y resultados: 11 CA-REG, nueve CA-SES, diez CA-REC,
+seis CA-PER, siete CA-AUT y seis CA-COR comprobados (49/53). US6 implementada con cierre T099 pendiente por la causa del503histórico; US7 y sus cuatro CA-CLA no iniciados.
 La regresión conjunta recuperación/perfil queda en T110. Los nueve proyectos de Linux y Windows
 conservan TLS activo y rechazo de certificados no confiables. No acredita la
 entrega completa de 001 ni todos los 32 requisitos locales.
@@ -100,7 +100,7 @@ El corpus completo aprobado de producción continúa pendiente del despliegue;
 el fixture no lo sustituye. T077/US4 y siguientes, T110 conjunto recuperación/perfil,
 las limitaciones históricas y la DoD global siguen pendientes. No se acredita 001 completa.
 
-## Cierre US4: permisos, titularidad y privacidad
+## Registro histórico del cierre US4: permisos, titularidad y privacidad
 
 | Cadena de US4 | Componentes construidos | Prueba ejecutada |
 |---|---|---|
@@ -123,6 +123,40 @@ T086/US6 y US7 no iniciadas. T110 conserva nuevas variantes y recuperación/perf
 conjuntas; corpus productivo aprobado pendiente antes del despliegue. La limitación
 histórica del inspector SameSite WebKit Windows sigue documentada; cabecera Lax
 exigida. Sin bloqueo actual de US4; 001 y la DoD global aún no están completas.
+
+## US6 implementada y verificada; cierre T099 pendiente
+
+| Cadena de US6 | Componentes construidos | Prueba ejecutada |
+|---|---|---|
+| HU02/RF05; apoyo HU01/RF02/RF04 → FR-023/032 → AC04/EQ-04 → DA03 → ADR-002/003/005/006 → Usuarios y acceso | Dominio cambio-correo; reautenticar-sesion; solicitud/confirmación; migración008 y repositorio propios; controladores/composición | tecnologia/backend/test/unit/usuarios-acceso/correo.spec.ts (8 U), test/integration/usuarios-acceso/correo.spec.ts (16 I), test/contract/usuarios-acceso/correo.spec.ts (8 C); seis CA-COR según matriz, PR04/PR13. Ventana 0–300 s inclusiva sin tolerancias. |
+| HU02/RF05 → FR-001/023/024 → EQ-04 → DA03/DA04 → ADR-005/006 → unicidad/confirmación | Índice único existente, locks y versiones; consumo/resultado atómicos; Outbox cifrado/Notificaciones/ADR-009; iniciar-sesion reconsulta correo bajo lock | I/C: dos confirmaciones/un destino, rollback, no reservar correo, uso/expiración/propósito/idempotencia; barrera login con correo anterior despuéscommit da401sinSetCookie/sin otra sesión. No hay revocación global inferida. |
+| HU02/RF05 → FR-019/023/024/032 → EQ-04/EQ-07 → DA03/DA10 → ADR-004/006 → web | CorreoWeb, CambiarCorreo, Reautenticar, ConfirmarCorreo; fragmento en memoria/historial limpio | tecnologia/frontend/test/unit/usuarios-acceso/correo.test.tsx (9 V) y test/e2e/usuarios-acceso/correo.spec.ts (9 E por entorno); confirmación tras 301 s reales en chromium-360 de Linux y Windows. |
+
+Versión final **F3-a6f68f56d2e7d9bb**, baseGit013f02040fb99dd645da15724351f32324cacb08
+más cambios locales:185 huellas, comprobadas antes/después de matrices. **97 U/84 I/
+88 C/46 V/90 E Linux/90 E Windows**, sin omisiones de casos anteriores. Backend incluye
+todos los siete archivos por nivel, en procesos secuenciales por archivo. C conserva
+el aborto nativo de registro y su repetición26/26 con observador, unido a62 casos
+de los otros seis archivos; no se anuncia como una pasada monolítica sin repeticiones.
+V conserva seis archivos, E siete/nueveproyectos,90/90 sin reintentos automáticos.
+Las233 huellas de reportes históricos siguen iguales. Intentos V0/V1/V2 reconstruidos
+lógicamente, no con huella contemporánea; no se atribuyen a F3 los E anteriores.
+
+Los fixtures nuevos toman la marca del mismo reloj Node que la decisión productiva;
+300000 ms aceptados,300001 ms/ausente/futura rechazados. No se amplía la política.
+Recuperación permanece incluida:14 I/9 C y 9 E por entorno. El503 histórico de CA-REC-08
+no conservó su excepción interna; PostgreSQL no muestra timeout/deadlock en aquel
+intervalo. REC14/14,COR16/16 y completaI84/84bajo observador pasaron sin reproducirlo.
+**Causa histórica no determinada: T099 pendiente, US6 no cerrada**, sin fallo
+funcional actual demostrado. Inestabilidad nativa Windows 0xC0000409también pendiente
+de explicación; todos los intentos se conservan. No se interpreta repetir como reparar.
+
+Comandos exactos, archivos, resultados y fuentes en el
+[estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
+y tecnologia/.local/evidencia/001/us6/{verificacion-f3.json,comandos-y-suites-f3.json,final-f3/}.
+TLS y contratos intactos. **US7 no iniciada**. T110, corpus productivo completo
+aprobado y DoD global siguen pendientes. Los siguientes párrafos históricos no
+sustituyen este estado vigente.
 
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
@@ -157,7 +191,7 @@ exigida. Sin bloqueo actual de US4; 001 y la DoD global aún no están completas
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | Parcial: fundación y US1–US5 verificadas | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | Parcial: US1–US5 verificadas; US6 T086–T098 verificadas, T099 pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |

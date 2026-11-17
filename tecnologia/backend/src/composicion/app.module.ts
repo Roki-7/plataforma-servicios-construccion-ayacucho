@@ -42,6 +42,12 @@ import { SmtpNodemailer } from '../modulos/notificaciones/infraestructura/smtp.j
 import { FotografiasS3 } from '../modulos/usuarios-acceso/infraestructura/almacenamiento/fotografias-s3.js';
 import { limpiarTemporales } from '../modulos/usuarios-acceso/infraestructura/almacenamiento/limpiar-temporales.js';
 import { configurarApi } from '../compartido/infraestructura/http/configurar-api.js';
+import {RepositorioCambiosCorreoPostgres} from '../modulos/usuarios-acceso/infraestructura/persistencia/repositorio-cambios-correo.js';
+import {ReautenticarSesion} from '../modulos/usuarios-acceso/aplicacion/reautenticar-sesion.js';
+import {SolicitarCambioCorreo} from '../modulos/usuarios-acceso/aplicacion/solicitar-cambio-correo.js';
+import {ConfirmarCambioCorreo} from '../modulos/usuarios-acceso/aplicacion/confirmar-cambio-correo.js';
+import {CorreoController,SERVICIOS_CORREO} from '../modulos/usuarios-acceso/presentacion/correo.controller.js';
+import {ReautenticacionController,REAUTENTICAR} from '../modulos/usuarios-acceso/presentacion/reautenticacion.controller.js';
 import { ESTADO_SALUD, SaludController } from '../compartido/infraestructura/http/salud.controller.js';
 
 export async function crearAplicacion(config: Configuracion, opciones: { worker?: boolean } = {}) {
@@ -78,6 +84,9 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
     cerrar: new CerrarSesion(sesiones, uow, reloj, secretos, lector), origen: config.origen,
   };
   const recuperaciones = new RepositorioRecuperacionesPostgres(db, uow); const plantillas = new PlantillasSeguridad(config.urlPublica);
+  const cambiosCorreo=new RepositorioCambiosCorreoPostgres(db,uow);
+  const reautenticar=new ReautenticarSesion(cuentas,sesiones,cambiosCorreo,lector,uow,hash,reloj);
+  const serviciosCorreo={solicitar:new SolicitarCambioCorreo(cuentas,sesiones,cambiosCorreo,lector,idempotencia,reloj,secretos,notificaciones,plantillas),confirmar:new ConfirmarCambioCorreo(cuentas,cambiosCorreo,lector,idempotencia,reloj,secretos)};
   const serviciosRecuperacion = {
     solicitar: new SolicitarRecuperacion(cuentas, recuperaciones, uow, reloj, secretos, notificaciones, plantillas),
     consumir: new ConsumirRecuperacion(cuentas, recuperaciones, sesiones, idempotencia, reloj, secretos, hash, catalogo, notificaciones, plantillas),
@@ -85,7 +94,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   const salud = { disponible: async () => {
     try {
       await conectar();
-      const tablas: { lista: boolean }[] = await db.query("SELECT count(*)=8 AS lista FROM unnest(ARRAY['usuarios','perfiles_habilitados','sesiones','claves_idempotencia','avisos_pendientes','fotografias_perfil','recuperaciones_acceso','consentimientos_telefono']) t WHERE to_regclass(t) IS NOT NULL");
+      const tablas: { lista: boolean }[] = await db.query("SELECT count(*)=9 AS lista FROM unnest(ARRAY['usuarios','perfiles_habilitados','sesiones','claves_idempotencia','avisos_pendientes','fotografias_perfil','recuperaciones_acceso','consentimientos_telefono','cambios_correo']) t WHERE to_regclass(t) IS NOT NULL");
       return tablas[0]?.lista === true && await catalogo.preparada();
     } catch { return false; }
   } };
@@ -95,7 +104,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   }, 60000);
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
-  @Module({ controllers: [SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
+  @Module({ controllers: [CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
   class AppModule {}
   const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
   await configurarApi(app, { origen: config.origen, contrato: config.contrato });
@@ -103,5 +112,5 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   app.enableShutdownHooks();
   await app.init();
   if (opciones.worker !== false) worker.iniciar();
-  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion, consentimientos, perfiles, serviciosPerfil, servicioFotografias, usuariosAcceso, evaluarAcceso };
+  return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion, consentimientos, perfiles, serviciosPerfil, servicioFotografias, usuariosAcceso, evaluarAcceso, cambiosCorreo, serviciosCorreo, reautenticar };
 }
