@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '../../soporte/validacion.js';
+import { verificarVisibilidadContrasenas } from '../../soporte/visibilidad-contrasena.js';
 
 test('CA-CLA-01 CA-CLA-04 flujo específico, credencial íntegra, PATCH prohibido y sesiones previas vigentes', async ({page, request, browser, browserName}, info) => {
   info.annotations.push({type:'navegador', description: browserName + ' ' + browser.version()});
@@ -18,7 +19,7 @@ test('CA-CLA-01 CA-CLA-04 flujo específico, credencial íntegra, PATCH prohibid
   await page.getByLabel('Contraseña', {exact:true}).fill(anterior);
   await page.getByRole('button', {name:'Iniciar sesión', exact:true}).click();
   await page.getByRole('button', {name:'Cerrar sesión'}).waitFor();
-  await page.getByRole('link', {name:'Mi cuenta', exact:true}).click();
+  await expect(page).toHaveURL(/\/cuenta$/);
   await expect(page.locator('input[type=password][autocomplete=new-password]')).toHaveCount(0);
   const parche = await request.patch('/api/v1/perfil', {headers:{...origin, ...headers, 'Idempotency-Key':randomUUID()}, data:{version:1,nuevaContrasena:nueva}});
   expect(parche.status()).toBe(400);
@@ -27,15 +28,16 @@ test('CA-CLA-01 CA-CLA-04 flujo específico, credencial íntegra, PATCH prohibid
   await page.getByLabel('Contraseña actual', {exact:true}).fill(anterior);
   await page.getByLabel('Nueva contraseña', {exact:true}).fill(nueva);
   await page.getByLabel('Confirmar nueva contraseña', {exact:true}).fill(nueva);
+  await verificarVisibilidadContrasenas(page, ['Contraseña actual', 'Nueva contraseña', 'Confirmar nueva contraseña']);
   const respuesta = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/perfil/cambios-contrasena' && r.request().method() === 'POST');
   await page.getByRole('button', {name:'Cambiar contraseña', exact:true}).click();
   const cambio = await respuesta;
   expect(cambio.status()).toBe(200);
   expect(await cambio.headerValue('set-cookie')).toBeNull();
   await expect(page.getByText('Contraseña actualizada.')).toBeVisible();
-  await expect(page.getByLabel('Contraseña actual')).toBeEmpty();
+  await expect(page.getByLabel('Contraseña actual', {exact:true})).toBeEmpty();
   await expect(page.getByLabel('Nueva contraseña', {exact:true})).toBeEmpty();
-  await expect(page.getByLabel('Confirmar nueva contraseña')).toBeEmpty();
+  await expect(page.getByLabel('Confirmar nueva contraseña', {exact:true})).toBeEmpty();
   expect((await request.get('/api/v1/perfil', {headers})).status()).toBe(200);
   expect((await login(anterior)).status()).toBe(401);
   expect((await login(nueva.replace('a ', 'b '))).status()).toBe(401);

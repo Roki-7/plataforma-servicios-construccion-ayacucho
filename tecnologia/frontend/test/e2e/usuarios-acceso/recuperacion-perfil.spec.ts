@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '../../soporte/validacion.js';
+import { verificarVisibilidadContrasenas } from '../../soporte/visibilidad-contrasena.js';
 
 test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesión nueva puede continuar', async ({page, request, correoApi, browserName, browser}, info) => {
   info.annotations.push({type: 'navegador', description: browserName + ' ' + browser.version()});
@@ -40,7 +41,8 @@ test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesi
   await page.goto('/recuperar');
   await page.evaluate(url => location.assign(url), enlace);
   await page.getByLabel('Nueva contraseña', {exact: true}).fill(nueva);
-  await page.getByLabel('Confirmar nueva contraseña').fill(nueva);
+  await page.getByLabel('Confirmar nueva contraseña', {exact: true}).fill(nueva);
+  await verificarVisibilidadContrasenas(page, ['Nueva contraseña', 'Confirmar nueva contraseña']);
   await page.getByRole('button', {name: 'Establecer contraseña'}).click();
   await expect(page.getByRole('heading', {name: 'Iniciar sesión', exact: true})).toBeVisible();
   for (const headers of [sesion, otra]) {
@@ -51,7 +53,7 @@ test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesi
   await page.getByLabel('Contraseña', {exact: true}).fill(nueva);
   await page.getByRole('button', {name: 'Iniciar sesión', exact: true}).click();
   await page.getByRole('button', {name: 'Cerrar sesión'}).waitFor();
-  await page.getByRole('link', {name: 'Mi cuenta', exact: true}).click();
+  await expect(page).toHaveURL(/\/cuenta$/);
   await expect(page.getByLabel('Nombre para mostrar')).toHaveValue(datos.nombreMostrar);
   await expect(page.getByLabel('Teléfono (opcional)')).toHaveValue(datos.telefono);
   await expect(page.getByLabel('Distrito (opcional)')).toHaveValue(datos.distrito);

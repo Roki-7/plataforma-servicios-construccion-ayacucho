@@ -1,7 +1,7 @@
 import {ConfirmarCorreo} from '../features/usuarios-acceso/presentacion/ConfirmarCorreo.js';
 import { CambiarContrasena } from '../features/usuarios-acceso/presentacion/CambiarContrasena.js';
 import { useEffect, useState } from 'react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Registro } from '../features/usuarios-acceso/presentacion/Registro.js';
 import { Perfil } from '../features/usuarios-acceso/presentacion/Perfil.js';
 import { Acceso } from '../features/usuarios-acceso/presentacion/Acceso.js';
@@ -14,18 +14,69 @@ import './estilos.css';
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
   const [enlaceVersion, setEnlaceVersion] = useState(0);
+  const [correoInicial, setCorreoInicial] = useState('');
+  const [cierres, setCierres] = useState(0); const [trasCierre, setTrasCierre] = useState(false);
   useEffect(()=>{const capturar=()=>{if(location.pathname!=='/confirmar-correo'||!location.hash)return;const fragmento=location.hash;history.replaceState(null,'','/confirmar-correo');correoWeb.cargarEnlace(fragmento);setRuta('/confirmar-correo');setEnlaceVersion(v=>v+1);};capturar();window.addEventListener('hashchange',capturar);return()=>window.removeEventListener('hashchange',capturar);},[]);
-  useEffect(() => { const quitar = sesion.suscribir(() => { const siguiente=sesion.estado(); if(!siguiente.autenticada){perfilWeb.limpiar();correoWeb.limpiar();setMensaje('');} setEstado(siguiente); }); if (location.pathname === '/recuperar') setCargando(false); else void sesion.restaurar().catch(() => setMensaje('No fue posible recuperar la sesión. Inicie sesión de nuevo.')).finally(() => setCargando(false)); const navegar = () => setRuta(location.pathname); window.addEventListener('popstate', navegar); return () => { quitar(); window.removeEventListener('popstate', navegar); }; }, []);
+  useEffect(() => { let estabaAutenticada = sesion.estado().autenticada; const quitar = sesion.suscribir(() => { const siguiente=sesion.estado(); if(!siguiente.autenticada){perfilWeb.limpiar();correoWeb.limpiar();if(estabaAutenticada)setMensaje('');} estabaAutenticada=siguiente.autenticada; setEstado(siguiente); }); if (location.pathname === '/recuperar') setCargando(false); else void sesion.restaurar().catch(() => setMensaje('No fue posible recuperar la sesión. Inicie sesión de nuevo.')).finally(() => setCargando(false)); const navegar = () => setRuta(location.pathname); window.addEventListener('popstate', navegar); return () => { quitar(); window.removeEventListener('popstate', navegar); }; }, []);
   useEffect(() => { const capturar = () => { if (location.pathname !== '/recuperar' || !location.hash) return; const fragmento = location.hash; history.replaceState(null, '', '/recuperar'); recuperacion.cargarEnlace(fragmento); sesion.invalidar(); setCargando(false); setRuta('/recuperar'); setMensaje(''); setEnlaceVersion((v) => v + 1); }; capturar(); window.addEventListener('hashchange', capturar); return () => window.removeEventListener('hashchange', capturar); }, []);
   useEffect(() => { if (!estado.autenticada || estado.cerrando || ruta === '/recuperar') return; const timer = setTimeout(() => { void sesion.renovar().catch(() => { setMensaje('No fue posible renovar la sesión. Inicie sesión de nuevo.'); }); }, Math.max(0, estado.venceAcceso - Date.now() - 30000)); return () => clearTimeout(timer); }, [estado.autenticada, estado.cerrando, estado.venceAcceso, ruta]);
-  function navegar(e: MouseEvent<HTMLAnchorElement>) { if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; e.preventDefault(); const siguiente = new URL(e.currentTarget.href).pathname; history.pushState(null, '', siguiente); setRuta(siguiente); setMensaje(''); }
-  const acceso = <Acceso entrar={async (datos) => { setMensaje(''); await sesion.entrar(datos); setMensaje('Sesión iniciada.'); }} />;
+  function ir(siguiente: string, aviso = '') {
+    if (location.pathname !== siguiente) history.pushState(null, '', siguiente);
+    setRuta(siguiente);
+    setMensaje(aviso);
+  }
+
+  function navegar(evento: MouseEvent<HTMLAnchorElement>) {
+    if (evento.button !== 0 || evento.ctrlKey || evento.metaKey || evento.shiftKey || evento.altKey) return;
+    evento.preventDefault();
+    setCorreoInicial('');
+    setTrasCierre(false);
+    ir(new URL(evento.currentTarget.href).pathname);
+  }
+
+  const acceso = <Acceso key={cierres} trasCierre={trasCierre} correoInicial={correoInicial} entrar={async (datos) => {
+    setMensaje('');
+    await sesion.entrar(datos);
+    setCorreoInicial('');
+    setTrasCierre(false);
+    if (location.pathname !== '/confirmar-correo' || !correoWeb.tieneEnlace()) ir('/cuenta');
+  }} />;
   const pantallaRecuperacion = recuperacion.tieneEnlace() ? <EstablecerContrasena key={enlaceVersion} establecer={(nueva, confirmacion) => recuperacion.consumir(nueva, confirmacion)} completada={() => { sesion.invalidar(); history.replaceState(null, '', '/acceso'); setRuta('/acceso'); setMensaje('Contraseña actualizada. Inicie sesión con su nueva contraseña.'); }} /> : recuperacion.enlaceInvalido ? <section><h2>Enlace no válido</h2><p>Solicite un enlace nuevo para recuperar el acceso.</p><a href="/recuperar">Solicitar un enlace nuevo</a></section> : <RecuperarAcceso solicitar={(correo) => recuperacion.solicitar(correo)} />;
-  return <main><header><h1>Plataforma Ayacucho</h1><nav><a href="/registro" onClick={navegar}>Crear cuenta</a> · <a href="/acceso" onClick={navegar}>Acceder</a> · <a href="/cuenta" onClick={navegar}>Mi cuenta</a> · <a href="/habilitar-perfil" onClick={navegar}>Mis perfiles</a></nav></header>
-    {estado.autenticada && <EstadoSesion ocupado={estado.cerrando} cerrar={async () => { try { await sesion.cerrar(); setMensaje('Sesión cerrada.'); } catch { setMensaje('No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); } }} />}
-    {(ruta==='/cuenta'||ruta==='/habilitar-perfil')&&<EstadoAcceso autenticada={estado.autenticada} comprobando={cargando}/>}
-    {cargando ? <p>Comprobando sesión…</p> : ruta === '/recuperar' ? pantallaRecuperacion : ruta === '/acceso' ? estado.autenticada ? <p>Puede continuar usando su cuenta.</p> : acceso : ruta === '/confirmar-correo' ? !estado.autenticada ? acceso : <PantallaConfirmarCorreo key={enlaceVersion}/> : ruta === '/cambiar-contrasena' ? estado.autenticada ? <PantallaCambiarContrasena /> : acceso : ruta === '/cuenta' || ruta === '/habilitar-perfil' ? !estado.autenticada ? acceso : <Perfil servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb}/> : <Registro registrar={usuarios.registrar} />}
-    {mensaje && <p role="status">{mensaje}</p>}
+  const rutaCuenta = ruta === '/cuenta' || ruta === '/habilitar-perfil';
+  let contenido: ReactNode;
+  if (cargando) contenido = <p>Comprobando sesión…</p>;
+  else if (ruta === '/recuperar') contenido = pantallaRecuperacion;
+  else if (estado.autenticada) {
+    if (ruta === '/confirmar-correo') contenido = <PantallaConfirmarCorreo key={enlaceVersion} />;
+    else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
+    else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} />;
+  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena'].includes(ruta)) {
+    contenido = <>{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
+  } else {
+    contenido = <Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} />;
+  }
+
+  return <main>
+    <header>
+      <h1>Plataforma Ayacucho</h1>
+      <nav aria-label="Navegación principal">
+        {estado.autenticada ? <>
+          <a href="/cuenta" aria-current={ruta === '/cuenta' ? 'page' : undefined} onClick={navegar}>Mi cuenta</a>
+          <a href="/habilitar-perfil" aria-current={ruta === '/habilitar-perfil' ? 'page' : undefined} onClick={navegar}>Mis perfiles</a>
+          <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
+            try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
+            catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
+          }} />
+        </> : <>
+          <a href="/registro" aria-current={ruta === '/' || ruta === '/registro' ? 'page' : undefined} onClick={navegar}>Crear cuenta</a>
+          <a href="/acceso" aria-current={ruta === '/acceso' ? 'page' : undefined} onClick={navegar}>Acceder</a>
+        </>}
+      </nav>
+    </header>
+    <div className="superficie">
+      {mensaje && <p className="aviso" role="status">{mensaje}</p>}
+      {contenido}
+    </div>
   </main>;
 }
 

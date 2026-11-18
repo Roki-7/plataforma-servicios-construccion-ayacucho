@@ -13,12 +13,35 @@ export function FotoPerfil({id,leer}:{id:string;leer:(id:string)=>Promise<Fotogr
  useEffect(()=>{let viva=true;let creada:string|undefined;setUrl('');setError('');void leer(id).then(f=>{if(!viva)return;const bytes=Uint8Array.from(atob(f.contenidoBase64),c=>c.charCodeAt(0));creada=URL.createObjectURL(new Blob([bytes],{type:f.tipoContenido}));setUrl(creada)}).catch(()=>{if(viva)setError('No fue posible cargar la fotografía.')});return()=>{viva=false;if(creada)URL.revokeObjectURL(creada)}},[id,leer]);
  return error?<p role="status">{error}</p>:url?<img src={url} alt="Fotografía de mi cuenta" style={{maxWidth:'100%',width:160}}/>:<p>Cargando fotografía…</p>;
 }
-export function Perfil({servicio,habilitar,correo}:{servicio:PerfilWeb;correo?:CorreoWeb;habilitar:(d:DatosHabilitar)=>Promise<DatosPerfil>}){
+export function Perfil({vista,servicio,habilitar,correo}:{vista:'cuenta'|'perfiles';servicio:PerfilWeb;correo?:CorreoWeb;habilitar:(d:DatosHabilitar)=>Promise<DatosPerfil>}){
  const [perfil,setPerfil]=useState<DatosPerfil>(),[error,setError]=useState(''),[mensaje,setMensaje]=useState(''),[revision,setRevision]=useState(0);
  const consultar=servicio.consultar;
  const recargar=useCallback(()=>{setError('');setMensaje('');setPerfil(undefined);setRevision(v=>v+1)},[]);
  useEffect(()=>{let viva=true;void consultar().then(p=>{if(viva)setPerfil(p)}).catch(e=>{if(viva)setError(mensajeAcceso(e))});return()=>{viva=false}},[consultar,revision]);
- if(error)return <section><h2>Mi cuenta</h2><p role="status">{error}</p><button onClick={recargar}>Reintentar consulta</button></section>;
+ if(error)return <section><h2>{vista === 'cuenta' ? 'Mi cuenta' : 'Mis perfiles'}</h2><p role="status">{error}</p><button onClick={recargar}>Reintentar consulta</button></section>;
  if(!perfil)return <p>Cargando mi cuenta…</p>;
- return <section><h2>Mi cuenta</h2><p>{perfil.correo}</p><p>{perfil.telefonoCompartible?'El teléfono está autorizado para compartir.':'El teléfono es privado.'}</p>{perfil.fotografiaId&&<FotoPerfil id={perfil.fotografiaId} leer={servicio.leer}/>}<EditarPerfil key={`${perfil.cuentaId}:${perfil.version}`} perfil={perfil} guardar={servicio.guardar} subir={servicio.subir} actualizado={p=>{setPerfil(p);setMensaje('Perfil actualizado.')}} recargar={recargar}/>{mensaje&&<p>{mensaje}</p>}<HabilitarPerfil key={`perfiles:${perfil.version}`} perfilInicial={perfil} habilitar={async d=>{const p=await habilitar(d);setPerfil(p);setMensaje('Perfil habilitado. Se conservan su cuenta y sus datos.');return p}}/><>{correo&&<><Reautenticar acreditar={correo.acreditar}/><CambiarCorreo version={perfil.version} correo={perfil.correo} solicitar={correo.solicitar}/></>}<p><a href="/cambiar-contrasena">Cambiar contraseña</a></p></></section>;
+ if (vista === 'perfiles') return <HabilitarPerfil perfilInicial={perfil} habilitar={async datos => {
+  const actualizado = await habilitar(datos);
+  setPerfil(actualizado);
+  return actualizado;
+ }} />;
+ return <section className="pagina-cuenta">
+  <div className="cabecera-pagina"><p className="sobretitulo">Tu espacio</p><h2>Mi cuenta</h2>
+  <p className="intro">{perfil.correo}</p>
+  <p><span className="etiqueta-estado">{perfil.telefonoCompartible ? 'El teléfono está autorizado para compartir.' : 'El teléfono es privado.'}</span></p></div>
+  <div className="columnas-cuenta"><div className="columna-cuenta">
+  {perfil.fotografiaId && <FotoPerfil id={perfil.fotografiaId} leer={servicio.leer} />}
+  <EditarPerfil key={`${perfil.cuentaId}:${perfil.version}`} perfil={perfil} guardar={servicio.guardar} subir={servicio.subir} actualizado={p => { setPerfil(p); setMensaje('Perfil actualizado.'); }} recargar={recargar} />
+  {mensaje && <p className="aviso" aria-live="polite">{mensaje}</p>}
+  </div><div className="columna-cuenta">
+  <section className="acciones-cuenta">
+    <h2>Acceso y seguridad</h2>
+    <p><a href="/cambiar-contrasena">Cambiar contraseña</a></p>
+    {correo && <>
+      <Reautenticar acreditar={correo.acreditar} />
+      <CambiarCorreo version={perfil.version} correo={perfil.correo} solicitar={correo.solicitar} />
+    </>}
+  </section>
+  </div></div>
+ </section>;
 }

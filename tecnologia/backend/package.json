@@ -22,6 +22,7 @@
     "test:performance": "k6 run test/performance/usuarios-acceso.k6.js",
     "test:argon2:coste": "tsx scripts/medir-argon2.ts",
     "test:salud": "tsx scripts/observar-salud.ts",
+    "test:respaldo": "tsx scripts/ensayar-recuperacion.ts",
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects unit --runInBand",
     "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration",
     "test:contract": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects contract --runInBand",

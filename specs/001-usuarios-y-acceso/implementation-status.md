@@ -1503,3 +1503,7 @@ todavía no es el comprobador de cobertura funcional. No se ejecutaron recorrido
 de registro, login, recuperación, edición, correo o contraseña, ni se ofrecen
 como implementados en aquel corte. Entonces el único endpoint entregado era salud;
 el alcance actual de US1 se describe al inicio de este documento.
+
+## Administración fuera de 001 (nota para el módulo futuro)
+
+001 solo habilita los perfiles cliente y prestador. No implementa cuentas, roles, autenticación ni panel administrativos, conforme a FR-029 y a la matriz de permisos. El futuro módulo de administración (HU25–HU28, RF39–RF45) debe definir un procedimiento seguro de creación de cuentas administrativas, separado del registro público y de la edición de perfil, con su autenticación y trazabilidad. Hasta entonces, la comprobación de 001 es negativa: registro, edición y habilitación de perfiles rechazan `administrador`, `rol`, `permisos` e identificadores (CA-AUT-04, CA-AUT-07).

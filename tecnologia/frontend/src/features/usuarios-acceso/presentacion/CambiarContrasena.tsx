@@ -3,6 +3,7 @@ import type { OperacionResultado } from '../modelos/contratos.js';
 import type { CredencialesCambio } from '../aplicacion/contrasena.js';
 import { validarNuevaContrasenaWeb } from '../aplicacion/recuperacion.js';
 import { ErrorApi } from '../aplicacion/puertos.js';
+import { CampoContrasena } from './CampoContrasena.js';
 
 export function CambiarContrasena({ cambiar }: { cambiar: (datos: CredencialesCambio) => Promise<OperacionResultado> }) {
   const [ocupado, setOcupado] = useState(false);
@@ -45,9 +46,9 @@ export function CambiarContrasena({ cambiar }: { cambiar: (datos: CredencialesCa
     <p>Use entre 15 y 128 caracteres. Puede pegar la contraseña y usar espacios.</p>
     <form noValidate onSubmit={enviar}>
       <fieldset disabled={ocupado}>
-        <label>Contraseña actual<input name="actual" type="password" autoComplete="current-password" /></label>
-        <label>Nueva contraseña<input name="nueva" type="password" autoComplete="new-password" /></label>
-        <label>Confirmar nueva contraseña<input name="confirmacion" type="password" autoComplete="new-password" /></label>
+        <CampoContrasena etiqueta="Contraseña actual" name="actual" autoComplete="current-password" />
+        <CampoContrasena etiqueta="Nueva contraseña" name="nueva" autoComplete="new-password" />
+        <CampoContrasena etiqueta="Confirmar nueva contraseña" name="confirmacion" autoComplete="new-password" />
         <button type="submit">{ocupado ? 'Guardando…' : 'Cambiar contraseña'}</button>
       </fieldset>
     </form>
