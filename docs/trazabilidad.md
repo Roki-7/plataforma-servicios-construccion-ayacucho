@@ -199,7 +199,7 @@ abortos nativos Windows separados. T110/corpus pendientes, US7 no iniciada.
 US7-407db07e4ac3dbb3: 114 U, 93 I, 93 C y 53 V. US7 9 E por entorno y selección
 de regresión adicional de 10 E por entorno. Comandos, intentos y versiones en el
 [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md).
-T110–T119, incidente 503, abortos nativos y corpus productivo siguen pendientes.
+Al cierre de US7 quedaban pendientes T110–T119, el incidente 503, los abortos nativos y el corpus productivo; el estado vigente está en el apartado 4.
 
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
@@ -234,7 +234,7 @@ T110–T119, incidente 503, abortos nativos y corpus productivo siguen pendiente
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | 115/119 tareas verificadas. Pendientes T116–T119 | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | 118/119 tareas verificadas (T117 y T118 cerradas con limitaciones documentadas). T119 pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |
@@ -252,7 +252,19 @@ Al implementar cada funcionalidad se agrega aquí la lista de componentes constr
 | X-06/X-07 y X-08 | FR-018/020/021 y contrato 001 · HU01/HU02 · RF01–RF05 | AC04/EQ-04 · DA03 · ADR-003/ADR-006/ADR-011 | Presentación, proxy y Garage. `seguridad-navegador-fotos`, `seguridad-navegador`, `perfil`, `openapi`, T111/T113. |
 | PR12 | HU01/HU02 · RF01–RF05 | AC05/EQ-05 · DA08 · ADR-001/ADR-002 | Límites de módulos, capas y composición. `dependencias`, T112. |
 | PR02 | Soporte operativo 001 | AC02/EQ-02 · ADR-013 | `salud` HTTPS y caracterización local, T114. |
-| PR07 y niveles U/I/C/V/E | FR-019 y los 53 CA · HU01/HU02 · RF01–RF05 | AC07/EQ-07 · DA10 · ADR-004 | Matriz T007, verificador T115 y evidencia de aceptación T116–T119. |
+| PR07 y niveles U/I/C/V/E | FR-019 y los 53 CA · HU01/HU02 · RF01–RF05 | AC07/EQ-07 · DA10 · ADR-004 | Matriz T007, verificador T115 y evidencia de aceptación T116–T118 (ver siguiente apartado); T119 pendiente de cierre. |
+
+#### Evidencia de cierre T116–T117 y su ubicación
+
+| Evidencia | Alcance verificado | Ubicación |
+|---|---|---|
+| GitHub Actions #6 y #7 | Ejecuciones `success` sobre `e312f2f` y `a13d0ce` (comprobadas con la API pública de GitHub; #7 con `head_sha` `a13d0ce`, un trabajo `validar` con todos sus pasos en verde). El script `validar-001-ci.sh` termina en `test:coverage:001` con la matriz E exigida. No se pudo leer el recuento del artefacto. | Repositorio remoto; enlaces en `tecnologia/.local/evidencia/001/validacion.md` y en el quickstart. |
+| Ensayo de respaldos y recuperación | Reinicio, 8 migraciones, restauración de PostgreSQL y Garage y recuperación de la foto de prueba. | Solo local (`tecnologia/.local/evidencia/001/cierre/t117-operativo-2`, ignorado por Git). |
+| Permisos y peticiones manipuladas | Contrato `permisos` 21/21 e integración 10/10; rechazos 400/401/404 contra el entorno local de validación, sin cambios de estado. | Salida de pruebas local; resumen en `validacion.md`. |
+| e2e Chromium 360/768/1366 px | 36/36 sobre los cambios de interfaz de T117. | Solo local (`cierre/t117-*`, ignorado por Git). |
+| Revisión humana | Parcial: recorridos funcionales confirmados verbalmente y presentación del registro observada a 360, 768 y 1366 px. Sin revisión manual por ancho del resto, sin versión de navegador ni capturas. | `validacion.md`, solo local. |
+
+Limitaciones conservadas: tres fallos intermitentes de navegador sin causa confirmada; Firefox y WebKit constan solo por la CI alojada; el autocompletado de contraseña de Opera normal tras cerrar sesión se atribuye al gestor de contraseñas. La administración queda fuera de 001 (HU25–HU28, RF39–RF45). No se atribuyen PR09–PR11 ni PR15 a esta entrega.
 
 La matriz conserva la cadena de cada CA a su FR y suite. El informe contiene la
 versión, el alcance y los resultados. [Matriz de 001](../specs/001-usuarios-y-acceso/test-matrix.md) · [Informe](../specs/001-usuarios-y-acceso/implementation-status.md)

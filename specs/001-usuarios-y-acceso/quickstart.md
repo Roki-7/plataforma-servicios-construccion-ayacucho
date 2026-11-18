@@ -278,7 +278,7 @@ PR07, PR12, PR13, PR14 y salud PR02 aplicables. Ejecutar lint, types y build en 
 Registrar las ejecuciones automatizadas, el ensayo operativo y la revisión
 humana por separado en `tecnologia/.local/evidencia/001/validacion.md`. El
 resultado indica commit, entorno, corpus, navegadores y alcance de cada ejecución.
-La ejecución #5 de GitHub Actions es la referencia alojada de T116. [Ejecución #5](https://github.com/Roki-7/plataforma-servicios-construccion-ayacucho/actions/runs/44319286410)
+La ejecución #5 de GitHub Actions es la referencia alojada de T116. [Ejecución #5](https://github.com/Roki-7/plataforma-servicios-construccion-ayacucho/actions/runs/44319286410) La #7 corresponde al commit `a13d0ce` de T117. [Ejecución #7](https://github.com/Roki-7/plataforma-servicios-construccion-ayacucho/actions/runs/44406102967)
 
 No ejecutar aquí pruebas de contratación ni interpretar las metas EQ-01/EQ-06
 como SLA de registro. k6 se usará para caracterizar hashing/sesiones sin prometer

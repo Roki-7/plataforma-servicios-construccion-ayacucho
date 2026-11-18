@@ -203,7 +203,7 @@ Primero se escribe la especificación y después el código. Cada funcionalidad 
 
 | N.º | Funcionalidad | Requisitos | Prioridad | Estado |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | RF01–RF05 | MVP | Siete historias implementadas, cierre en verificación |
+| 001 | Usuarios y acceso | RF01–RF05 | MVP | Siete historias implementadas; T117 y T118 cerradas con limitaciones, T119 pendiente |
 | 002 | Prestadores y catálogo | RF06, RF08–RF10, RF39 | MVP | Planificada |
 | 003 | Solicitudes y cotizaciones | RF12–RF14, RF17–RF19 | MVP | Planificada |
 | 004 | Contratación | RF20–RF22, RF26 | MVP | Planificada |
@@ -212,7 +212,7 @@ Primero se escribe la especificación y después el código. Cada funcionalidad 
 
 ## ▶️ 7. Cómo ejecutar
 
-La aplicación de validación de 001 incluye registro, sesiones, recuperación, permisos y privacidad, edición de perfil y cambios controlados de correo y contraseña. El arranque local y la evidencia del cierre se describen en [tecnologia/README.md](tecnologia/README.md) y [estado de implementación](specs/001-usuarios-y-acceso/implementation-status.md).
+La aplicación de validación de 001 incluye registro, sesiones, recuperación, permisos y privacidad, edición de perfil y cambios controlados de correo y contraseña. No incluye administración (fuera de 001). El arranque local y la evidencia del cierre se describen en [tecnologia/README.md](tecnologia/README.md) y [estado de implementación](specs/001-usuarios-y-acceso/implementation-status.md).
 
 ## 📎 8. Alcance de esta entrega
 

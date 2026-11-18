@@ -36,9 +36,17 @@ La aplicación web se comunica con el backend solo mediante esta API (RC06, ADR-
 |---|---|---|
 | `POST /cuentas` | Crear una cuenta de cliente o prestador | RF01 |
 | `POST /sesiones` · `DELETE /sesiones/actual` | Iniciar y cerrar sesión | RF02 |
-| `POST /sesiones/renovacion` | Renovar la sesión | RF02 |
+| `POST /sesiones/renovacion` · `GET /sesiones/csrf` | Renovar la sesión y obtener el token CSRF de la cookie de renovación | RF02 |
+| `POST /sesiones/reautenticacion` | Acreditar la contraseña en la sesión (autenticación reciente, hasta 300 s) | RF02, RF05 |
 | `POST /recuperaciones` · `POST /recuperaciones/{token}` | Pedir y usar el enlace de recuperación | RF03 |
 | `GET /perfil` · `PATCH /perfil` | Consultar y actualizar el perfil propio | RF05 |
+| `POST /perfil/perfiles` | Añadir el perfil faltante (cliente o prestador) con confirmación explícita. No concede verificación ni administración | RF01, RF04 |
+| `POST /perfil/cambios-correo` · `POST /perfil/cambios-correo/{token}/confirmacion` | Solicitar y confirmar el cambio de correo de acceso | RF05 |
+| `POST /perfil/cambios-contrasena` | Cambiar la contraseña con la contraseña actual | RF03, RF05 |
+| `POST /perfil/fotografias` · `GET /perfil/fotografias/{fotografiaId}` | Cargar y leer la fotografía privada del titular | RF05 |
+| `GET /salud` | Comprobar disponibilidad (soporte operativo, sin datos privados) | — |
+
+Las 17 operaciones de esta tabla coinciden con el OpenAPI versionado de 001. 001 no define rutas ni roles administrativos: el registro y la edición rechazan `administrador`, `rol`, `permisos` e identificadores (CA-AUT-04, CA-AUT-07).
 
 ### Prestadores
 
