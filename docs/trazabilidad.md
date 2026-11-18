@@ -39,10 +39,11 @@ Documentos de origen: [HU](01-analisis-de-sistema/02-historias-de-usuario.md) ·
 
 Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y ADR-013 (stack).
 
-La funcionalidad 001 dispone de fundación y US1–US5 verificadas en `tecnologia/backend`
+La funcionalidad 001 dispone de fundación y US1–US7 verificadas en `tecnologia/backend`
 y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
-vincula T001–T099 verificadas con archivos y resultados por versión: 11 CA-REG, nueve CA-SES, diez CA-REC,
-seis CA-PER, siete CA-AUT y seis CA-COR comprobados (49/53). US6 aceptada por sus criterios originales; incidente503 histórico abierto e independiente; US7 y sus cuatro CA-CLA no iniciados.
+vincula T001–T109 verificadas con archivos y resultados por versión: 11 CA-REG, nueve CA-SES, diez CA-REC,
+seis CA-PER, siete CA-AUT, seis CA-COR y cuatro CA-CLA comprobados (53/53).
+El incidente 503 histórico conserva seguimiento independiente.
 La regresión conjunta recuperación/perfil queda en T110. Los nueve proyectos de Linux y Windows
 conservan TLS activo y rechazo de certificados no confiables. No acredita la
 entrega completa de 001 ni todos los 32 requisitos locales.
@@ -187,6 +188,19 @@ Tabla y comandos en [aceptacion-t099.md](../specs/001-usuarios-y-acceso/aceptaci
 Incidente HTTP 503 abierto, causa indeterminada y medidas de seguimiento conservadas;
 abortos nativos Windows separados. T110/corpus pendientes, US7 no iniciada.
 
+## US7 — Cambio controlado de contraseña
+
+| Cadena | Componentes | Evidencia |
+|---|---|---|
+| HU02/RF05, apoyo HU01/RF02–RF04 → FR-022/025 → AC04/EQ-04 → DA03 → ADR-003/005/006 → Usuarios y acceso | CambiarContrasena, ContrasenaController, política compartida, repositorio de cuentas e idempotencia | CA-CLA-01–04 en U/I/C. Argon2id íntegro, confirmación, versión, replay, carreras y rollback. PR04/PR13. |
+| HU02/RF05 → FR-019/022/025 → AC07/EQ-07 → DA10 → ADR-004/006 → web | ContrasenaWeb, CambiarContrasena.tsx y composición | V/E de contraseña. Flujo específico, recuperación, limpieza de campos y login nuevo/anterior. PR07. |
+| HU01/RF02–RF04 → FR-004–014/026 → AC04/EQ-04 → DA03 → ADR-005/006 → acceso y recuperación | Reutilización de sesión vigente y bloqueo de cuenta | I cambios de contraseña, recuperación, correo y sesiones. Se comprueban los efectos diferenciados de US7 y recuperación. |
+
+US7-407db07e4ac3dbb3: 114 U, 93 I, 93 C y 53 V. US7 9 E por entorno y selección
+de regresión adicional de 10 E por entorno. Comandos, intentos y versiones en el
+[estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md).
+T110–T119, incidente 503, abortos nativos y corpus productivo siguen pendientes.
+
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
 | Elemento C4 | Nivel | Requisitos y drivers que lo justifican |
@@ -220,7 +234,7 @@ abortos nativos Windows separados. T110/corpus pendientes, US7 no iniciada.
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | Parcial: US1–US6 verificadas; US7 pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | US1–US7 verificadas. Cierre transversal pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |

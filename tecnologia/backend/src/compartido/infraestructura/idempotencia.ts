@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import type { IdempotenciaRecuperacion, SolicitudIdempotente, ResultadoIdempotente } from '../aplicacion/idempotencia.js';
+import type { IdempotenciaRecuperacion, IdempotenciaUsuario, SolicitudIdempotente, ResultadoIdempotente } from '../aplicacion/idempotencia.js';
 import type { ContextoTransaccion, ValorJson } from '../aplicacion/transaccion.js';
 import type { UnidadDeTrabajoPostgres } from './postgres/unidad-de-trabajo.js';
 import { datosInvalidos, dependenciaNoDisponible, ErrorAplicacion } from '../dominio/errores.js';
@@ -26,7 +26,7 @@ function exigirSinSecretos(valor: ValorJson): void {
   }
 }
 interface FilaIdempotente { cuerpo_hmac: Buffer; hmac_key_id: string; http: number; resultado: ValorJson }
-export class IdempotenciaPostgres implements IdempotenciaRecuperacion {
+export class IdempotenciaPostgres implements IdempotenciaRecuperacion, IdempotenciaUsuario {
   constructor(private readonly uow: UnidadDeTrabajoPostgres, private readonly claves: ReadonlyMap<string, Buffer>, private readonly actual: string) {
     if (!claves.has(actual) || [...claves.values()].some((k) => k.length !== 32)) throw new Error('Claves HMAC no válidas.');
   }
@@ -39,6 +39,26 @@ export class IdempotenciaPostgres implements IdempotenciaRecuperacion {
       const clave = this.claves.get(anterior.hmac_key_id); if (!clave) { registrarFallo('idempotencia.clave', undefined, 'clave_no_disponible'); throw dependenciaNoDisponible(); }
       const hmac = createHmac('sha256', clave).update(entrada).digest();
       if (anterior.cuerpo_hmac.length !== hmac.length || !timingSafeEqual(anterior.cuerpo_hmac, hmac)) throw new ErrorAplicacion(409, 'CLAVE_IDEMPOTENCIA_REUTILIZADA', 'La clave ya corresponde a otros datos.');
+      return { http: anterior.http, cuerpo: anterior.resultado };
+    });
+  }
+  async consultarUsuario(s: SolicitudIdempotente): Promise<ResultadoIdempotente | null> {
+    if (s.ambito.tipo !== 'usuario' || s.token || s.clave.length < 16 || s.clave.length > 128) throw datosInvalidos();
+    if (!s.autorizar || await s.autorizar() !== s.ambito.id) throw new ErrorAplicacion(401, 'NO_AUTENTICADO', 'Debe autenticarse.');
+    const entrada = jsonCanonico({ metodo: s.metodo, ruta: s.rutaLogica, token: null, cuerpo: s.cuerpo });
+    return this.uow.ejecutar(async tx => {
+      const filas: FilaIdempotente[] = await this.uow.runner(tx).query(
+        'SELECT cuerpo_hmac,hmac_key_id,http,resultado FROM claves_idempotencia WHERE ambito=$1 AND operacion=$2 AND clave=$3',
+        [`usuario:${s.ambito.id}`, `${s.metodo} ${s.rutaLogica}`, s.clave],
+      );
+      const anterior = filas[0];
+      if (!anterior) return null;
+      const clave = this.claves.get(anterior.hmac_key_id);
+      if (!clave) { registrarFallo('idempotencia.clave', undefined, 'clave_no_disponible'); throw dependenciaNoDisponible(); }
+      const hmac = createHmac('sha256', clave).update(entrada).digest();
+      if (anterior.cuerpo_hmac.length !== hmac.length || !timingSafeEqual(anterior.cuerpo_hmac, hmac)) {
+        throw new ErrorAplicacion(409, 'CLAVE_IDEMPOTENCIA_REUTILIZADA', 'La clave ya corresponde a otros datos.');
+      }
       return { http: anterior.http, cuerpo: anterior.resultado };
     });
   }

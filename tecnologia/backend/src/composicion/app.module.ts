@@ -48,6 +48,8 @@ import {SolicitarCambioCorreo} from '../modulos/usuarios-acceso/aplicacion/solic
 import {ConfirmarCambioCorreo} from '../modulos/usuarios-acceso/aplicacion/confirmar-cambio-correo.js';
 import {CorreoController,SERVICIOS_CORREO} from '../modulos/usuarios-acceso/presentacion/correo.controller.js';
 import {ReautenticacionController,REAUTENTICAR} from '../modulos/usuarios-acceso/presentacion/reautenticacion.controller.js';
+import { CambiarContrasena } from '../modulos/usuarios-acceso/aplicacion/cambiar-contrasena.js';
+import { CAMBIAR_CONTRASENA, ContrasenaController } from '../modulos/usuarios-acceso/presentacion/contrasena.controller.js';
 import { ESTADO_SALUD, SaludController } from '../compartido/infraestructura/http/salud.controller.js';
 
 export async function crearAplicacion(config: Configuracion, opciones: { worker?: boolean; registrarDiagnostico?: (linea: string) => void } = {}) {
@@ -86,6 +88,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   const recuperaciones = new RepositorioRecuperacionesPostgres(db, uow); const plantillas = new PlantillasSeguridad(config.urlPublica);
   const cambiosCorreo=new RepositorioCambiosCorreoPostgres(db,uow);
   const reautenticar=new ReautenticarSesion(cuentas,sesiones,cambiosCorreo,lector,uow,hash,reloj);
+  const cambiarContrasena = new CambiarContrasena(cuentas, lector, idempotencia, hash, catalogo, reloj);
   const serviciosCorreo={solicitar:new SolicitarCambioCorreo(cuentas,sesiones,cambiosCorreo,lector,idempotencia,reloj,secretos,notificaciones,plantillas),confirmar:new ConfirmarCambioCorreo(cuentas,cambiosCorreo,lector,idempotencia,reloj,secretos)};
   const serviciosRecuperacion = {
     solicitar: new SolicitarRecuperacion(cuentas, recuperaciones, uow, reloj, secretos, notificaciones, plantillas),
@@ -104,7 +107,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   }, 60000);
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
-  @Module({ controllers: [CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
+  @Module({ controllers: [ContrasenaController, CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{ provide: CAMBIAR_CONTRASENA, useValue: cambiarContrasena }, {provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
   class AppModule {}
   const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
   await configurarApi(app, { origen: config.origen, contrato: config.contrato, ...(opciones.registrarDiagnostico ? { registrarDiagnostico: opciones.registrarDiagnostico } : {}) });

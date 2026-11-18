@@ -15,5 +15,5 @@ export default defineConfig({
     name: `${browserName}-${width}`, use: { ...devices[browserName === 'chromium' ? 'Desktop Chrome' : browserName === 'firefox' ? 'Desktop Firefox' : 'Desktop Safari'], viewport: { width, height: 900 }, ...(browserName === 'firefox' ? { launchOptions: { firefoxUserPrefs: { 'security.enterprise_roots.enabled': true } } } : {}) },
   }))),
   ...(process.env['E2E_EXTERNAL_WEB'] === 'true' ? {} : { webServer: { command: 'npm run dev -- --host 127.0.0.1 --mode validation', url: 'http://127.0.0.1:5173', reuseExistingServer: !process.env['CI'] } }),
-  metadata: { funcionalidad: '001', alcance: 'Fundación y US1–US6 disponibles; suites efectivas según comando e inventario. US7 y nuevas variantes conjuntas T110 pendientes.', plataforma: process.platform, node: process.version, caCert: process.env['NODE_EXTRA_CA_CERTS'] ?? resolve('../.local/tls/ca.crt') },
+  metadata: { funcionalidad: '001', alcance: 'Fundación y US1–US7 disponibles. Las suites ejecutadas dependen del comando. Variantes T110 pendientes.', plataforma: process.platform, node: process.version, caCert: process.env['NODE_EXTRA_CA_CERTS'] ?? resolve('../.local/tls/ca.crt') },
 });

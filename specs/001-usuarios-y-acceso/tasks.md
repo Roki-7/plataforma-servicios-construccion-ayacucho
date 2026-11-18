@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US6 verificadas; T099 aceptada por su criterio original;
+**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US7 verificadas.
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -10,7 +10,8 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
 US1 (T024–T036), US2 (T037–T048), US3 (T049–T062), US5 (T063–T076) y US4 (T077–T085) están verificadas;
-US6 (T086–T099) está aceptada por sus criterios originales. T100–T119 siguen pendientes; siguiente T100 (US7), no iniciada. El incidente 503 histórico, T110 y el corpus productivo conservan sus pendientes independientes.
+US6 (T086–T099) y US7 (T100–T109) están verificadas. El cierre transversal T110–T119,
+el incidente 503 histórico, los abortos nativos y el corpus productivo quedan pendientes.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -265,6 +266,9 @@ Requiere sesiones, perfil versionado, correo y controles de acceso previos.
 
 ## Fase 9: US7 — Cambiar la contraseña desde la cuenta (P1)
 
+T100–T109 verificadas sobre US7-407db07e4ac3dbb3. Los resultados y sus versiones
+se documentan en [implementation-status.md](implementation-status.md).
+
 **Origen**: HU02/RF05; apoyo HU01/RF02–RF04; FR-022, FR-025.
 **Objetivo**: flujo específico que comprueba la actual y aplica política completa.
 **Prueba independiente**: cuenta y sesión ficticias, actual correcta/incorrecta,
@@ -273,19 +277,19 @@ No requiere cambiar correo; comparte sesiones/perfil/política/autorización.
 
 ### Pruebas primero
 
-- [ ] T100 [P] [US7] Escribir U de CA-CLA-02 y CA-CLA-03 en `tecnologia/backend/test/unit/usuarios-acceso/contrasena.spec.ts`; actual incorrecta no cambia hash/versiones ni marca, nueva fuera de rango/común/comprometida/confirmación distinta se rechaza, sin trim/truncado.
-- [ ] T101 [P] [US7] Escribir I de CA-CLA-01 y CA-CLA-02 en `tecnologia/backend/test/integration/usuarios-acceso/contrasena.spec.ts`; hash completo Argon2, revalidación de version_credencial tras comprobación fuera del lock, nueva autentica/anterior no, fallo/versión obsoleta/rollback y replay sin mutar dos veces.
-- [ ] T102 [P] [US7] Escribir C de POST `/perfil/cambios-contrasena` y rechazo de contraseña en PATCH `/perfil` para CA-CLA-01, CA-CLA-02, CA-CLA-03 y CA-CLA-04 en `tecnologia/backend/test/contract/usuarios-acceso/contrasena.spec.ts`; versión/Idempotency-Key, permisos, errores, política/confirmación, no Set-Cookie y ninguna revocación global añadida.
-- [ ] T103 [P] [US7] Escribir V de CA-CLA-03 y CA-CLA-04 en `tecnologia/frontend/test/unit/usuarios-acceso/contrasena.test.tsx`; política íntegra, confirmación, errores y acceso al flujo específico/recuperación, sin edición de contraseña desde perfil ordinario.
-- [ ] T104 [P] [US7] Escribir E de CA-CLA-01 y CA-CLA-04 en `tecnologia/frontend/test/e2e/usuarios-acceso/contrasena.spec.ts`; actual+nueva+confirmación, login con nueva/anterior, PATCH no cambia credencial y sesiones existentes sin revocación global inferida; T007.
+- [X] T100 [P] [US7] Escribir U de CA-CLA-02 y CA-CLA-03 en `tecnologia/backend/test/unit/usuarios-acceso/contrasena.spec.ts`; actual incorrecta no cambia hash/versiones ni marca, nueva fuera de rango/común/comprometida/confirmación distinta se rechaza, sin trim/truncado.
+- [X] T101 [P] [US7] Escribir I de CA-CLA-01 y CA-CLA-02 en `tecnologia/backend/test/integration/usuarios-acceso/contrasena.spec.ts`; hash completo Argon2, revalidación de version_credencial tras comprobación fuera del lock, nueva autentica/anterior no, fallo/versión obsoleta/rollback y replay sin mutar dos veces.
+- [X] T102 [P] [US7] Escribir C de POST `/perfil/cambios-contrasena` y rechazo de contraseña en PATCH `/perfil` para CA-CLA-01, CA-CLA-02, CA-CLA-03 y CA-CLA-04 en `tecnologia/backend/test/contract/usuarios-acceso/contrasena.spec.ts`; versión/Idempotency-Key, permisos, errores, política/confirmación, no Set-Cookie y ninguna revocación global añadida.
+- [X] T103 [P] [US7] Escribir V de CA-CLA-03 y CA-CLA-04 en `tecnologia/frontend/test/unit/usuarios-acceso/contrasena.test.tsx`; política íntegra, confirmación, errores y acceso al flujo específico/recuperación, sin edición de contraseña desde perfil ordinario.
+- [X] T104 [P] [US7] Escribir E de CA-CLA-01 y CA-CLA-04 en `tecnologia/frontend/test/e2e/usuarios-acceso/contrasena.spec.ts`; actual+nueva+confirmación, login con nueva/anterior, PATCH no cambia credencial y sesiones existentes sin revocación global inferida; T007.
 
-### Implementación futura
+### Implementación verificada
 
-- [ ] T105 [US7] Implementar caso de uso de cambio ordinario en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/cambiar-contrasena.ts`; sesión/titularidad, versión esperada, actual exacta completa, nueva política/catálogo/confirmación de T014–T015/T029 y hash fuera de locks, revalidar version_credencial/estado tras lock, actualizar PHC/version_credencial/version+resultado idempotente en un commit; no revocación global por inferencia ni aceptación de cambio por PATCH.
-- [ ] T106 [US7] Definir DTO y traducción de fallos en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/contrasena.dto.ts`; nueva/confirmación 15–128 puntos de código exactos, actual <=128 antes de Argon2, Unicode inválido rechazado, versión positiva y propiedades extras prohibidas, sin devolver valores secretos; usar el mismo validador puro de política. Depende de T105.
-- [ ] T107 [US7] Exponer POST `/perfil/cambios-contrasena` en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/contrasena.controller.ts` y `tecnologia/backend/src/composicion/app.module.ts`; guard, origen, Idempotency-Key, 409/422 y resultado OpenAPI sin tokens ni cookie; ampliar `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` con la nueva operación. Depende de T105–T106.
-- [ ] T108 [US7] Implementar caso de uso/formulario y rutas web en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/contrasena.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/CambiarContrasena.tsx` y `tecnologia/frontend/src/composicion/App.tsx`; comprobar actual en flujo específico, permitir espacios/pegado, mostrar errores sin éxito falso, enlazar recuperación si se olvidó y no conservar contraseñas tras completar.
-- [ ] T109 [US7] Ejecutar T100–T104, permisos ampliados y regresión de credenciales/perfil en `tecnologia/.local/evidencia/001/us7/`; comprobar nueva/previa, rechazos sin mutar y ausencia de revocación global inferida, guardando evidencia sanitizada por CA.
+- [X] T105 [US7] Implementar caso de uso de cambio ordinario en `tecnologia/backend/src/modulos/usuarios-acceso/aplicacion/cambiar-contrasena.ts`; sesión/titularidad, versión esperada, actual exacta completa, nueva política/catálogo/confirmación de T014–T015/T029 y hash fuera de locks, revalidar version_credencial/estado tras lock, actualizar PHC/version_credencial/version+resultado idempotente en un commit; no revocación global por inferencia ni aceptación de cambio por PATCH.
+- [X] T106 [US7] Definir DTO y traducción de fallos en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/contrasena.dto.ts`; nueva/confirmación 15–128 puntos de código exactos, actual <=128 antes de Argon2, Unicode inválido rechazado, versión positiva y propiedades extras prohibidas, sin devolver valores secretos; usar el mismo validador puro de política. Depende de T105.
+- [X] T107 [US7] Exponer POST `/perfil/cambios-contrasena` en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/contrasena.controller.ts` y `tecnologia/backend/src/composicion/app.module.ts`; guard, origen, Idempotency-Key, 409/422 y resultado OpenAPI sin tokens ni cookie; ampliar `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` con la nueva operación. Depende de T105–T106.
+- [X] T108 [US7] Implementar caso de uso/formulario y rutas web en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/contrasena.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/CambiarContrasena.tsx` y `tecnologia/frontend/src/composicion/App.tsx`; comprobar actual en flujo específico, permitir espacios/pegado, mostrar errores sin éxito falso, enlazar recuperación si se olvidó y no conservar contraseñas tras completar.
+- [X] T109 [US7] Ejecutar T100–T104, permisos ampliados y regresión de credenciales/perfil en `tecnologia/.local/evidencia/001/us7/`; comprobar nueva/previa, rechazos sin mutar y ausencia de revocación global inferida, guardando evidencia sanitizada por CA.
 
 ## Fase 10: Pulido y garantías transversales
 
@@ -547,6 +551,13 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
+US7 completó T100–T109. **109 tareas terminadas y 10 pendientes**.
+Cuatro CA-CLA probados, con 53 CA acumulados en versiones documentadas.
+Evidencia nueva en `tecnologia/.local/evidencia/001/us7/US7-407db07e4ac3dbb3/`.
+El cierre transversal T110–T119 queda pendiente.
+
+**Registro histórico de la aceptación de T099:**
+
 La reevaluación de T099 confirma sus criterios originales y marca únicamente T099.
 **T001–T099: 99 tareas terminadas, 20 pendientes. US6 aceptada; US7 no iniciada.**
 Permisos actualizados sobre D099: 10 I y 19 C; recorrido de correo actual 1 E Linux.

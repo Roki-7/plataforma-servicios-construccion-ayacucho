@@ -1,3 +1,111 @@
+# Estado de implementación de US7
+
+Fecha local 2026-11-17. **US7 implementada y verificada.** T100–T109 completadas.
+El backlog suma **109/119 tareas terminadas**. Los **53 escenarios de aceptación**
+tienen evidencia en sus niveles requeridos y en las versiones documentadas.
+El cierre transversal T110–T119 queda pendiente.
+
+El titular autenticado entra desde Mi cuenta a Cambiar contraseña o puede
+solicitar un enlace de recuperación si olvidó la actual. El cambio exige
+la contraseña actual exacta y una nueva de 15 a 128 puntos Unicode con confirmación.
+Argon2id usa el valor completo. El catálogo de validación comprueba valores comunes
+y comprometidos. El formulario borra las tres entradas al confirmar el cambio.
+
+El servidor prepara verificación, catálogo y hash fuera de los bloqueos. Dentro
+de la transacción comprueba de nuevo titularidad, sesión, versión del perfil
+y versión de credencial. Confirma PHC, versiones y resultado idempotente juntos.
+Un replay exacto autenticado devuelve el resultado previo y una clave reutilizada
+con otros datos válidos produce 409. Las pruebas concurrentes cubren un único
+commit con claves distintas, replay con la misma clave y un reset que precede
+a la escritura. El rollback conserva credencial, versiones y sesión.
+
+Un cambio ordinario conserva las sesiones existentes, sus renovaciones y marcas
+de autenticación reciente. Conserva también los enlaces de recuperación y solicitudes
+de correo pendientes bajo sus políticas vigentes. La nueva versión del perfil
+causa 409 ante una confirmación de correo con la versión anterior. Con versión
+actual, el desafío conserva su vigencia. El consumo posterior de recuperación
+sí revoca las sesiones según US3. PATCH de perfil rechaza campos de contraseña.
+La respuesta del flujo específico se limita a código y mensaje, sin Set-Cookie.
+
+## Evidencia de la versión probada
+
+**US7-407db07e4ac3dbb3**, base Git `4430ca116f4b657681de7ddde1469fd883526afb` con cambios locales de US7.
+El manifiesto registra 200 huellas y cada ejecución
+comprueba la fuente antes y después. Los JUnit, comandos efectivos, JSON de Playwright
+e informes de TLS están en `tecnologia/.local/evidencia/001/us7/US7-407db07e4ac3dbb3/`.
+
+| Comprobación | Resultado | Archivos o proyectos |
+|---|---:|---|
+| Jest unitario completo | 114 | 9 archivos |
+| Jest integración completo | 93 | 9 archivos con PostgreSQL real |
+| Jest contrato completo | 93 | 8 archivos |
+| Vitest completo | 53 | 7 archivos |
+| US7 navegador Linux | 9/9 | Chromium, Firefox y WebKit a 360, 768 y 1366 px |
+| US7 navegador Windows | 9/9 | Los mismos nueve proyectos |
+| Regresión de navegador Linux | 10/10 | Selección de siete archivos en Chromium a 768 px |
+| Regresión de navegador Windows | 10 casos cubiertos | La misma selección en Chromium a 768 px. Véase el detalle de intentos. |
+
+US7 aporta 7 U, 7 I, 4 C y 7 V propias.
+El contrato ampliado de permisos añade un caso sobre visitante, acceso vencido
+y sesión revocada para POST /perfil/cambios-contrasena.
+`verificacion.json` cruza CA-CLA-01–04 con los niveles de la matriz.
+
+Para reproducir la cobertura del backend se ejecutó `node tecnologia/.local/pruebas/verificar-us7.mjs backend 1`
+con Node 24.15.0 en Windows. Invoca Jest por archivo completo con
+`--selectProjects <unit|integration|contract> --runInBand --no-cache --runTestsByPath <archivo>`.
+Incluye fundación y las siete historias (registro, sesiones, recuperación, permisos,
+perfil, correo y contraseña), diagnóstico unitario y diagnóstico de recuperación
+en integración. Los archivos y códigos de los 26 procesos constan en
+`backend-1/ejecuciones.json`. Vitest ejecutó `npm run test:unit -- --maxWorkers=1 --outputFile=<junit>`
+con fundación, registro, sesiones, recuperación, vista de perfil, correo y contraseña.
+
+Los comandos de navegador usan `npm run test:e2e:container -- ...` y
+`npm run test:e2e:windows -- ...`. Para US7 se seleccionó
+`test/e2e/usuarios-acceso/contrasena.spec.ts` en los nueve proyectos. La
+regresión seleccionó fundación, registro, sesiones, recuperación, perfil,
+permisos y correo con `--project=chromium-768`. Esta última selección cubre
+diez casos por entorno y deja la matriz global de todas las historias para
+el cierre transversal. Las matrices F3 siguen asociadas a F3. Se confirmó
+que la CA, el certificado del servidor y los nombres admitidos coinciden
+con la evidencia TLS previa. Los 7 controles estáticos de tipos,
+lint, compilación y arquitectura pasaron.
+
+## Intentos y pendientes
+
+La primera prueba unitaria previa al código quedó en rojo por ausencia del
+caso de uso. Los primeros chequeos de tipos detectaron mocks sin retorno
+asíncrono tipado y un método Unicode fuera de la biblioteca configurada en
+frontend. Ambos se corrigieron antes de congelar la fuente probada.
+
+En el primer barrido, `test/integration/usuarios-acceso/correo.spec.ts` (salida 3221226505 / `0xC0000409`) terminó sin JUnit final.
+La cobertura completa se acredita por archivo y con la repetición de los
+archivos afectados. Los intentos iniciales se conservan en `backend-1/`
+y sus repeticiones en `repeticion-1/`, con observador de inicio y fin de casos.
+Los abortos nativos de Windows conservan su seguimiento independiente.
+
+La selección Windows inicial aprobó 8/10.
+Dos casos de registro agotaron el plazo al seleccionar perfil y al localizar
+la confirmación de incorporación. Se conservó el reporte inicial y se repitió
+solo registro con `test/e2e/usuarios-acceso/registro.spec.ts --project=chromium-768`
+en `registro-windows-1/`. Pasó 2/2.
+La cobertura de diez casos se acredita por unión. La repetición aprobada no
+determina la causa de los timeouts ni modifica sus plazos originales.
+
+El HTTP 503 histórico de recuperación mantiene causa indeterminada.
+El diagnóstico, sus limitaciones y las propuestas de captura y seguimiento
+se conservan en [diagnostico-t099.md](diagnostico-t099.md). El aborto nativo
+y el 503 histórico son incidentes independientes. Se verificaron las huellas
+de 467 reportes anteriores inventariados.
+El ejecutor Windows actualizó el diagnóstico TLS de ruta fija. Se archivó el
+diagnóstico de US7 junto a los nuevos resultados y se restauró el archivo anterior
+con la huella SHA-256 idéntica al inventario. Véase `separacion-diagnostico-tls.json`.
+El corpus productivo completo aprobado y el cierre transversal T110–T119 siguen
+pendientes. El catálogo de estas pruebas es el fixture de validación.
+
+## Registro histórico de US6 y entregas anteriores
+
+Este registro conserva el estado anterior con sus versiones y alcances.
+
 # Estado actual: T099 aceptada; US6 terminada en su alcance
 
 Fecha local: 2026-11-17. **T099 terminada y verificada por su criterio original.**

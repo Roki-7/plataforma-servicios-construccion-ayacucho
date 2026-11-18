@@ -10,6 +10,13 @@ interface Fila { id: string; correo: string; nombre_mostrar: string; contrasena_
 export class RepositorioCuentasPostgres implements RepositorioCuentas, RepositorioRegistro {
   constructor(private readonly db: DataSource, private readonly uow: UnidadDeTrabajoPostgres, private readonly consentimientos?: RepositorioConsentimientos) {}
   private lectura(f: Fila): CuentaLectura { return { id: idCuenta(f.id), correo: f.correo, version: BigInt(f.version), versionCredencial: BigInt(f.version_credencial), contrasenaHash: f.contrasena_hash }; }
+  async leerCredencial(id: IdCuenta): Promise<CuentaLectura | null> {
+    const [fila]: Fila[] = await this.db.query('SELECT id,correo,version,version_credencial,contrasena_hash FROM usuarios WHERE id=$1', [id]);
+    return fila ? this.lectura(fila) : null;
+  }
+  async establecerContrasena(id: IdCuenta, phc: string, ahora: Date, tx: ContextoTransaccion): Promise<void> {
+    await this.uow.runner(tx).query('UPDATE usuarios SET contrasena_hash=$2,version_credencial=version_credencial+1,version=version+1,actualizada_en=$3 WHERE id=$1', [id, phc, ahora]);
+  }
   async buscarPorCorreo(correo: string, tx?: ContextoTransaccion): Promise<CuentaLectura | null> { const filas: Fila[] = await (tx ? this.uow.runner(tx) : this.db).query('SELECT * FROM usuarios WHERE correo_canonico=lower($1::text COLLATE correo_001)', [correo]); return filas[0] ? this.lectura(filas[0]) : null; }
   async bloquear(id: IdCuenta, tx: ContextoTransaccion): Promise<CuentaLectura | null> { const filas: Fila[] = await this.uow.runner(tx).query('SELECT * FROM usuarios WHERE id=$1 FOR UPDATE', [id]); return filas[0] ? this.lectura(filas[0]) : null; }
   async crear(id: IdCuenta, d: RegistroCuenta, phc: string, ahora: Date, foto: FotografiaAlmacenada | undefined, tx: ContextoTransaccion): Promise<void> {

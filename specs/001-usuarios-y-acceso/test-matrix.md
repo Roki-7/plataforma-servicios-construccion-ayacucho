@@ -1,13 +1,11 @@
 # Matriz de validación — 53 escenarios de 001
 
-**Estado**: 49/53 CA probados en los niveles y versiones documentados: REG 11,
-SES 9, REC 10, AUT 7, PER 6, COR 6. US6 T086–T099 aceptada; los cuatro CA-CLA de US7
-permanecen planificados. No se modifican las 53 filas ni sus niveles normativos.
-Aceptación T099: evidencia vigente F3/D099 y actualización 10 I/19 C de permisos,
-más 1 E actual de correo Linux/chromium-768. Unión acotada D099 54 U/67 I/54 C;
-no es regresión completa. V y matrices completas de navegador siguen asociadas a F3.
-El incidente 503, T110 y corpus productivo mantienen sus pendientes independientes.
-Criterios y fuentes: [aceptacion-t099.md](aceptacion-t099.md).
+**53/53 CA** probados en sus niveles y versiones documentados. Los cuatro
+CA-CLA de US7 se verificaron sobre US7-407db07e4ac3dbb3 en U/I/C/V/E según
+cada fila. Backend completo por archivos, Vitest completo y recorrido US7 por
+nueve proyectos en cada entorno. Las regresiones de navegador son selecciones
+de Chromium a 768 px. T110–T119, incidente 503 y corpus productivo pendientes.
+Resultados y comandos en [implementation-status.md](implementation-status.md).
 
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).
 El alcance sigue siendo RF01–RF05 y HU01–HU02; las variantes no crean nuevos CA.

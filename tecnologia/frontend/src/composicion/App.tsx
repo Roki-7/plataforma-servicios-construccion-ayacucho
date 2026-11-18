@@ -1,4 +1,5 @@
 import {ConfirmarCorreo} from '../features/usuarios-acceso/presentacion/ConfirmarCorreo.js';
+import { CambiarContrasena } from '../features/usuarios-acceso/presentacion/CambiarContrasena.js';
 import { useEffect, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Registro } from '../features/usuarios-acceso/presentacion/Registro.js';
@@ -8,7 +9,7 @@ import { EstadoSesion } from '../features/usuarios-acceso/presentacion/EstadoSes
 import { EstadoAcceso } from '../features/usuarios-acceso/presentacion/EstadoAcceso.js';
 import { RecuperarAcceso } from '../features/usuarios-acceso/presentacion/RecuperarAcceso.js';
 import { EstablecerContrasena } from '../features/usuarios-acceso/presentacion/EstablecerContrasena.js';
-import { usuarios, sesion, recuperacion, perfilWeb, correoWeb } from './usuarios-acceso.js';
+import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
 import './estilos.css';
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
@@ -23,9 +24,14 @@ export function App() {
   return <main><header><h1>Plataforma Ayacucho</h1><nav><a href="/registro" onClick={navegar}>Crear cuenta</a> · <a href="/acceso" onClick={navegar}>Acceder</a> · <a href="/cuenta" onClick={navegar}>Mi cuenta</a> · <a href="/habilitar-perfil" onClick={navegar}>Mis perfiles</a></nav></header>
     {estado.autenticada && <EstadoSesion ocupado={estado.cerrando} cerrar={async () => { try { await sesion.cerrar(); setMensaje('Sesión cerrada.'); } catch { setMensaje('No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); } }} />}
     {(ruta==='/cuenta'||ruta==='/habilitar-perfil')&&<EstadoAcceso autenticada={estado.autenticada} comprobando={cargando}/>}
-    {cargando ? <p>Comprobando sesión…</p> : ruta === '/recuperar' ? pantallaRecuperacion : ruta === '/acceso' ? estado.autenticada ? <p>Puede continuar usando su cuenta.</p> : acceso : ruta === '/confirmar-correo' ? !estado.autenticada ? acceso : <PantallaConfirmarCorreo key={enlaceVersion}/> : ruta === '/cuenta' || ruta === '/habilitar-perfil' ? !estado.autenticada ? acceso : <Perfil servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb}/> : <Registro registrar={usuarios.registrar} />}
+    {cargando ? <p>Comprobando sesión…</p> : ruta === '/recuperar' ? pantallaRecuperacion : ruta === '/acceso' ? estado.autenticada ? <p>Puede continuar usando su cuenta.</p> : acceso : ruta === '/confirmar-correo' ? !estado.autenticada ? acceso : <PantallaConfirmarCorreo key={enlaceVersion}/> : ruta === '/cambiar-contrasena' ? estado.autenticada ? <PantallaCambiarContrasena /> : acceso : ruta === '/cuenta' || ruta === '/habilitar-perfil' ? !estado.autenticada ? acceso : <Perfil servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb}/> : <Registro registrar={usuarios.registrar} />}
     {mensaje && <p role="status">{mensaje}</p>}
   </main>;
+}
+
+function PantallaCambiarContrasena() {
+  const [servicio] = useState(prepararCambioContrasena);
+  return <CambiarContrasena cambiar={servicio.cambiar} />;
 }
 
 function PantallaConfirmarCorreo(){const[correo,setCorreo]=useState(''),[error,setError]=useState('');useEffect(()=>{void perfilWeb.consultar().then(p=>setCorreo(p.correo)).catch(()=>setError('No fue posible consultar su cuenta.'));},[]);return error?<p>{error}</p>:!correo?<p>Cargando mi cuenta…</p>:!correoWeb.tieneEnlace()?<p>El enlace no es válido. Solicite un cambio nuevo.</p>:<ConfirmarCorreo correo={correo} confirmar={correoWeb.confirmar}/>;}

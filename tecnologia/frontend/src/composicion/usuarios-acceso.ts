@@ -1,4 +1,5 @@
 import {CorreoWeb} from '../features/usuarios-acceso/aplicacion/correo.js';
+import { ContrasenaWeb } from '../features/usuarios-acceso/aplicacion/contrasena.js';
 import { ApiUsuariosHttp, claveIdempotencia } from '../features/usuarios-acceso/infraestructura/api-usuarios.js';
 import { operacionesRegistro } from '../features/usuarios-acceso/aplicacion/registro.js';
 import { SesionWeb } from '../features/usuarios-acceso/aplicacion/sesion.js';
@@ -14,3 +15,4 @@ const fragmento = window.__recuperacionInicial ?? ''; delete window.__recuperaci
 export const recuperacion = new RecuperacionWeb(api, claveIdempotencia, fragmento);
 
 export const correoWeb=new CorreoWeb(api,claveIdempotencia); correoWeb.cargarEnlace(window.__correoInicial??''); delete window.__correoInicial;
+export const prepararCambioContrasena = () => new ContrasenaWeb(api, claveIdempotencia);
