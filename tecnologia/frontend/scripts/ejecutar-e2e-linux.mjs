@@ -35,8 +35,9 @@ await new Promise((ok, no) => { tunelV6.once('error', no); tunelV6.listen({ port
 const evidencia = process.env.E2E_EVIDENCIA;
 assert.ok(evidencia);
 const carpetaControl = await mkdtemp(join(tmpdir(), 'ayacucho-tls-'));
-execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(carpetaControl, 'control.key'), '-out', join(carpetaControl, 'control.crt'), '-days', '1', '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost'], { stdio: 'ignore' });
-const noConfiable = httpsServer({ key: await readFile(join(carpetaControl, 'control.key')), cert: await readFile(join(carpetaControl, 'control.crt')) }, (_req, res) => res.end('Control técnico sin datos.'));
+const certControl = join(carpetaControl, 'control.crt');
+execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(carpetaControl, 'control.key'), '-out', certControl, '-days', '1', '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost'], { stdio: 'ignore' });
+const noConfiable = httpsServer({ key: await readFile(join(carpetaControl, 'control.key')), cert: await readFile(certControl) }, (_req, res) => res.end('Control técnico sin datos.'));
 await new Promise((ok, no) => { noConfiable.once('error', no); noConfiable.listen(9443, '::', ok); });
 try {
   const certificado = await new Promise((ok, no) => {
@@ -52,7 +53,9 @@ try {
   await mkdir(evidencia, { recursive: true });
   await writeFile(join(evidencia, 'tls.json'), JSON.stringify({ fecha: new Date().toISOString(), plataforma: process.platform, arquitectura: process.arch, node: process.version, uid: process.getuid(), origen: 'https://localhost:8443', caSha256: autoridad.fingerprint256, servidorSha256: certificado.fingerprint256, validoDesde: certificado.validFrom, validoHasta: certificado.validTo, san: certificado.subjectAltName, rechazaHostnameAjeno: true, confianza: { chromium: 'NSS usuario M146+', firefox: 'Certificates.Install en perfiles efímeros', webkit: 'CA del sistema del contenedor', node: 'CA explícita' }, montaje: 'Solo ca.crt pública; ninguna clave privada del host' }, null, 2));
   const codigo = await new Promise((ok, no) => {
-    const proceso = spawn('npm', ['run', 'test:e2e', '--', '--workers=1', ...process.argv.slice(2)], { stdio: 'inherit' });
+    const proceso = spawn('npm', ['run', 'test:e2e', '--', '--workers=1', ...process.argv.slice(2)], {
+      stdio: 'inherit', env: { ...process.env, E2E_TLS_CONTROL_CERT: certControl },
+    });
     proceso.once('error', no); proceso.once('exit', (codigo) => ok(codigo ?? 1));
   });
   process.exitCode = codigo;

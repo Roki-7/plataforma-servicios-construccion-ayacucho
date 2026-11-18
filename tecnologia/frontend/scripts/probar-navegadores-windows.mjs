@@ -47,7 +47,7 @@ try {
     await new Promise((ok, no) => { servidor.once('error', no); servidor.listen({ port: 9443, host: direccion, ipv6Only: direccion === '::1' }, ok); });
   }
   await mkdir(evidencia, { recursive: true });
-  const env = { ...process.env, E2E_EVIDENCIA: evidencia, E2E_TLS_NEGATIVAS: 'true', NODE_EXTRA_CA_CERTS: caPath };
+  const env = { ...process.env, E2E_EVIDENCIA: evidencia, E2E_TLS_NEGATIVAS: 'true', E2E_TLS_CONTROL_CERT: certControl, NODE_EXTRA_CA_CERTS: caPath };
   codigo = await new Promise((ok, no) => {
     const proceso = spawn(process.execPath, [process.env.npm_execpath, 'run', 'test:e2e', '--', '--workers=1', ...process.argv.slice(2)], { cwd: frontend, env, stdio: 'inherit' });
     proceso.once('error', no); proceso.once('exit', (estado) => ok(estado ?? 1));
