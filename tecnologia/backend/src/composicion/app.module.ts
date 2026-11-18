@@ -50,7 +50,7 @@ import {CorreoController,SERVICIOS_CORREO} from '../modulos/usuarios-acceso/pres
 import {ReautenticacionController,REAUTENTICAR} from '../modulos/usuarios-acceso/presentacion/reautenticacion.controller.js';
 import { ESTADO_SALUD, SaludController } from '../compartido/infraestructura/http/salud.controller.js';
 
-export async function crearAplicacion(config: Configuracion, opciones: { worker?: boolean } = {}) {
+export async function crearAplicacion(config: Configuracion, opciones: { worker?: boolean; registrarDiagnostico?: (linea: string) => void } = {}) {
   const db = persistenciaFundacional(config.databaseUrl);
   const catalogo = new CatalogoLocal(config.catalogo, config.validacion);
   let conexion: Promise<void> | undefined;
@@ -107,7 +107,7 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   @Module({ controllers: [CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
   class AppModule {}
   const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
-  await configurarApi(app, { origen: config.origen, contrato: config.contrato });
+  await configurarApi(app, { origen: config.origen, contrato: config.contrato, ...(opciones.registrarDiagnostico ? { registrarDiagnostico: opciones.registrarDiagnostico } : {}) });
   app.useGlobalGuards(new GuardSesion(lector, app.get(Reflector)));
   app.enableShutdownHooks();
   await app.init();

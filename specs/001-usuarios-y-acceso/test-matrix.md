@@ -1,15 +1,13 @@
 # Matriz de validación — 53 escenarios de 001
 
-**Estado**: CA-REG-01–11, CA-SES-01–09, CA-REC-01–10, CA-AUT-01–07,
-CA-PER-01–06 y CA-COR-01–06 probados en sus niveles: **49/53 CA**.
-Los cuatro CA-CLA de US7 permanecen planificados. US6 T086–T098 verificadas;
-T099 pendiente por la causa no determinada del503histórico de recuperación.
-F3-a6f68f56d2e7d9bb: 97U/84I/88C/46V y matrices completas90/90 en Linux y Windows.
-C se acredita por archivos y una repetición de registro tras aborto nativo;
-resultados iniciales/parciales/finales separados en
-[implementation-status.md](implementation-status.md). Todas las pruebas previas
-se conservan por identidad y multiplicidad. Ningún nivel normativo se modifica.
-T110 mantiene variantes transversales y recuperación/perfil conjuntas pendientes.
+**Estado**: 49/53 CA probados en los niveles y versiones documentados: REG 11,
+SES 9, REC 10, AUT 7, PER 6, COR 6. US6 T086–T099 aceptada; los cuatro CA-CLA de US7
+permanecen planificados. No se modifican las 53 filas ni sus niveles normativos.
+Aceptación T099: evidencia vigente F3/D099 y actualización 10 I/19 C de permisos,
+más 1 E actual de correo Linux/chromium-768. Unión acotada D099 54 U/67 I/54 C;
+no es regresión completa. V y matrices completas de navegador siguen asociadas a F3.
+El incidente 503, T110 y corpus productivo mantienen sus pendientes independientes.
+Criterios y fuentes: [aceptacion-t099.md](aceptacion-t099.md).
 
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).
 El alcance sigue siendo RF01–RF05 y HU01–HU02; las variantes no crean nuevos CA.

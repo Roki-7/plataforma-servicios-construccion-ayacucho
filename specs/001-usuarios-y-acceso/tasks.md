@@ -1,6 +1,6 @@
 # Tasks: 001 — Usuarios y acceso
 
-**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US5 verificadas; US6 T086–T098 verificadas, T099 pendiente;
+**Fecha**: 2026-11-17. **Estado**: preparación, fundación y US1–US6 verificadas; T099 aceptada por su criterio original;
 verificaciones TLS y resultados por plataforma registrados en [implementation-status.md](implementation-status.md).
 **Entrada**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contratos](contracts/README.md),
@@ -10,7 +10,7 @@ verificaciones TLS y resultados por plataforma registrados en [implementation-st
 **Alcance**: RF01–RF05; HU01 y HU02, desglosadas en US1–US7 de la spec.
 Las siete historias son P1 y «Debe (MVP)». Los artefactos fundacionales existen;
 US1 (T024–T036), US2 (T037–T048), US3 (T049–T062), US5 (T063–T076) y US4 (T077–T085) están verificadas;
-US6 está implementada: T086–T098 verificadas. T099 conserva el bloqueo de diagnóstico del 503 histórico; T100–T119 siguen pendientes. US7 no iniciada. La regresión conjunta recuperación/perfil permanece en T110.
+US6 (T086–T099) está aceptada por sus criterios originales. T100–T119 siguen pendientes; siguiente T100 (US7), no iniciada. El incidente 503 histórico, T110 y el corpus productivo conservan sus pendientes independientes.
 No cambiar las decisiones Q1–Q4 ni la regla de replay confirmada en research R12.
 No implementar RF06/RF07/RF10/RF35 funcionales, administración, Contrataciones,
 otros módulos vacíos ni alterar `tecnologia/ejemplo-clean-architecture/`.
@@ -223,11 +223,18 @@ proviene de la fase 2 y la referencia administrativa no exige consola ni alta.
 
 ## Fase 8: US6 — Cambiar el correo de acceso (P1)
 
-**Estado**: T086–T098 implementadas y verificadas en F3-a6f68f56d2e7d9bb.
-T099 permanece pendiente: falta identificar la causa del 503 histórico de recuperación
-solicitada al retomar. Las verificaciones funcionales finales pasan; no se declara
-resuelto ese incidente por una repetición aprobada. Detalle y evidencia en
-[implementation-status.md](implementation-status.md). US7 no iniciada.
+**Estado**: T086–T099 terminadas y verificadas en sus niveles aplicables.
+T099 se acepta por conexión de rutas, T086–T090, permisos ampliados y regresiones
+de acceso/recuperación, con evidencia F3 y D099 identificada por versión.
+Sobre D099-e333f5a7f71d150f se actualizaron I permisos 10/10, C permisos 19/19
+y un E de correo Linux/chromium-768 1/1. Las pruebas anteriores vigentes y el
+alcance exacto se justifican en [aceptacion-t099.md](aceptacion-t099.md).
+No es una regresión completa D099 ni una repetición de las matrices de navegador.
+
+El incidente HTTP 503 histórico sigue abierto, con causa indeterminada, evidencias,
+limitaciones y medidas de seguimiento conservadas en [diagnostico-t099.md](diagnostico-t099.md).
+No condiciona la aceptación original de T099. Los abortos nativos Windows se
+mantienen separados. T110 y corpus productivo pendientes; US7 no iniciada.
 
 **Origen**: HU02/RF05; apoyo HU01/RF02/RF04; FR-001, FR-023–024, FR-032.
 **Objetivo**: recencia de la misma sesión al solicitar y verificación del nuevo
@@ -254,7 +261,7 @@ Requiere sesiones, perfil versionado, correo y controles de acceso previos.
 - [X] T096 [US6] Añadir plantilla de verificación en `tecnologia/backend/src/modulos/notificaciones/infraestructura/plantillas-seguridad.ts`; enlace web con token/versión en fragmento, base confiable, nuevo destinatario, vencimiento, cifrado/limpieza y mismo desafío al reintentar; no consumir mediante GET. Depende de T094–T095.
 - [X] T097 [US6] Exponer reautenticación y solicitud/confirmación en `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/reautenticacion.controller.ts`, `tecnologia/backend/src/modulos/usuarios-acceso/presentacion/correo.controller.ts` y `tecnologia/backend/src/composicion/app.module.ts`; guard/origen, idempotencia donde OpenAPI exige, 403 REAUTENTICACION_REQUERIDA y versión/desafío según contrato; ampliar matriz de `tecnologia/backend/test/contract/usuarios-acceso/permisos.spec.ts` con estas rutas. Depende de T093–T096.
 - [X] T098 [US6] Implementar caso de uso y formularios web en `tecnologia/frontend/src/features/usuarios-acceso/aplicacion/correo.ts`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/CambiarCorreo.tsx`, `tecnologia/frontend/src/features/usuarios-acceso/presentacion/Reautenticar.tsx` y `tecnologia/frontend/src/features/usuarios-acceso/presentacion/ConfirmarCorreo.tsx`; pendiente conserva anterior, respuesta servidor decide recencia, confirmar con sesión válida y versiones actualizadas, fragmento solo en memoria/historial limpio, sin renovación de cookie ni secretos en URL posterior.
-- [ ] T099 [US6] Conectar rutas de cambio/confirmación en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; ejecutar T086–T090, permisos ampliados y regresiones de acceso/recuperación, guardar resultados reales en `tecnologia/.local/evidencia/001/us6/` y comprobar destino anterior/nuevo sin revocación global inferida.
+- [X] T099 [US6] Conectar rutas de cambio/confirmación en `tecnologia/frontend/src/composicion/App.tsx` y `tecnologia/frontend/src/composicion/usuarios-acceso.ts`; ejecutar T086–T090, permisos ampliados y regresiones de acceso/recuperación, guardar resultados reales en `tecnologia/.local/evidencia/001/us6/` y comprobar destino anterior/nuevo sin revocación global inferida.
 
 ## Fase 9: US7 — Cambiar la contraseña desde la cuenta (P1)
 
@@ -540,6 +547,18 @@ las 86 de historias llevan su etiqueta US correspondiente. Las 53 filas de
 trazabilidad conservan los niveles de la matriz y enlazan tareas de prueba.
 La corrección documental de I1/I2/I3/C1 conservó T001–T119 y las 45 marcas [P],
 reasignando responsabilidades y dependencias sin añadir requisitos ni escenarios.
+La reevaluación de T099 confirma sus criterios originales y marca únicamente T099.
+**T001–T099: 99 tareas terminadas, 20 pendientes. US6 aceptada; US7 no iniciada.**
+Permisos actualizados sobre D099: 10 I y 19 C; recorrido de correo actual 1 E Linux.
+La unión de selección D099 es 54 U/67 I/54 C; no es regresión completa del backend.
+V y matrices anteriores mantienen su versión F3; su vigencia y el impacto de D099
+se justifican en aceptacion-t099.md e implementation-status.md.
+Incidente HTTP 503 histórico abierto, causa indeterminada; seguimiento y evidencia
+conservados, separados de los abortos nativos Windows. T110 y corpus pendientes.
+**Siguiente T100 (US7), no iniciada. Detención tras aceptar T099.**
+
+**Registro histórico de los estados previos de US6 (decisiones de aquel momento):**
+
 La continuación de US6 verifica T086–T098; **T099 queda pendiente** por el diagnóstico
 causal del503 histórico de recuperación, no reproducido con observadores posteriores.
 T001–T098 suman **98 tareas terminadas y 21 pendientes**. US6 no se declara cerrada.

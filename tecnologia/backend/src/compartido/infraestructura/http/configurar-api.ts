@@ -8,6 +8,7 @@ import type { AnySchemaObject, ValidateFunction } from 'ajv';
 import { createRequire } from 'node:module';
 import { ErrorAplicacion, datosInvalidos } from '../../dominio/errores.js';
 import { eventoPeticion } from './logs-seguros.js';
+import { conDiagnostico, registrarFallo } from '../diagnostico-fallos.js';
 
 interface Operacion { requestBody?: { content: { 'application/json': { schema: AnySchemaObject } } }; parameters?: { $ref?: string }[]; security?: Record<string, string[]>[]; 'x-limite-cuerpo-bytes': number }
 type DocumentoContrato = AnySchemaObject & { paths: Record<string, Record<string, Operacion>> };
@@ -23,7 +24,7 @@ function unicodeValido(valor: unknown): boolean {
   if (valor !== null && typeof valor === 'object') return Object.entries(valor).every(([k, v]) => k.isWellFormed() && unicodeValido(v));
   return typeof valor !== 'number' || Number.isFinite(valor);
 }
-export async function configurarApi(app: INestApplication, config: { origen: string; contrato: string; registrar?: (evento: string) => void }): Promise<void> {
+export async function configurarApi(app: INestApplication, config: { origen: string; contrato: string; registrar?: (evento: string) => void; registrarDiagnostico?: (evento: string) => void }): Promise<void> {
   const contrato = JSON.parse(await readFile(config.contrato, 'utf8')) as DocumentoContrato;
   const ajv = new Ajv2020({ strict: false, allErrors: true });
   const aplicarFormatos = createRequire(import.meta.url)('ajv-formats') as (instance: Ajv2020) => void;
@@ -51,6 +52,10 @@ export async function configurarApi(app: INestApplication, config: { origen: str
   }
   app.setGlobalPrefix('api/v1');
   app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    const ruta = rutas.find(r => r.metodo === req.method && r.regex.test(req.path));
+    conDiagnostico(req.method, ruta?.patron, config.registrarDiagnostico, next);
+  });
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Content-Type-Options', 'nosniff');
     const ruta = rutas.find((r) => r.metodo === req.method && r.regex.test(req.path));
@@ -105,6 +110,7 @@ export class FiltroErrores implements ExceptionFilter {
     if (error instanceof ErrorAplicacion) seguro = error;
     else if (error instanceof HttpException && error.getStatus() === 404) seguro = new ErrorAplicacion(404, 'RECURSO_NO_DISPONIBLE', 'Recurso no disponible.');
     else seguro = new ErrorAplicacion(503, 'DEPENDENCIA_NO_DISPONIBLE', 'Servicio temporalmente no disponible.');
+    if (seguro.http >= 500) registrarFallo('http.respuesta', error);
     responder(host.switchToHttp().getResponse<Response>(), seguro);
   }
 }

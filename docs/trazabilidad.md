@@ -41,8 +41,8 @@ Las decisiones transversales se aplican a todas las filas: ADR-003 (API REST) y 
 
 La funcionalidad 001 dispone de fundación y US1–US5 verificadas en `tecnologia/backend`
 y `tecnologia/frontend`. El [estado de implementación](../specs/001-usuarios-y-acceso/implementation-status.md)
-vincula T001–T098 verificadas y T099 pendiente con archivos y resultados: 11 CA-REG, nueve CA-SES, diez CA-REC,
-seis CA-PER, siete CA-AUT y seis CA-COR comprobados (49/53). US6 implementada con cierre T099 pendiente por la causa del503histórico; US7 y sus cuatro CA-CLA no iniciados.
+vincula T001–T099 verificadas con archivos y resultados por versión: 11 CA-REG, nueve CA-SES, diez CA-REC,
+seis CA-PER, siete CA-AUT y seis CA-COR comprobados (49/53). US6 aceptada por sus criterios originales; incidente503 histórico abierto e independiente; US7 y sus cuatro CA-CLA no iniciados.
 La regresión conjunta recuperación/perfil queda en T110. Los nueve proyectos de Linux y Windows
 conservan TLS activo y rechazo de certificados no confiables. No acredita la
 entrega completa de 001 ni todos los 32 requisitos locales.
@@ -124,7 +124,7 @@ conjuntas; corpus productivo aprobado pendiente antes del despliegue. La limitac
 histórica del inspector SameSite WebKit Windows sigue documentada; cabecera Lax
 exigida. Sin bloqueo actual de US4; 001 y la DoD global aún no están completas.
 
-## US6 implementada y verificada; cierre T099 pendiente
+## Registro histórico de US6 y su aceptación pendiente anterior
 
 | Cadena de US6 | Componentes construidos | Prueba ejecutada |
 |---|---|---|
@@ -157,6 +157,35 @@ y tecnologia/.local/evidencia/001/us6/{verificacion-f3.json,comandos-y-suites-f3
 TLS y contratos intactos. **US7 no iniciada**. T110, corpus productivo completo
 aprobado y DoD global siguen pendientes. Los siguientes párrafos históricos no
 sustituyen este estado vigente.
+
+## Registro histórico del diagnóstico acotado de T099 (posterior a F3)
+
+RF03/FR-008–011/030 → AC04/EQ-04 → DA03 → ADR-003/005/006 → Usuarios y acceso
+y transacciones compartidas → PR04/PR13. Se añaden diagnóstico seguro en infraestructura
+y 10 U/2 I dirigidas, sin nuevos CA ni flujos de US7. Archivos nuevos:
+tecnologia/backend/src/compartido/infraestructura/diagnostico-fallos.ts,
+test/unit/diagnostico.spec.ts y test/integration/usuarios-acceso/diagnostico-recuperacion.spec.ts.
+La composición activa registros seguros en stderr; conserva patrón redactado,
+correlación de servidor y clase/código técnico antes de traducir a503.
+
+D099-e333f5a7f71d150f: selección 54 U/57 I/35 C y estáticos aprobados; no es toda la regresión
+backend ni una nueva matriz E. Los90/90 E Linux/Windows anteriores siguen asociados
+a F3. El lock inducido 55P03 demuestra diagnóstico/rollback/retry, sin atribuir ese
+origen al 503 histórico. Los abortos nativos Windows y sus repeticiones permanecen
+separados. 417 evidencias previas intactas. Criterio exacto, rutas, intentos y medidas
+en [diagnostico-t099.md](../specs/001-usuarios-y-acceso/diagnostico-t099.md).
+**T099 pendiente por instrucción expresa; US7 no iniciada; T110/corpus pendientes.**
+
+## Aceptación de T099 por su texto original
+
+T099 aceptada: rutas conectadas, T086–T090, permisos ampliados y regresiones
+de acceso/recuperación acreditados con evidencia F3/D099. Fuente actual
+D099-e333f5a7f71d150f sin cambios de código; nuevos 10 I/19 C de permisos y 1 E
+correo Linux/chromium-768, más selección previa D099. Unión 54 U/67 I/54 C,
+sin presentarla como regresión completa. V y matrices completas anteriores son F3.
+Tabla y comandos en [aceptacion-t099.md](../specs/001-usuarios-y-acceso/aceptacion-t099.md).
+Incidente HTTP 503 abierto, causa indeterminada y medidas de seguimiento conservadas;
+abortos nativos Windows separados. T110/corpus pendientes, US7 no iniciada.
 
 ## 2. Trazabilidad inversa: de cada elemento de los diagramas C4 a su requisito
 
@@ -191,7 +220,7 @@ sustituyen este estado vigente.
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | Parcial: US1–US5 verificadas; US6 T086–T098 verificadas, T099 pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | Parcial: US1–US6 verificadas; US7 pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |

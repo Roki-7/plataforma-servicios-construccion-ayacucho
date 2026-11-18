@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline';
 import type { CatalogoContrasenasRechazadas } from '../../aplicacion/puertos/puertos.js';
 import { dependenciaNoDisponible } from '../../dominio/errores.js';
 import { textoUnicode } from '../../dominio/identificadores.js';
+import { registrarFallo } from '../../../../compartido/infraestructura/diagnostico-fallos.js';
 
 interface ArchivoCatalogo { archivo: string; sha256: string }
 interface Manifiesto {
@@ -54,12 +55,12 @@ export class CatalogoLocal implements CatalogoContrasenasRechazadas {
       }
       if (!Number.isSafeInteger(m.comprometidas.registros) || cantidad < 1 || cantidad !== m.comprometidas.registros || (await stat(hashes)).size !== cantidad * 41) throw dependenciaNoDisponible();
       this.lista = new Set(lista); this.rutaHashes = hashes; this.cantidad = cantidad;
-    } catch { this.lista = undefined; throw dependenciaNoDisponible(); }
+    } catch (error) { registrarFallo('catalogo.inicializacion', error); this.lista = undefined; throw dependenciaNoDisponible(); }
   }
   async preparada(): Promise<boolean> {
-    if (!this.lista) return false;
-    try { for (const a of this.archivos) { const actual = await stat(a.ruta); if (actual.size !== a.size || actual.mtimeMs !== a.mtimeMs) { this.lista = undefined; return false; } } return true; }
-    catch { this.lista = undefined; return false; }
+    if (!this.lista) { registrarFallo('catalogo.disponibilidad', undefined, 'no_inicializada'); return false; }
+    try { for (const a of this.archivos) { const actual = await stat(a.ruta); if (actual.size !== a.size || actual.mtimeMs !== a.mtimeMs) { registrarFallo('catalogo.integridad', undefined, 'modificado'); this.lista = undefined; return false; } } return true; }
+    catch (error) { registrarFallo('catalogo.disponibilidad', error); this.lista = undefined; return false; }
   }
   async rechazada(contrasena: string): Promise<boolean> {
     textoUnicode(contrasena, 128);

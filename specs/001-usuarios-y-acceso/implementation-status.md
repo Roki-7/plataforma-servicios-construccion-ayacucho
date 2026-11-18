@@ -1,4 +1,112 @@
-# Estado de implementación: US6 implementada; cierre diagnóstico pendiente
+# Estado actual: T099 aceptada; US6 terminada en su alcance
+
+Fecha local: 2026-11-17. **T099 terminada y verificada por su criterio original.**
+Balance: **99/119 tareas terminadas, 20 pendientes**. US7 no iniciada.
+La reevaluación separa la aceptación funcional del incidente HTTP 503 histórico,
+que continúa abierto con causa indeterminada. T110 y el corpus productivo completo
+aprobado conservan sus pendientes independientes; tampoco se cierra la DoD global.
+
+T099 exige conectar las rutas y ejecutar T086–T090, permisos ampliados y regresiones
+de acceso/recuperación, conservar resultados y comprobar destinos/sesiones según
+contrato. Esos criterios están acreditados. No se añade como condición identificar
+la causa histórica. Tabla por criterio, versiones y justificación de las pruebas
+necesarias en [aceptacion-t099.md](aceptacion-t099.md).
+
+**Fuente actual D099-e333f5a7f71d150f**, 188 huellas, sin cambios de código en esta
+reevaluación. La selección previa D099 acredita 54 U/57 I/35 C e incluye correo,
+sesiones, recuperación, fundación y diagnóstico. Se actualizaron únicamente:
+
+- I permisos: **10/10**, archivo completo.
+- C permisos: **19/19**, archivo completo, incluidas las tres rutas US6.
+- E correo: **1/1**, Linux/chromium-768, API D099 reiniciada, TLS activo.
+
+La unión D099, sin duplicar casos, acredita **54 U/67 I/54 C** en archivos
+seleccionados. **No es una regresión completa del backend.** El E actual es un
+único recorrido; **no es una nueva matriz de navegador**. No hubo fallos, omitidos,
+reintentos automáticos ni abortos nativos en estas verificaciones nuevas.
+Tipos/lint/build/arquitectura ya están aprobados en la misma fuente D099 y no se
+repitieron. La regla inclusiva 0–300 s y las garantías de sesión no cambiaron.
+
+Frontend, pruebas web, lockfiles y contrato coinciden con F3 en 51 huellas revisadas.
+V correo 9/9 (dentro de 46 V) y los 9 E de correo por entorno (dentro de 90/90 Linux
+y 90/90 Windows, con espera 301 s en chromium-360) se conservan identificados con F3.
+El recorrido actual demuestra la conexión web/API D099; I/C actuales cubren las
+reglas, permisos, destino anterior/nuevo y conservación de sesiones/renovaciones.
+No se atribuyen a D099 las matrices completas anteriores ni se suman como casos nuevos.
+
+**Incidente HTTP 503: abierto e independiente.** Se conservan evidencia original,
+limitaciones de la investigación, registros seguros añadidos y propuestas de
+captura/retención/correlación del [diagnóstico](diagnostico-t099.md). La causa
+continúa indeterminada; la prueba inducida 55P03 no la demuestra.
+**Abortos Windows 0xC0000409: separados**, con intentos y repeticiones conservados;
+esta aceptación no los declara reparados.
+
+Evidencia nueva: tecnologia/.local/evidencia/001/us6/aceptacion-t099-20261117/.
+**467 archivos de evidencia anteriores mantienen sus huellas.** Fuente e imagen
+del navegador comprobadas, CA/certificado/SAN conservados, sin tokens expuestos
+en el escaneo de reportes y ZIP HTML. Se detuvieron únicamente API/Vite propios.
+**Siguiente T100/US7, no iniciada. T110, corpus e incidente histórico pendientes.**
+
+## Registro histórico del diagnóstico y decisiones anteriores
+
+El estado que sigue se conserva como histórico. Sus menciones de T099 pendiente
+corresponden a la instrucción anterior y quedan sustituidas por esta reevaluación.
+Las evidencias, incidentes y limitaciones conservan su significado y su versión.
+
+Fecha: 2026-11-17. **US6 implementada, T099 pendiente; US7 no iniciada.**
+Balance sin cambios: **98/119 tareas terminadas y 21 pendientes**. T110 y corpus
+productivo completo aprobado siguen pendientes. No se marca ninguna tarea nueva.
+
+T099 exige conectar las rutas de correo y comprobar sus regresiones: ese criterio
+está acreditado por F3. No exige una atribución causal retrospectiva. La petición
+posterior añadió el diagnóstico y ordena mantenerla pendiente si la información
+original no permite identificar la causa. Se conserva su texto y su checkbox.
+
+**Conclusión del 503 histórico:** causa no determinada. El XML original conserva
+HTTP 503 / esperado 200 y stack de aserción, sin excepción interna ni código de driver.
+La duración 23.977 s y los inventarios de PostgreSQL no establecen causalidad.
+Los reportes históricos no se reescriben. Detalle, criterio literal e inventario
+de rutas en [diagnostico-t099.md](diagnostico-t099.md).
+
+**Mejora aplicada:** registro seguro antes de perder las excepciones del flujo
+examinado. Correlación UUID generada por el servidor y aislada por petición;
+ruta contractual redactada, etapa fija, clase/código permitidos y puntos de código
+propios. Sin mensajes libres, SQL, parámetros, cuerpos, cabeceras, credenciales,
+enlaces ni datos de cuenta. Respuesta/cookies/contratos/reglas/TLS conservados.
+No se acredita observabilidad integral de los adaptadores ajenos al diagnóstico.
+
+**Versión final D099-e333f5a7f71d150f**, base Git 7d3f71bb2d5ceaae2928e2534d5234425cbd67fc,
+188 huellas de fuente. Windows/Node 24.15.0 y PostgreSQL 18 real. Selección completa
+por archivos: **54 U,57 I,35 C**, 14 procesos secuenciales, sin casos omitidos. Incluye
+fundación/recuperación/sesiones/correo y 10 U+2 I nuevos de diagnóstico. No se presenta
+como ejecución de todas las suites del backend. Tipos/lint/build/arquitectura 0;
+141 módulos y 459 dependencias, sin infracciones. Comandos y archivos exactos en
+la tabla del diagnóstico y en final-2/ejecuciones.json.
+
+Una carrera controlada con lock mantenido produjo 503 / SQLSTATE 55P03, dejando
+diagnóstico seguro; rollback, login sin reset confirmado y retry posterior pasaron.
+Esto prueba ese fallo inducido, **no explica el incidente histórico**. La carrera
+normal de recuperación y la del correo anterior también pasan en esta versión.
+
+Incidente separado: final-1 tuvo dos abortos nativos Windows 0xC0000409 sin JUnit
+final en REC/SES; su repetición 14/14 + 19/19 con observador se conserva. El lint inicial
+también falló; la liberación se movió a un auxiliar y se repitió toda la selección
+en final-2, que pasó 54/57/35 sin abortos. No se declara reparado el incidente nativo.
+
+**Navegadores no repetidos:** frontend, TLS, contrato y comportamiento público no
+cambiaron. Las matrices anteriores 90/90 Linux y 90/90 Windows corresponden a F3,
+no a esta nueva revisión de diagnóstico; conservan su evidencia histórica.
+417 archivos de evidencia anteriores mantienen sus huellas. Evidencia nueva en
+tecnologia/.local/evidencia/001/us6/diagnostico-t099-20261117/ (verificacion.json,
+examen-historico.json, intentos iniciales, final-1, repeticion-1 y final-2).
+Quedan por preparar captura/retención de stderr en despliegue y conservación de
+correlación/versión ante una próxima ocurrencia; véase el diagnóstico detallado.
+
+## Registro histórico de F3 y entregas anteriores
+
+El cuerpo siguiente conserva el estado anterior. Sus matrices completas y conteos
+pertenecen a las versiones allí indicadas; el estado vigente es el diagnóstico anterior.
+
 
 Fecha local: 2026-11-17 (America/Mexico_City). Alcance: **solo US6, T086–T099**.
 Se conservan US1–US5 y TLS. **T086–T098 verificadas; T099 permanece pendiente** por

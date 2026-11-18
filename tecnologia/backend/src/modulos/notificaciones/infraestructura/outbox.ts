@@ -3,11 +3,12 @@ import type { QueryRunner } from 'typeorm';
 import type { ContextoTransaccion } from '../../../compartido/aplicacion/transaccion.js';
 import type { NotificacionesApi, CorreoSeguridad } from '../api-publica.js';
 import { datosInvalidos, dependenciaNoDisponible } from '../../../compartido/dominio/errores.js';
+import { registrarFallo } from '../../../compartido/infraestructura/diagnostico-fallos.js';
 
 export class CifradoOutbox {
   constructor(private readonly claves: ReadonlyMap<string, Buffer>, readonly actual: string) { if (!claves.has(actual) || [...claves.values()].some((k) => k.length !== 32)) throw new Error('Claves AEAD no válidas.'); }
   cifrar(id: string, destinatario: string, datos: { asunto: string; texto: string }): Buffer {
-    const clave = this.claves.get(this.actual); if (!clave) throw dependenciaNoDisponible();
+    const clave = this.claves.get(this.actual); if (!clave) { registrarFallo('outbox.cifrado', undefined, 'clave_no_disponible'); throw dependenciaNoDisponible(); }
     const iv = randomBytes(12); const cipher = createCipheriv('aes-256-gcm', clave, iv); cipher.setAAD(Buffer.from(JSON.stringify([id, destinatario])));
     const contenido = Buffer.concat([cipher.update(JSON.stringify(datos), 'utf8'), cipher.final()]);
     return Buffer.concat([iv, cipher.getAuthTag(), contenido]);

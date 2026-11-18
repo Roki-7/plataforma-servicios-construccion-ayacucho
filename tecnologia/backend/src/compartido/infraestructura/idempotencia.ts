@@ -3,6 +3,7 @@ import type { IdempotenciaRecuperacion, SolicitudIdempotente, ResultadoIdempoten
 import type { ContextoTransaccion, ValorJson } from '../aplicacion/transaccion.js';
 import type { UnidadDeTrabajoPostgres } from './postgres/unidad-de-trabajo.js';
 import { datosInvalidos, dependenciaNoDisponible, ErrorAplicacion } from '../dominio/errores.js';
+import { registrarFallo } from './diagnostico-fallos.js';
 
 export function jsonCanonico(valor: ValorJson): string {
   if (valor === null || typeof valor === 'boolean') return JSON.stringify(valor);
@@ -35,7 +36,7 @@ export class IdempotenciaPostgres implements IdempotenciaRecuperacion {
     return this.uow.ejecutar(async (tx) => {
       const filas: FilaIdempotente[] = await this.uow.runner(tx).query('SELECT cuerpo_hmac,hmac_key_id,http,resultado FROM claves_idempotencia WHERE ambito=$1 AND operacion=$2 AND clave=$3', [`recuperacion:${s.ambito.id}`, `${s.metodo} ${s.rutaLogica}`, s.clave]);
       const anterior = filas[0]; if (!anterior) return null;
-      const clave = this.claves.get(anterior.hmac_key_id); if (!clave) throw dependenciaNoDisponible();
+      const clave = this.claves.get(anterior.hmac_key_id); if (!clave) { registrarFallo('idempotencia.clave', undefined, 'clave_no_disponible'); throw dependenciaNoDisponible(); }
       const hmac = createHmac('sha256', clave).update(entrada).digest();
       if (anterior.cuerpo_hmac.length !== hmac.length || !timingSafeEqual(anterior.cuerpo_hmac, hmac)) throw new ErrorAplicacion(409, 'CLAVE_IDEMPOTENCIA_REUTILIZADA', 'La clave ya corresponde a otros datos.');
       return { http: anterior.http, cuerpo: anterior.resultado };
@@ -56,7 +57,7 @@ export class IdempotenciaPostgres implements IdempotenciaRecuperacion {
       const filas: FilaIdempotente[] = await q.query('SELECT cuerpo_hmac,hmac_key_id,http,resultado FROM claves_idempotencia WHERE ambito=$1 AND operacion=$2 AND clave=$3', [ambito, operacion, s.clave]);
       const anterior = filas[0];
       const claveId = anterior?.hmac_key_id ?? this.actual; const clave = this.claves.get(claveId);
-      if (!clave) throw dependenciaNoDisponible();
+      if (!clave) { registrarFallo('idempotencia.clave', undefined, 'clave_no_disponible'); throw dependenciaNoDisponible(); }
       const hmac = createHmac('sha256', clave).update(entrada).digest();
       if (anterior) {
         if (anterior.cuerpo_hmac.length !== hmac.length || !timingSafeEqual(anterior.cuerpo_hmac, hmac)) throw new ErrorAplicacion(409, 'CLAVE_IDEMPOTENCIA_REUTILIZADA', 'La clave ya corresponde a otros datos.');
