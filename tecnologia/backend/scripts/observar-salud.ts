@@ -31,5 +31,7 @@ for (let n=0;n<cantidad;n++) {
   incidencia ||= !disponible;
   await appendFile(destino,JSON.stringify({evento:'muestra',instante,http,disponible,duracionMs:performance.now()-t,huella})+'\n');
 }
-await appendFile(destino,JSON.stringify({evento:'fin',fecha:new Date().toISOString(),duracionMs:performance.now()-inicio,incidencia})+'\n');
+const fin = { evento: 'fin', fecha: new Date().toISOString(), duracionMs: performance.now() - inicio, incidencia };
+await appendFile(destino, JSON.stringify(fin) + '\n');
+process.stdout.write(JSON.stringify({ ...fin, version, muestras: cantidad }) + '\n');
 if(incidencia)process.exitCode=1;

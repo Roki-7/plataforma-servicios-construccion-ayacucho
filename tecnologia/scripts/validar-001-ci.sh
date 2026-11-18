@@ -50,7 +50,7 @@ backend test:proxy
 E2E_EVIDENCIA="$EVIDENCIA_001" frontend test:e2e:container
 VALIDATION_MODE=true SSL_CERT_FILE="$NODE_EXTRA_CA_CERTS" backend test:performance -- --summary-export "$EVIDENCIA_001/k6.json"
 npm --silent --prefix tecnologia/backend run test:argon2:coste > "$EVIDENCIA_001/argon2.json"
-npm --silent --prefix tecnologia/backend run test:salud -- "$EVIDENCIA_001/salud.jsonl" 2 > "$EVIDENCIA_001/salud-resumen.json"
+VALIDATION_MODE=true npm --silent --prefix tecnologia/backend run test:salud -- 2 "$EVIDENCIA_001/salud.jsonl" "$GITHUB_SHA" > "$EVIDENCIA_001/salud-resumen.json"
 
 node --input-type=module <<'EOF'
 import { writeFileSync } from 'node:fs';
