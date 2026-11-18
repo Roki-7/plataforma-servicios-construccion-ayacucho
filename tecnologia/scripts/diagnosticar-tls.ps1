@@ -1,4 +1,4 @@
-param([switch]$ExigirConfianzaWindows)
+param([switch]$ExigirConfianzaWindows, [string]$Evidencia)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot -Parent
 $taskTls = Join-Path $taskRoot '.local/tls'
@@ -26,7 +26,7 @@ $taskResult = [ordered]@{
   confianzaWindows = @{ CurrentUserRoot=$taskUserTrusted; LocalMachineRoot=$taskMachineTrusted }
   alcance = 'Solo lectura de certificados publicos y confianza; no modifica almacenes'
 }
-$taskOutput = Join-Path $taskRoot '.local/evidencia/001'
+$taskOutput = if ($Evidencia) { $Evidencia } else { Join-Path $taskRoot '.local/evidencia/001' }
 New-Item -ItemType Directory -Force -Path $taskOutput | Out-Null
 $taskJson = $taskResult | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $taskOutput 'diagnostico-tls-windows.json'), $taskJson, (New-Object Text.UTF8Encoding($false)))

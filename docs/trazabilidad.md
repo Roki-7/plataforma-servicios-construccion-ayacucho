@@ -234,7 +234,7 @@ T110–T119, incidente 503, abortos nativos y corpus productivo siguen pendiente
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | US1–US7 verificadas. Cierre transversal pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | 115/119 tareas verificadas. Pendientes T116–T119 | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |
@@ -242,6 +242,20 @@ T110–T119, incidente 503, abortos nativos y corpus productivo siguen pendiente
 | 006 | Notificaciones | HU22 | Planificada | `specs/006-…` |
 
 Al implementar cada funcionalidad se agrega aquí la lista de componentes construidos y los archivos de prueba que la verifican.
+
+### Usuarios y acceso, controles transversales 001
+
+| CA / control | FR / HU / RF | AC / EQ, DA y ADR | Componente y comprobación |
+|---|---|---|---|
+| CA-REC-08, CA-PER-02 y CA-AUT-01 | FR-026, FR-015 y FR-012 · HU01/HU02 · RF03/RF05/RF04 | AC04/EQ-04 · DA03 · ADR-006/ADR-011 | Usuarios y acceso. `recuperacion-perfil` en I y E, T110. |
+| PR04, PR13, PR14 y X-01–X-05 | FR locales de credenciales, sesiones, permisos y recuperación · HU01 · RF01–RF04 | AC04/EQ-04 · DA03 · ADR-006/ADR-009 | Usuarios y acceso y Outbox. `garantias-transversales`, `permisos`, `sesiones`, `recuperacion`, `correo`, T110. |
+| X-06/X-07 y X-08 | FR-018/020/021 y contrato 001 · HU01/HU02 · RF01–RF05 | AC04/EQ-04 · DA03 · ADR-003/ADR-006/ADR-011 | Presentación, proxy y Garage. `seguridad-navegador-fotos`, `seguridad-navegador`, `perfil`, `openapi`, T111/T113. |
+| PR12 | HU01/HU02 · RF01–RF05 | AC05/EQ-05 · DA08 · ADR-001/ADR-002 | Límites de módulos, capas y composición. `dependencias`, T112. |
+| PR02 | Soporte operativo 001 | AC02/EQ-02 · ADR-013 | `salud` HTTPS y caracterización local, T114. |
+| PR07 y niveles U/I/C/V/E | FR-019 y los 53 CA · HU01/HU02 · RF01–RF05 | AC07/EQ-07 · DA10 · ADR-004 | Matriz T007, verificador T115 y evidencia de aceptación T116–T119. |
+
+La matriz conserva la cadena de cada CA a su FR y suite. El informe contiene la
+versión, el alcance y los resultados. [Matriz de 001](../specs/001-usuarios-y-acceso/test-matrix.md) · [Informe](../specs/001-usuarios-y-acceso/implementation-status.md)
 
 ## 5. Diagramas y su evidencia
 

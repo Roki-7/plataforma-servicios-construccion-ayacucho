@@ -49,6 +49,15 @@ Los datos de prueba son ficticios y se identifican como tales. Nunca se usan dat
 
 Una funcionalidad se cierra cuando todas sus pruebas pasan, cada escenario de su `spec.md` tiene al menos una prueba y las pruebas PR04 (permisos) y, si corresponde, PR09 (concurrencia) están incluidas.
 
+### Evidencia de Usuarios y acceso
+
+La matriz de 001 asigna requisitos por nivel U/I/C/V/E para cada uno de sus 53
+escenarios. T110–T114 agregan permisos, bloqueo, recuperación, fallos de
+dependencias, seguridad de navegador, fotografías, contrato, arquitectura y una
+medición de salud y carga local. T115 cruza los resultados ejecutados con cada
+asociación de la matriz. El informe distingue versiones, matrices completas,
+selecciones, repeticiones y pendientes de aceptación. [Matriz de 001](../../specs/001-usuarios-y-acceso/test-matrix.md) · [Resultados](../../specs/001-usuarios-y-acceso/implementation-status.md)
+
 ---
 
 [Índice del proyecto](../../README.md)

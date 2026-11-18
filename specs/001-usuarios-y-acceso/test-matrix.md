@@ -1,34 +1,49 @@
 # Matriz de validación — 53 escenarios de 001
 
-**53/53 CA** probados en sus niveles y versiones documentados. Los cuatro
-CA-CLA de US7 se verificaron sobre US7-407db07e4ac3dbb3 en U/I/C/V/E según
-cada fila. Backend completo por archivos, Vitest completo y recorrido US7 por
-nueve proyectos en cada entorno. Las regresiones de navegador son selecciones
-de Chromium a 768 px. T110–T119, incidente 503 y corpus productivo pendientes.
-Resultados y comandos en [implementation-status.md](implementation-status.md).
+Los **53/53 CA** tienen evidencia por historia, nivel y versión. La evidencia
+transversal se registra por intento, incluidas las ejecuciones completas,
+selecciones y repeticiones. El informe conserva los resultados históricos de
+US1–US7, el incidente 503, la inestabilidad nativa y el corpus productivo pendiente.
+[Comandos y resultados de 001](implementation-status.md)
+
+T115 aprobó las **152 asociaciones** de los 53 CA con JUnit y la selección
+Playwright de Chromium a 768 px. La matriz completa T007 y CI se registran en
+T116 con sus resultados independientes.
 
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).
 El alcance sigue siendo RF01–RF05 y HU01–HU02; las variantes no crean nuevos CA.
 Ninguna cifra de cobertura declarada prueba que las pruebas ya pasen.
 
-## Niveles, archivos futuros y evidencia
+## Niveles, archivos y evidencia
 
 U = Jest unitario con reloj y puertos; I = Jest con PostgreSQL real;
 C = Jest/Supertest y OpenAPI; V = Vitest con Testing Library;
 E = Playwright con backend real y correo local.
 
-La columna «suite» identifica los archivos futuros:
+La columna «suite» identifica los archivos por nivel:
 `tecnologia/backend/test/unit/usuarios-acceso/<suite>.spec.ts`,
 `tecnologia/backend/test/integration/usuarios-acceso/<suite>.spec.ts`,
 `tecnologia/backend/test/contract/usuarios-acceso/<suite>.spec.ts`,
 `tecnologia/frontend/test/unit/usuarios-acceso/<suite>.test.tsx` y
 `tecnologia/frontend/test/e2e/usuarios-acceso/<suite>.spec.ts`, según niveles.
-No se crean esos archivos en la planificación. Nombres de test incluyen CA exacto
-y variante; evidencia futura JUnit/HTML con commit, entorno y datos.
+Los nombres de las pruebas incluyen el CA exacto y su variante. JUnit y los
+reportes de Playwright conservan el resultado por caso y nivel.
 
 Se debe declarar al menos una prueba ejecutable por cada fila. Los niveles
 indicados distinguen regla pura, garantía DB, contrato y recorrido; no requieren
 replicar la misma aserción superficial en cada nivel.
+
+## Evidencia transversal
+
+| Tarea | CA o control | Implementación y evidencia |
+|---|---|---|
+| T110 | CA-REC-08, CA-PER-02, CA-AUT-01 | `recuperacion-perfil.spec.ts` en I y E. Conserva el perfil, rechaza sesiones antiguas y permite seguir tras el nuevo ingreso. |
+| T110 | X-01–X-05, PR04, PR13, PR14 | `garantias-transversales`, `permisos`, `recuperacion`, `sesiones` y `correo`. Incluye ejecución con Redis detenido y reiniciado. |
+| T111 | X-06/X-07 | `seguridad-navegador-fotos`, `seguridad-navegador` y `perfil`. Cookies, CSRF, referencias y reversión de fotografías. |
+| T112 | PR12 | `dependencias.spec.ts` analiza el árbol real de ambas apps y comprueba las reglas con importaciones prohibidas. |
+| T113 | X-08 | `openapi.spec.ts` compara 17 operaciones y sus rechazos. |
+| T114 | PR02 | Dos mediciones de salud HTTPS a un minuto y caracterización k6/Argon2 con datos ficticios. |
+| T115 | CA por nivel | `test:coverage:001` lee JUnit y JSON de Playwright. La asociación exigida por fila se conserva en la tabla siguiente. |
 
 ## Cobertura uno a uno
 

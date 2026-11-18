@@ -54,6 +54,17 @@ Si dos clientes o dos pestañas intentan aceptar a la vez, la base de datos rech
 
 Las fotos y los documentos no se guardan en las tablas: el almacenamiento de objetos conserva el archivo y la base de datos solo su referencia y permisos (ADR-011).
 
+### Persistencia de Usuarios y acceso
+
+Las migraciones de 001 crean cuentas, perfiles habilitados, sesiones, desafíos
+de recuperación y cambio de correo, referencias de fotografías, consentimientos,
+claves idempotentes y avisos pendientes. El índice de correo vigente impone
+unicidad y las versiones distinguen conflictos de perfil y credenciales.
+Una foto conserva su titular y la referencia al objeto privado. Una restauración
+de la base debe comprobar la correspondencia entre referencias y objetos.
+El Outbox persiste el aviso en la transacción que lo origina y un worker del
+backend lo entrega después. [Modelo y reglas de 001](../../specs/001-usuarios-y-acceso/data-model.md)
+
 ---
 
 [Índice del proyecto](../../README.md)

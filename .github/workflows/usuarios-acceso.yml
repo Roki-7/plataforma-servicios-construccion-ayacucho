@@ -1,0 +1,56 @@
+name: 001 Usuarios y acceso
+
+on:
+  pull_request:
+    paths: ['tecnologia/**', 'specs/001-usuarios-y-acceso/**', '.github/workflows/usuarios-acceso.yml']
+  push:
+    branches: [main]
+    paths: ['tecnologia/**', 'specs/001-usuarios-y-acceso/**', '.github/workflows/usuarios-acceso.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      EVIDENCIA_001: ${{ github.workspace }}/tecnologia/.local/evidencia/001/ci
+      NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/tecnologia/.local/tls/ca.crt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '2.0.0'
+      - name: Instalar el puente local del proxy
+        run: sudo apt-get update && sudo apt-get install -y socat
+      - name: Instalar y compilar con los lockfiles
+        shell: bash
+        run: |
+          for app in backend frontend; do
+            npm --prefix "tecnologia/$app" ci
+            npm --prefix "tecnologia/$app" run lint
+            npm --prefix "tecnologia/$app" run typecheck
+            npm --prefix "tecnologia/$app" run build
+          done
+      - name: Validar las siete historias en la demostración aislada
+        shell: bash
+        run: bash tecnologia/scripts/validar-001-ci.sh
+      - name: Conservar evidencia de las comprobaciones ejecutadas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usuarios-acceso-001-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            tecnologia/.local/evidencia/001/ci/**/*.xml
+            tecnologia/.local/evidencia/001/ci/**/*.json
+            tecnologia/.local/evidencia/001/ci/**/*.jsonl
+            tecnologia/.local/evidencia/001/ci/e2e-linux/playwright/**
+          if-no-files-found: warn
+          include-hidden-files: true

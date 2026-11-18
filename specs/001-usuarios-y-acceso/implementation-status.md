@@ -1,4 +1,101 @@
-# Estado de implementación de US7
+# Estado del cierre transversal de 001 Usuarios y acceso
+
+Fecha local 2026-11-17. **115/119 tareas verificadas.** T110–T115 completadas.
+Las siete historias y sus 53 CA conservan su evidencia por nivel. T116–T119
+siguen pendientes. La versión de producto usada es
+`04af69e2d5cd78db6e1654f36c28a343af41d7b1`. Las huellas `F3-*` de esta sección
+identifican instantáneas locales de fuentes y pruebas sobre ese commit. Cada
+intento nuevo está debajo de `tecnologia/.local/evidencia/001/cierre/`.
+
+## Criterios y resultados por tarea
+
+| Tarea | Versión, alcance y resultado | Evidencia |
+|---|---|---|
+| T110 | La primera ejecución conjunta pasó 1/1 I y 1/1 E en Chromium Linux a 768 px sobre el commit base y las huellas de las dos suites nuevas. X-01–X-05 pasó 10/10 I y permisos 21/21 C sobre `F3-25d611c817adceb0`. Con Redis detenido pasaron recuperación 14/14, sesiones 19/19, correo 16/16 y la conjunta 1/1. Se verificó la restauración del servicio. | `t110-conjunta-i-1`, `t110-conjunta-e-linux-1`, `t110-garantias-1`, `t110-permisos-1`, `t110-redis*`. Las cuatro huellas con Redis detenido están en cada `version.json`. |
+| T111 | X-06/X-07 pasó 4/4 C en `F3-25d611c817adceb0`; I `perfil` pasó 9/9 en `F3-29ad8cca7b81897c`. X-06 pasó 1/1 E Linux `F3-9cc555f544090b8d`. La selección Windows de X-06 y la conjunta pasó 2/2 con Chromium a 768 px en `F3-e47ee3a0adb60c67`. | `t111-contrato-1`, `matriz-uicav-windows-1/I/usuarios-acceso/perfil.xml`, `t111-e-linux-3`, `t110-t111-e-windows-1`. |
+| T112 | PR12 analiza el grafo de ambas apps y un fixture con dependencias prohibidas. El sexto intento pasó 2/2 en `F3-d74232c9118d32f3`. La versión con la regla explícita de HTTP pasó 2/2 en `F3-78a926e567ecdd39`. | `t112-arquitectura-1` a `t112-arquitectura-7`. |
+| T113 | X-08 pasó 20/20 C sobre `F3-4243a19f8f891073`. Cubre 17 rutas, 13 mutaciones con tres rechazos de Origin, límites de transporte y de foto, contrato empaquetado y enum de errores. | `t113-openapi-1`, `t113-openapi-2`. |
+| T114 | Commit base, fuentes de medición con SHA-256 y Node 24.15.0. k6 completó 6 iteraciones, 20 peticiones HTTPS y aprobó sus comprobaciones con 1 y 2 usuarios virtuales. Argon2id registró 213 ms y 439 ms en los dos lotes, con RSS pico del proceso de 146,84 MB y 146,87 MB. Salud devolvió 200/200 a un minuto de distancia durante 60,05 s. | `t114-demo-1` con JSON k6, Argon2 y salud, versión de k6 y huellas. La medición describe esta demostración local. |
+| T115 | `F3-960a8ba8bfafa410` aprobó **53/53 CA y 152/152 asociaciones** con reportes de ambas apps. U 120, I 104, C 118, V 53 y E 13 en Chromium Linux a 768 px. El verificador pasó 6/6 U y rechazó el reporte de la matriz Linux con cuatro fallos. CI activa además la validación estricta de los nueve proyectos T007. | `t115-verificador-1`, `t115-verificador-2`, `t115-cobertura-real-1`, `t115-cobertura-rechazo-1` y `t115-e-proyecto-1`. |
+| T116 | Workflow preparado y controles locales de lint, tipos, build, Compose y sintaxis aprobados. La imagen Linux del commit base `sha256:9c5caeb27ffad65266810a5353ca5b9b883d2311b63a78f2f554e1bc852a4d15` arrancó con UID 1000, Argon2 nativo y salud 200/503/503. El worker compilado entregó a Mailpit. Aprobaron el proxy con TLS y las comprobaciones de cadena, hostname e IP del certificado Linux efímero. **Pendiente** una ejecución alojada verde y sus artefactos. | `estatica-1`, `estatica-2`, `t116-contenedor-1/contenedor.json`, `t116-proxy-tls-1` y el workflow `usuarios-acceso.yml`. |
+| T117 | Commit base. Ensayo parcial `pg_dump`/`pg_restore` en dos bases temporales con datos ficticios, reconexión, cero migraciones pendientes y lectura de la referencia de foto en Garage. **Pendiente** T116 verde, ejecución íntegra de la guía, revisión manual responsive/usabilidad y ensayo integral de reinicio y recuperación de objetos. | `t117-respaldo-2/respaldo.json` y `tecnologia/.local/evidencia/001/validacion.md`. El primer ejecutor no inició por el formato CJS. |
+| T118 | Documentación preparada sobre el commit base y los cambios locales. Se actualizaron los dos README, trazabilidad, API, datos, pruebas y quickstart. **Pendiente** incorporar y revisar la evidencia integral de T117. | Diff de documentación y enlaces de esta sección. |
+| T119 | Revisión local de consistencia sobre el commit base y cambios en curso. **Pendiente** revisar con las tareas anteriores cerradas, revisión manual y en sesión independiente, y PR revisado y fusionado en `main`. | `tecnologia/.local/evidencia/001/revision.md`. |
+
+## Alcance de las ejecuciones
+
+- Las selecciones de backend usaron Node 24, `NODE_OPTIONS=--experimental-vm-modules`,
+  Jest `--selectProjects <nivel> --runInBand --no-cache --runTestsByPath <archivo>`
+  y JUnit por intento. La regresión con Redis detenido seleccionó `recuperacion`,
+  `sesiones`, `correo` y `recuperacion-perfil` de I. Los fallos inyectados de PostgreSQL
+  y Outbox en T110 permiten comprobar rollback y trazas seguras.
+- `matriz-uicav-windows-1` enumera todos los archivos U/I/C/A por proyecto de Jest
+  y ejecuta V con `vitest run --outputFile.junit=<reporte>`. `inventario.json` y
+  los resultados de proceso identifican cada archivo. U pasó 120/120, I 104/104, V 53/53 y A
+  2/2. En C, 9/10 archivos informaron 98 resultados aprobados. `openapi.spec.ts`
+  abortó con `0xC0000409` sin JUnit en esa matriz y también en la repetición
+  `t113-openapi-3-native` (`F3-6b78f423d384da46`). El manifiesto de T115 usa los
+  20 casos aprobados de `t113-openapi-2` para completar la evidencia del archivo.
+  Se comprobaron las huellas del contrato, el test y 96 fuentes del backend
+  entre ambas versiones, con cero diferencias (`estatica-2/paridad-openapi.json`).
+- La selección inicial E de T110 usó `npm run test:e2e:container --
+  test/e2e/usuarios-acceso/recuperacion-perfil.spec.ts --project=chromium-768`.
+  Para X-06 se seleccionó `seguridad-navegador.spec.ts`. Una invocación usó una
+  carpeta de trabajo incorrecta y otra quedó bloqueada en la preparación Docker.
+  `t111-e-linux-2` agotó la espera de la interfaz tras iniciar por el cliente API.
+  Se repitió con inicio de sesión desde la interfaz y se verificó la misma cookie
+  en el navegador. El ejecutor nativo ejecutó las dos suites nuevas con
+  `npm run test:e2e:windows -- <ambos archivos> --project=chromium-768`.
+- Linux completo `matriz-e-linux-1` usó `npm run test:e2e:container`,
+  todos los archivos y nueve proyectos, sobre `F3-feabcccf7be40884`.
+  Resultado 113 aprobados y cuatro fallos entre 117 casos. A 360 px,
+  Chromium agotó la espera de 5 s del mensaje mientras la foto seguía cargando.
+  El caso ahora comprueba primero el HTTP 201 de la carga. La selección corregida
+  `perfil-e-linux-2` pasó 1/1 sobre `F3-e41dc1a1d03bc838`. Los otros fallos fueron
+  contraseña en Firefox 1366 y permisos del prestador y perfil en WebKit 768 y
+  1366, respectivamente. `matriz-e-linux-2` se inició sin filtros con
+  `--sin-construir --workers=2` sobre `F3-e41dc1a1d03bc838`. Se interrumpió tras
+  nuevos fallos de navegador y un error `EINVAL` al abrir un adjunto para redactar.
+  Su resultado 143 corresponde a ejecución parcial. La selección independiente
+  `t115-e-proyecto-1`, `--sin-construir --project=chromium-768`, pasó 13/13 en
+  `F3-960a8ba8bfafa410` y es la evidencia E del manifiesto de T115.
+- Las cuatro repeticiones acotadas de los fallos de `matriz-e-linux-1` pasaron
+  por separado. `perfil-e-linux-2` cubre Chromium 360. `perfil-e-linux-webkit-2`,
+  `contrasena-e-linux-firefox-2` y `permisos-e-linux-webkit-2` cubren WebKit 1366,
+  Firefox 1366 y el prestador en WebKit 768, respectivamente, sobre
+  `F3-960a8ba8bfafa410`. El resultado original de la matriz completa conserva sus
+  cuatro fallos.
+- T112 conservó intentos del arnés con ruta de CLI errónea, SWC sin acceso al
+  módulo nativo y una aserción que esperaba código distinto de cero del emisor
+  JSON incluso al detectar infracciones. La suite actual comprueba directamente
+  las infracciones. En X-08 el primer intento pasó 10/20 y otros diez casos
+  sufrieron `ECONNRESET` al seguir enviando el cuerpo después del rechazo temprano.
+  La repetición verifica el `Content-Length` excedente y conserva el envío real
+  de cuerpos en el límite. `test:proxy` añade exceso real del transporte.
+- El catálogo usado fue el fixture determinista de validación. No hubo cambios
+  en el código de producto, los contratos publicados, certificados ni almacenes
+  de confianza existentes. Los diagnósticos TLS nuevos se guardaron por intento.
+
+## Seguimiento independiente
+
+- **503 histórico de recuperación** abierto, con causa indeterminada porque se
+  perdió el detalle interno del intento original. Se conserva el diagnóstico D099,
+  su evidencia y sus medidas de seguimiento. Los 503 inducidos para validar rollback
+  y preparación se identifican como tales en las suites y en esta sección.
+- **503 de sesión en la demostración de cierre**. El backend local registró un
+  `POST /sesiones` en `db.conexion`, código `no_disponible`, mientras se ejecutaban
+  comprobaciones. Los dos registros seguros de ese evento están en
+  `cierre/matriz-e-linux-2/observacion-api.ndjson`. La evidencia identifica la
+  etapa y la ruta de sesión. Las selecciones posteriores de inicio de sesión pasaron.
+- **Windows nativo** mantiene su seguimiento separado por abortos de procesos y
+  tiempos de espera documentados. Se verificaron por SHA-256 los 467 reportes
+  del inventario histórico, con cero diferencias.
+- **Corpus productivo** pendiente de entrega y validación para despliegue. Los
+  resultados con el fixture corresponden a validación.
+
+---
+
+# Estado histórico de implementación de US7
 
 Fecha local 2026-11-17. **US7 implementada y verificada.** T100–T109 completadas.
 El backlog suma **109/119 tareas terminadas**. Los **53 escenarios de aceptación**

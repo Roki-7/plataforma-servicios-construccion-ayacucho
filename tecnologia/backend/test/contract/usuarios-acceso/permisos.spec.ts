@@ -10,6 +10,18 @@ import { datosCambioContrasena, rutaContrasena } from '../../soporte/contrasena.
 let e:Awaited<ReturnType<typeof entornoPerfil>>;
 beforeAll(async()=>{e=await entornoPerfil()});afterAll(async()=>{await e?.cerrar()});
 const rutasBearer=[['get','/perfil'],['patch','/perfil'],['post','/perfil/perfiles'],['post','/perfil/fotografias'],['get','/perfil/fotografias/550e8400-e29b-41d4-a716-446655440000'],['delete','/sesiones/actual'],['post','/sesiones/reautenticacion'],['post','/perfil/cambios-correo'],['post','/perfil/cambios-correo/{token}/confirmacion'],['post',rutaContrasena]] as const;
+test('PR04 todas las operaciones Bearer finales rechazan visitante sin depender del decorador', async () => {
+  const reflector = e.app.get(Reflector);
+  const original = reflector.getAllAndOverride;
+  reflector.getAllAndOverride = (() => false) as typeof original;
+  try {
+    for (const [metodo, ruta] of rutasBearer) {
+      const respuesta = await peticion(metodo, ruta);
+      expect(respuesta.status).toBe(401);
+      expect(respuesta.headers['set-cookie']).toBeUndefined();
+    }
+  } finally { reflector.getAllAndOverride = original; }
+});
 test('CA-AUT-01 contrato Bearer sigue protegido aunque falte metadato del decorador',async()=>{const reflector=e.app.get(Reflector),original=reflector.getAllAndOverride.bind(reflector);reflector.getAllAndOverride=(()=>false)as typeof reflector.getAllAndOverride;try{await e.get().expect(401);const c=await cuentaFicticia(e.db);await e.get(c.acceso).expect(200);}finally{reflector.getAllAndOverride=original}});
 async function peticion(metodo:typeof rutasBearer[number][0],ruta:string,token?:string){const agente=request(e.app.getHttpServer());const r=agente[metodo]('/api/v1'+ruta.replace('{token}','a'.repeat(43))).set('Origin',origen).set('Idempotency-Key',randomUUID());if(token)r.set('Authorization',`Bearer ${token}`);if(metodo==='patch')r.send({version:1,nombreMostrar:'No guardar'});if(ruta===rutaContrasena)r.send(datosCambioContrasena('Ficticia'));if(ruta==='/sesiones/reautenticacion')r.send({contrasenaActual:'Ficticia'});if(ruta==='/perfil/cambios-correo')r.send({version:1,nuevoCorreo:'nuevo@example.invalid'});if(ruta.endsWith('/confirmacion'))r.send({version:1,versionDesafio:1});if(ruta==='/perfil/perfiles')r.send({version:1,perfil:'prestador',confirmacionExplicita:true});if(ruta==='/perfil/fotografias')r.send(await imagenPerfil());return r;}
 test.each(rutasBearer)('CA-AUT-01 %s %s visitante/vencido/revocado recibe 401 sin datos',async(metodo,ruta)=>{const c=await cuentaFicticia(e.db);const antes=await e.db.query('SELECT * FROM usuarios WHERE id=$1',[c.id]);for(const estado of ['visitante','vencido','revocado']){if(estado==='vencido')await e.db.query("UPDATE sesiones SET acceso_vence_en=creada_en+interval '1 millisecond' WHERE id=$1",[c.sesionId]);if(estado==='revocado')await e.db.query("UPDATE sesiones SET acceso_vence_en=clock_timestamp()+interval '15 minutes',revocada_en=clock_timestamp() WHERE id=$1",[c.sesionId]);const r=await peticion(metodo,ruta,estado==='visitante'?undefined:c.acceso);expect(r.status).toBe(401);await validarRespuesta('Error',r.body);expect(JSON.stringify(r.body)).not.toContain(c.correo);expect(r.headers['set-cookie']).toBeUndefined();}expect(await e.db.query('SELECT * FROM usuarios WHERE id=$1',[c.id])).toEqual(antes);});

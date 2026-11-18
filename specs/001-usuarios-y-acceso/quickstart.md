@@ -1,11 +1,9 @@
 # Guía de validación — 001 Usuarios y acceso
 
-**Estado actual**: preparación y fundación implementadas en `tecnologia/backend`
-y `tecnologia/frontend`. Están disponibles Compose, scripts y pruebas técnicas;
-el único endpoint entregado es GET `/api/v1/salud`. Las historias T024–T119 y
-los 53 escenarios de aceptación siguen pendientes. Consultar los resultados y
-bloqueos de esta ejecución en [implementation-status.md](implementation-status.md).
-Los recorridos funcionales de las secciones 4 en adelante siguen siendo futuros.
+Las siete historias están disponibles en `tecnologia/backend` y `tecnologia/frontend`.
+Los recorridos de las secciones 4 en adelante se pueden ejecutar en la demostración
+local con datos ficticios. Los resultados y el estado de aceptación por tarea se
+registran en [implementation-status.md](implementation-status.md).
 
 ## Referencias y prerrequisitos
 
@@ -44,8 +42,10 @@ ignoradas por Git, preparar TLS local y comprobar dependencias sin tocar un ento
 productivo. Los seeds solo aceptan una DB de validación identificada; no borran
 ni reinicializan datos reales. Ejecutar `dev:prepare` antes de Compose: genera
 las variables requeridas en `tecnologia/.env` y `tecnologia/.local/backend.env`.
-No mostrar ni versionar esos archivos. El script TLS incluido requiere Windows,
-PowerShell y OpenSSL (incluido con Git para Windows).
+Mantener esos archivos en el entorno local. La preparación TLS utiliza OpenSSL
+en Linux o PowerShell con OpenSSL en Windows. El ejecutor de CI conecta el proxy
+a la interfaz del puente de Docker para alcanzar el backend y Vite que escuchan
+en loopback. [Configuración de ejecución en CI](../../tecnologia/scripts/validar-001-ci.sh)
 
 Si el Node global es anterior, se puede usar la herramienta local ignorada:
 
@@ -138,7 +138,7 @@ npm --prefix tecnologia/backend run test:contract
 npm --prefix tecnologia/backend run test:architecture
 npm --prefix tecnologia/frontend run test:unit
 npm --prefix tecnologia/frontend run test:e2e
-npm --prefix tecnologia/backend run test:coverage:001
+npm --prefix tecnologia/backend run test:coverage:001 -- ../.local/evidencia/001/ci/manifest.json ../.local/evidencia/001/ci/cobertura-local.json
 ```
 
 Integración usa PostgreSQL real, no SQLite ni repositorios de memoria para
@@ -146,14 +146,15 @@ unicidad/locks/revocación. Contrato lee el OpenAPI versionado de esta funcional
 Playwright usa backend real, Mailpit y datos aislados en 360/768/1366 px y
 Chromium/Firefox/WebKit. Registrar nombres y versiones de navegadores.
 
-`test:coverage:001` debe contrastar los CA implementados/ejecutados con los 53 IDs
-de spec y matriz; falla por ID sin prueba o por resultado fallido. No confundir
-declarar cobertura con aprobar escenarios. Guardar JUnit/HTML, commit, entorno
-y versión del corpus. Las suites actuales son técnicas de fundación; no llevan
-IDs CA ni acreditan las historias. `test:coverage:001` termina con error indicando
-T115 pendiente: todavía no existe la comprobación funcional de los 53 CA.
-JUnit, Playwright y las comprobaciones Docker/proxy escriben evidencia ignorada
-en `tecnologia/.local/evidencia/001/`.
+`test:coverage:001` lee los 53 IDs de spec y matriz y cruza los nombres de las
+pruebas aprobadas por nivel. El manifiesto JSON declara `commit`, `version`,
+`entorno`, `corpus` y `reportes` con listas de rutas por nivel. U/I/C/V requieren
+JUnit y E requiere JSON de Playwright con sus versiones de navegador. La
+configuración de CI usa `exigirMatrizE: true` para exigir los nueve proyectos
+de T007. El verificador falla si una asociación carece de evidencia o hay
+casos omitidos, fallidos o reportes faltantes. El archivo de salida es nuevo.
+`E2E_EVIDENCIA`, `JEST_JUNIT_OUTPUT_DIR` y `EVIDENCIA_001` permiten separar intentos
+en `tecnologia/.local/evidencia/001/`. [Ejemplo de manifiesto](../../tecnologia/scripts/validar-001-ci.sh)
 
 Después de preparar DB/corpus y de disponer del entrypoint compilado, T023 debe
 entregar esta comprobación adicional, también repetida por CI en T116:
