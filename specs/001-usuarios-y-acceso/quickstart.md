@@ -1,11 +1,9 @@
 # Guía de validación — 001 Usuarios y acceso
 
-**Estado actual**: preparación y fundación implementadas en `tecnologia/backend`
-y `tecnologia/frontend`. Están disponibles Compose, scripts y pruebas técnicas;
-el único endpoint entregado es GET `/api/v1/salud`. Las historias T024–T119 y
-los 53 escenarios de aceptación siguen pendientes. Consultar los resultados y
-bloqueos de esta ejecución en [implementation-status.md](implementation-status.md).
-Los recorridos funcionales de las secciones 4 en adelante siguen siendo futuros.
+Las siete historias están disponibles en `tecnologia/backend` y `tecnologia/frontend`.
+Los recorridos de las secciones 4 en adelante se pueden ejecutar en la demostración
+local con datos ficticios. Los resultados y el estado de aceptación por tarea se
+registran en [implementation-status.md](implementation-status.md).
 
 ## Referencias y prerrequisitos
 
@@ -44,8 +42,10 @@ ignoradas por Git, preparar TLS local y comprobar dependencias sin tocar un ento
 productivo. Los seeds solo aceptan una DB de validación identificada; no borran
 ni reinicializan datos reales. Ejecutar `dev:prepare` antes de Compose: genera
 las variables requeridas en `tecnologia/.env` y `tecnologia/.local/backend.env`.
-No mostrar ni versionar esos archivos. El script TLS incluido requiere Windows,
-PowerShell y OpenSSL (incluido con Git para Windows).
+Mantener esos archivos en el entorno local. La preparación TLS utiliza OpenSSL
+en Linux o PowerShell con OpenSSL en Windows. El ejecutor de CI conecta el proxy
+a la interfaz del puente de Docker para alcanzar el backend y Vite que escuchan
+en loopback. [Configuración de ejecución en CI](../../tecnologia/scripts/validar-001-ci.sh)
 
 Si el Node global es anterior, se puede usar la herramienta local ignorada:
 
@@ -75,12 +75,12 @@ En terminales independientes:
 
 ```powershell
 npm --prefix tecnologia/backend run start:validation
-npm --prefix tecnologia/frontend run dev -- --host 127.0.0.1
+npm --prefix tecnologia/frontend run dev -- --host 127.0.0.1 --mode validation
 docker compose -f tecnologia/compose.yaml --profile web up -d proxy
 ```
 
 El backend de validación escucha internamente en 3000 y Vite en 5173; el proxy
-publica8443 y enruta `/api/v1` al backend. Estos puertos son configuración local,
+publica 8443 y enruta `/api/v1` al backend. Estos puertos son configuración local,
 no una obligación del despliegue real. Worker de correo dentro del mismo backend,
 no proceso/cola Redis independiente.
 
@@ -88,7 +88,7 @@ no proceso/cola Redis independiente.
 curl.exe --cacert tecnologia/.local/tls/ca.crt https://localhost:8443/api/v1/salud
 ```
 
-Resultado fundacional:200 con estado disponible y sin secretos. Para comprobar
+El resultado esperado es HTTP 200 y estado `disponible`. Para comprobar
 también web, límites y cabeceras con CA explícita y validación TLS activa:
 
 ```powershell
@@ -125,20 +125,31 @@ de Redis no hace fallar001. Un200 local no demuestra disponibilidad mensual EQ-0
 
 ## 3. Controles automatizados
 
+Cada ejecución local guarda sus resultados en una carpeta nueva. Si usas
+Windows con Node 24 instalado en `.local/toolchain`, ejecuta los comandos npm
+mediante `tecnologia/scripts/npm-local.ps1`, como en la sección 1.
+
 ```powershell
+$evidencia = (New-Item -ItemType Directory ('tecnologia/.local/evidencia/001/guia-' + [Guid]::NewGuid().ToString('N'))).FullName
+$env:EVIDENCIA_001 = $evidencia
+$env:JEST_JUNIT_OUTPUT_DIR = $evidencia
+$env:E2E_EVIDENCIA = $evidencia
 npm --prefix tecnologia/backend run lint
 npm --prefix tecnologia/frontend run lint
 npm --prefix tecnologia/backend run typecheck
 npm --prefix tecnologia/frontend run typecheck
 npm --prefix tecnologia/backend run build
 npm --prefix tecnologia/frontend run build
+$env:JEST_JUNIT_OUTPUT_NAME = 'u.xml'
 npm --prefix tecnologia/backend run test:unit
+$env:JEST_JUNIT_OUTPUT_NAME = 'i.xml'
 npm --prefix tecnologia/backend run test:integration -- --runInBand
+$env:JEST_JUNIT_OUTPUT_NAME = 'c.xml'
 npm --prefix tecnologia/backend run test:contract
+$env:JEST_JUNIT_OUTPUT_NAME = 'arquitectura.xml'
 npm --prefix tecnologia/backend run test:architecture
-npm --prefix tecnologia/frontend run test:unit
-npm --prefix tecnologia/frontend run test:e2e
-npm --prefix tecnologia/backend run test:coverage:001
+npm --prefix tecnologia/frontend run test:unit -- "--outputFile.junit=$(Join-Path $evidencia 'v.xml')"
+npm --prefix tecnologia/frontend run test:e2e:container
 ```
 
 Integración usa PostgreSQL real, no SQLite ni repositorios de memoria para
@@ -146,14 +157,34 @@ unicidad/locks/revocación. Contrato lee el OpenAPI versionado de esta funcional
 Playwright usa backend real, Mailpit y datos aislados en 360/768/1366 px y
 Chromium/Firefox/WebKit. Registrar nombres y versiones de navegadores.
 
-`test:coverage:001` debe contrastar los CA implementados/ejecutados con los 53 IDs
-de spec y matriz; falla por ID sin prueba o por resultado fallido. No confundir
-declarar cobertura con aprobar escenarios. Guardar JUnit/HTML, commit, entorno
-y versión del corpus. Las suites actuales son técnicas de fundación; no llevan
-IDs CA ni acreditan las historias. `test:coverage:001` termina con error indicando
-T115 pendiente: todavía no existe la comprobación funcional de los 53 CA.
-JUnit, Playwright y las comprobaciones Docker/proxy escriben evidencia ignorada
-en `tecnologia/.local/evidencia/001/`.
+`test:coverage:001` lee los 53 IDs de spec y matriz y cruza los nombres de las
+pruebas aprobadas por nivel. El manifiesto JSON declara `commit`, `version`,
+`entorno`, `corpus` y `reportes` con listas de rutas por nivel. U/I/C/V requieren
+JUnit y E requiere JSON de Playwright con sus versiones de navegador. La
+configuración de CI usa `exigirMatrizE: true` para exigir los nueve proyectos
+de T007. El verificador falla si una asociación carece de evidencia o hay
+casos omitidos, fallidos o reportes faltantes. El archivo de salida es nuevo.
+`E2E_EVIDENCIA`, `JEST_JUNIT_OUTPUT_DIR` y `EVIDENCIA_001` permiten separar intentos
+en `tecnologia/.local/evidencia/001/`. [Ejemplo de manifiesto](../../tecnologia/scripts/validar-001-ci.sh)
+
+Para verificar los informes recién ejecutados en la carpeta local, genera un
+manifiesto con sus rutas relativas. Si conservas artefactos de CI, guarda el
+manifiesto original como evidencia y usa un archivo nuevo para rutas locales.
+
+```powershell
+$sha = git rev-parse HEAD
+$manifest = Join-Path $evidencia 'manifest.json'
+$datos = @{
+  commit = $sha
+  version = $sha
+  entorno = 'Demostración local con PostgreSQL, Garage, Mailpit y Playwright Linux bajo HTTPS'
+  corpus = 'Fixture determinista de 001'
+  exigirMatrizE = $true
+  reportes = @{ U = @('u.xml'); I = @('i.xml'); C = @('c.xml'); V = @('v.xml'); E = @('e2e-linux/playwright.json') }
+}
+[IO.File]::WriteAllText($manifest, ($datos | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+npm --prefix tecnologia/backend run test:coverage:001 -- $manifest (Join-Path $evidencia 'cobertura.json')
+```
 
 Después de preparar DB/corpus y de disponer del entrypoint compilado, T023 debe
 entregar esta comprobación adicional, también repetida por CI en T116:
@@ -242,11 +273,61 @@ se rechaza semánticamente con 422, conservando la excepción de replay exacto a
 
 ## 6. Criterio de aceptación y límites
 
-Revisar53/53 CA y controles X-01–X-08 de [matriz](test-matrix.md), además de PR04,
+Revisar 53/53 CA y controles X-01–X-08 de [matriz](test-matrix.md), además de PR04,
 PR07, PR12, PR13, PR14 y salud PR02 aplicables. Ejecutar lint, types y build en CI.
-La revisión humana compara los resultados con spec y constitución antes de cerrar.
+Registrar las ejecuciones automatizadas, el ensayo operativo y la revisión
+humana por separado en `tecnologia/.local/evidencia/001/validacion.md`. El
+resultado indica commit, entorno, corpus, navegadores y alcance de cada ejecución.
+La ejecución #5 de GitHub Actions es la referencia alojada de T116. [Ejecución #5](https://github.com/Roki-7/plataforma-servicios-construccion-ayacucho/actions/runs/44319286410) La #5 corrió sobre `d330a06` (SHA verificado con la API de GitHub). La #7 corresponde al commit `a13d0ce` de T117. [Ejecución #7](https://github.com/Roki-7/plataforma-servicios-construccion-ayacucho/actions/runs/44406102967) La #9 (`d534a60`, último commit publicado, `success`) y la #8 (`47c888e`, `success`) son las más recientes; su recuento de pruebas no pudo leerse porque registros y artefacto exigen autenticación.
 
 No ejecutar aquí pruebas de contratación ni interpretar las metas EQ-01/EQ-06
 como SLA de registro. k6 se usará para caracterizar hashing/sesiones sin prometer
 capacidad no medida. Correo real por SES y objetos de producción requieren
 configuración del despliegue; esta guía local no realiza esa configuración.
+
+## 7. Ensayo aislado de recuperación de T117
+
+Con la preparación de la sección 1 completada, ejecuta desde la raíz. El
+script genera credenciales de prueba y crea sus propios PostgreSQL y Garage.
+Los puertos se asignan en loopback. Cada ejecución escribe un informe nuevo.
+
+```powershell
+$ensayo = Join-Path (Resolve-Path tecnologia/.local).Path ('evidencia/001/cierre/t117-operativo-' + [Guid]::NewGuid().ToString('N'))
+powershell -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local.ps1 --prefix tecnologia/backend run test:respaldo -- (Join-Path $ensayo 'respaldo.json')
+```
+
+Con Node 24 en el `PATH`, el equivalente en PowerShell es
+`npm --prefix tecnologia/backend run test:respaldo -- (Join-Path $ensayo 'respaldo.json')`.
+
+1. Migra el PostgreSQL nuevo y registra por API una cuenta ficticia con foto.
+2. Guarda un `pg_dump --format=custom` y los bytes del objeto privado. Compara la huella del objeto con la referencia de PostgreSQL.
+3. Detén y arranca PostgreSQL y Garage del origen. Comprueba salud, cero migraciones pendientes, inicio de sesión y lectura del mismo perfil y la misma foto.
+4. Mantén el origen detenido. Restaura con `pg_restore --exit-on-error` en una base vacía y confirma que el perfil recuperado referencia una foto ausente en el Garage vacío.
+5. Copia el objeto respaldado al destino y verifica el mismo SHA-256 desde la API del titular. Comprueba HTTP 401 al pedir la foto sin sesión y HTTP 403 al consultar directamente el objeto como anónimo.
+
+`respaldo.json` conserva las imágenes fijadas, el commit, la huella del ejecutor,
+las migraciones, las huellas de los respaldos y los resultados HTTP. El script
+limpia los contenedores que llevan su etiqueta y los archivos temporales.
+Los datos son ficticios. El ensayo abarca un perfil y su objeto en una misma
+versión de 001, con respaldos lógicos y destinos nuevos en el motor local.
+
+## 8. Revisión humana de usabilidad y responsive de T117
+
+1. Deja la demostración de la sección 2 en marcha y comprueba HTTP 200 en `https://localhost:8443/api/v1/salud` con la CA de validación. Abre `https://localhost:8443/registro` y Mailpit en `http://127.0.0.1:8025`.
+2. Abre el modo adaptable del navegador. En Chromium o Edge puedes abrir DevTools y activar la barra de dispositivos con `Ctrl+Shift+M`. Repite el recorrido de la tabla a **360, 768 y 1366 px** de ancho. Usa una cuenta nueva de `example.invalid` y una frase de prueba distinta del fixture en cada ancho. Puedes empezar como cliente a 360 y 1366 px y como prestador a 768 px.
+3. En cada pantalla comprueba etiquetas legibles, foco visible al usar Tab, mensajes junto a la acción y botones alcanzables. En los formularios de contraseña, escribe un valor de prueba y usa Tab, Enter y Espacio para mostrarlo y volver a ocultarlo sin modificarlo. Registra solapamientos, cortes de texto, desplazamiento horizontal o pasos en los que necesitaste ayuda.
+
+| Recorrido | Qué hacer | Resultado esperado |
+|---|---|---|
+| Registro y acceso | En **Crear cuenta** completa los campos y prueba primero `cliente01` como correo. Corrígelo, elige un perfil y acepta la política. Pulsa **Iniciar sesión** en la confirmación e introduce tu contraseña. | El correo incompleto bloquea el registro y muestra el mensaje junto al campo. «Tu cuenta se creó correctamente» permite abrir el acceso con el correo precargado. Tras el inicio manual se abre **Mi cuenta**. |
+| Perfil y permisos | En **Mi cuenta**, cambia el nombre de muestra, añade distrito y un teléfono ficticio, adjunta una imagen de prueba y pulsa **Guardar cambios**. Recarga y comprueba los valores y la foto. Abre **Mis perfiles**, confirma y pulsa **Añadir cliente** o **Añadir prestador**. | La misma cuenta conserva sus datos y muestra ambos perfiles. El teléfono aparece privado hasta autorizarlo expresamente. |
+| Cambio de correo | En **Cambiar correo de acceso** solicita una dirección nueva de `example.invalid`. Si pide recencia, pulsa **Verificar mi identidad** y vuelve a solicitar. Abre en Mailpit el enlace dirigido al correo nuevo en el mismo perfil de navegador y pulsa **Confirmar nuevo correo**. | El correo anterior figura como vigente hasta confirmar. Al iniciar sesión después, el correo nuevo permite entrar. |
+| Cambio de contraseña | En **Mi cuenta → Cambiar contraseña** establece otra frase de prueba y confirma. Cierra sesión y vuelve a entrar con la nueva. | El formulario da confirmación y la contraseña nueva funciona. |
+| Recuperación y cierre | Desde **Acceder → Olvidé mi contraseña**, pide un enlace al correo vigente. Abre el mensaje en Mailpit, establece otra frase y entra con ella. Si quieres observar la revocación, mantén una segunda sesión en otro perfil de navegador antes del cambio y recarga allí **Mi cuenta** después. Pulsa **Cerrar sesión** y vuelve a **Mi cuenta**. | El mensaje de solicitud es genérico. Después del cambio se solicita acceso en las sesiones anteriores y después de cerrar sesión. |
+
+Anota la fecha, el SHA de `git rev-parse HEAD`, el navegador y su versión. En
+`tecnologia/.local/evidencia/001/validacion.md`, registra el resultado por ancho y
+recorrido como `Aprobado`, `Falló` o `Pendiente`. Añade el paso y el mensaje visible
+de cada incidencia. Usa capturas recortadas si aportan evidencia y excluye
+contraseñas, códigos, enlaces de correo y correos privados. Esta revisión acredita
+FR-019/PR07 junto con la matriz automatizada.

@@ -30,5 +30,5 @@ if (!existente) {
 }
 execFileSync('docker', ['compose', '-f', resolve(tecnologia, 'compose.yaml'), 'config', '--quiet'], { stdio: 'pipe' });
 if (process.platform === 'win32') execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', resolve(tecnologia, 'scripts/preparar-tls.ps1')], { stdio: 'pipe' });
-else throw new Error('Prepare los certificados locales con OpenSSL antes de iniciar el proxy en esta plataforma.');
+else execFileSync('bash', [resolve(tecnologia, 'scripts/preparar-tls-linux.sh')], { stdio: 'pipe' });
 process.stdout.write('Configuración local y TLS preparados; secretos conservados fuera de Git.\n');

@@ -37,8 +37,9 @@ try {
     paso += ': cache'; assert.equal(res.cache, 'no-store');
     paso += ': referrer'; assert.equal(res.referrer, 'no-referrer');
   }
-  const carpeta = resolve(local, 'evidencia/001'); await mkdir(carpeta, { recursive: true });
-  await writeFile(resolve(carpeta, 'proxy.json'), JSON.stringify({ fecha: new Date().toISOString(), tls: 'CA explícita; validación activa; no modifica confianza del sistema', salud: 200, web: 200, limites: [65536, 14000000], excesos: [413, 413] }, null, 2));
+  const destino = process.env['EVIDENCIA_001'];
+  const carpeta = resolve(destino ?? resolve(local, 'evidencia/001')); await mkdir(carpeta, { recursive: true });
+  await writeFile(resolve(carpeta, 'proxy.json'), JSON.stringify({ fecha: new Date().toISOString(), tls: 'CA explícita; validación activa; no modifica confianza del sistema', salud: 200, web: 200, limites: [65536, 14000000], excesos: [413, 413] }, null, 2), { flag: destino ? 'wx' : 'w' });
   process.stdout.write('HTTPS verificado con CA explícita: salud/web 200 y límites de aplicación/proxy 413 JSON sin caché.\n');
 } catch (error) {
   const codigo = error && typeof error === 'object' && 'code' in error ? String(error.code).replace(/[^A-Z0-9_]/g, '') : 'FALLO';

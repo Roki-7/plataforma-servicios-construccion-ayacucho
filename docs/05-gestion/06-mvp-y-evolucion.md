@@ -25,6 +25,7 @@ Cobertura inicial: distritos de Ayacucho, Carmen Alto, San Juan Bautista, Jesús
 | Mediano plazo | Avances con fotos y registro de pagos directos | RF27–RF29 |
 | Mediano plazo | Cancelaciones, calificaciones e historial | RF33, RF34, RF36 |
 | Mediano plazo | Verificación de prestadores, moderación, incidencias y reportes | RF07, RF37, RF38, RF40–RF45 |
+| Mediano plazo | Módulo de administración: debe definir un procedimiento seguro para crear cuentas administrativas (fuera del registro público), su autenticación reforzada y su panel. 001 no las incluye | HU25–HU28, RF04, RF39–RF45 |
 | Largo plazo | Cobro de planes o servicios de la plataforma mediante una pasarela de pagos | RC11 |
 | Largo plazo | Ampliación a otras provincias de Ayacucho y a otras regiones | RC03 |
 | Largo plazo | Aplicación móvil nativa, si el uso lo justifica | — |

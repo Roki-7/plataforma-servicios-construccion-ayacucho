@@ -36,9 +36,17 @@ La aplicación web se comunica con el backend solo mediante esta API (RC06, ADR-
 |---|---|---|
 | `POST /cuentas` | Crear una cuenta de cliente o prestador | RF01 |
 | `POST /sesiones` · `DELETE /sesiones/actual` | Iniciar y cerrar sesión | RF02 |
-| `POST /sesiones/renovacion` | Renovar la sesión | RF02 |
+| `POST /sesiones/renovacion` · `GET /sesiones/csrf` | Renovar la sesión y obtener el token CSRF de la cookie de renovación | RF02 |
+| `POST /sesiones/reautenticacion` | Acreditar la contraseña en la sesión (autenticación reciente, hasta 300 s) | RF02, RF05 |
 | `POST /recuperaciones` · `POST /recuperaciones/{token}` | Pedir y usar el enlace de recuperación | RF03 |
 | `GET /perfil` · `PATCH /perfil` | Consultar y actualizar el perfil propio | RF05 |
+| `POST /perfil/perfiles` | Añadir el perfil faltante (cliente o prestador) con confirmación explícita. No concede verificación ni administración | RF01, RF04 |
+| `POST /perfil/cambios-correo` · `POST /perfil/cambios-correo/{token}/confirmacion` | Solicitar y confirmar el cambio de correo de acceso | RF05 |
+| `POST /perfil/cambios-contrasena` | Cambiar la contraseña con la contraseña actual | RF03, RF05 |
+| `POST /perfil/fotografias` · `GET /perfil/fotografias/{fotografiaId}` | Cargar y leer la fotografía privada del titular | RF05 |
+| `GET /salud` | Comprobar disponibilidad (soporte operativo, sin datos privados) | — |
+
+Las 17 operaciones de esta tabla coinciden con el OpenAPI versionado de 001. 001 no define rutas ni roles administrativos: el registro y la edición rechazan `administrador`, `rol`, `permisos` e identificadores (CA-AUT-04, CA-AUT-07).
 
 ### Prestadores
 
@@ -116,6 +124,20 @@ La aplicación web se comunica con el backend solo mediante esta API (RC06, ADR-
 - Un recurso que pertenece a otra persona responde 404, no 403, cuando revelar su existencia expondría información privada.
 - Los contratos se documentan en OpenAPI dentro de cada funcionalidad de `specs/` y se prueban automáticamente.
 - Un cambio incompatible en un contrato exige una nueva versión de la ruta (`/api/v2`).
+
+### Operaciones de Usuarios y acceso disponibles en `/api/v1`
+
+El contrato versionado de 001 enumera 17 operaciones. Incluye salud, cuentas,
+perfiles habilitados, inicio, renovación y cierre de sesión, obtención de CSRF,
+recuperación, consulta y edición de perfil, fotos, reautenticación y cambios de
+correo y contraseña. Cada operación declara las cabeceras, límites, estados HTTP
+y códigos aplicables. Solo inicio, renovación y cierre emiten o eliminan la cookie
+de renovación. La proyección compartible de perfil se prepara en el módulo para
+consumo interno. [OpenAPI de 001](../../specs/001-usuarios-y-acceso/contracts/openapi.json)
+
+El inventario de T113 compara el router efectivo con el contrato y prueba las
+variantes de transporte, origen y datos malformados. Los resultados se guardan
+junto con las suites de cada historia. [Evidencia de 001](../../specs/001-usuarios-y-acceso/implementation-status.md)
 
 ---
 

@@ -14,7 +14,7 @@ assert.ok(process.env.npm_execpath, 'Ejecute mediante npm run test:e2e:windows.'
 const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const local = resolve(frontend, '../.local');
 const evidencia = resolve(process.env.E2E_EVIDENCIA ?? resolve(local, 'evidencia/001/e2e-windows-native'));
-execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', resolve(frontend, '../scripts/diagnosticar-tls.ps1'), '-ExigirConfianzaWindows'], { stdio: 'inherit' });
+execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', resolve(frontend, '../scripts/diagnosticar-tls.ps1'), '-ExigirConfianzaWindows', '-Evidencia', evidencia], { stdio: 'inherit' });
 const caPath = resolve(local, 'tls/ca.crt');
 const ca = new X509Certificate(await readFile(caPath));
 const esperado = new X509Certificate(await readFile(resolve(local, 'tls/localhost.crt')));
@@ -47,7 +47,7 @@ try {
     await new Promise((ok, no) => { servidor.once('error', no); servidor.listen({ port: 9443, host: direccion, ipv6Only: direccion === '::1' }, ok); });
   }
   await mkdir(evidencia, { recursive: true });
-  const env = { ...process.env, E2E_EVIDENCIA: evidencia, E2E_TLS_NEGATIVAS: 'true', NODE_EXTRA_CA_CERTS: caPath };
+  const env = { ...process.env, E2E_EVIDENCIA: evidencia, E2E_TLS_NEGATIVAS: 'true', E2E_TLS_CONTROL_CERT: certControl, NODE_EXTRA_CA_CERTS: caPath };
   codigo = await new Promise((ok, no) => {
     const proceso = spawn(process.execPath, [process.env.npm_execpath, 'run', 'test:e2e', '--', '--workers=1', ...process.argv.slice(2)], { cwd: frontend, env, stdio: 'inherit' });
     proceso.once('error', no); proceso.once('exit', (estado) => ok(estado ?? 1));

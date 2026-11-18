@@ -49,6 +49,15 @@ Los datos de prueba son ficticios y se identifican como tales. Nunca se usan dat
 
 Una funcionalidad se cierra cuando todas sus pruebas pasan, cada escenario de su `spec.md` tiene al menos una prueba y las pruebas PR04 (permisos) y, si corresponde, PR09 (concurrencia) están incluidas.
 
+### Evidencia de Usuarios y acceso
+
+La matriz de 001 asigna requisitos por nivel U/I/C/V/E para cada uno de sus 53
+escenarios. T110–T114 agregan permisos, bloqueo, recuperación, fallos de
+dependencias, seguridad de navegador, fotografías, contrato, arquitectura y una
+medición de salud y carga local. T115 cruza los resultados ejecutados con cada
+asociación de la matriz. El informe distingue versiones, matrices completas,
+selecciones, repeticiones y pendientes de aceptación. Tras T116 y T117, la CI alojada terminó en verde en #5 (`d330a06`), #6 (`e312f2f`), #7 (`a13d0ce`), #8 (`47c888e`) y #9 (`d534a60`, último commit publicado); el recuento exacto del artefacto no pudo leerse (registros y artefacto exigen autenticación). Se ejecutaron además, en local, los permisos de contrato (21) e integración (10), peticiones manipuladas contra el entorno de validación y 36 recorridos de Chromium a 360, 768 y 1366 px. La revisión humana de usabilidad fue parcial y su alcance exacto está en `tecnologia/.local/evidencia/001/validacion.md`, archivo local no versionado. Quedan documentados tres fallos intermitentes sin causa confirmada y que Firefox y WebKit constan solo por la CI. [Matriz de 001](../../specs/001-usuarios-y-acceso/test-matrix.md) · [Resultados](../../specs/001-usuarios-y-acceso/implementation-status.md)
+
 ---
 
 [Índice del proyecto](../../README.md)

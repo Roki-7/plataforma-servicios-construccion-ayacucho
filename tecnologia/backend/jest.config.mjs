@@ -7,8 +7,9 @@ const base = {
 };
 
 const seleccionado = process.argv[process.argv.indexOf('--selectProjects') + 1];
-const grupo = ['unit', 'integration', 'contract'].includes(seleccionado) ? seleccionado : 'todos';
+const grupos = ['unit', 'integration', 'contract', 'architecture'];
+const grupo = grupos.includes(seleccionado) ? seleccionado : 'todos';
 export default {
-  projects: ['unit', 'integration', 'contract'].map((name) => ({ ...base, displayName: name, testMatch: [`<rootDir>/test/${name}/**/*.spec.ts`] })),
+  projects: grupos.map((name) => ({ ...base, displayName: name, testMatch: [`<rootDir>/test/${name}/**/*.spec.ts`] })),
   reporters: ['default', ['jest-junit', { outputDirectory: '../.local/evidencia/001', outputName: `backend-${grupo}-junit.xml`, includeConsoleOutput: false }]],
 };

@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { mkdtemp, rmdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import type { DataSource } from 'typeorm';
 import { conDiagnostico, registrarFallo } from '../../src/compartido/infraestructura/diagnostico-fallos.js';
 import { UnidadDeTrabajoPostgres } from '../../src/compartido/infraestructura/postgres/unidad-de-trabajo.js';
@@ -64,7 +65,7 @@ test('T099 fallo en commit conserva etapa y SQLSTATE sin confirmar el resultado'
   expect(JSON.parse(eventos[0]!)).toMatchObject({ etapa: 'db.commit', excepcion: { codigo: '40001' } });
 });
 test('T099 catálogo ausente conserva ENOENT sin divulgar la ruta del archivo', async () => {
-  const eventos: string[] = [], carpeta = await mkdtemp(resolve('../.local/pruebas/t099-catalogo-'));
+  const eventos: string[] = [], carpeta = await mkdtemp(join(tmpdir(), 't099-catalogo-'));
   try {
     await expect(conDiagnostico('POST', '/recuperaciones/{token}', v => eventos.push(v), () => new CatalogoLocal(resolve(carpeta, 'persona@example.invalid.json'), true).inicializar())).rejects.toMatchObject({ http: 503 });
     expect(JSON.parse(eventos[0]!)).toMatchObject({ etapa: 'catalogo.inicializacion', excepcion: { codigo: 'ENOENT' } });
