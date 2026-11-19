@@ -10,6 +10,7 @@ import { componerOpenApi, inventarioOpenApi, type DocumentoOpenApi } from './com
 import { GuardIdentidad002 } from './identidad-002.js';
 import { RevisionDeOfertaPostgres } from '../modulos/catalogo/infraestructura/persistencia/revision-de-oferta.js';
 import { ProyeccionPublicaPostgres } from '../modulos/catalogo/infraestructura/persistencia/proyeccion-publica.js';
+import { ClasificacionesEfectivasPostgres } from '../modulos/catalogo/infraestructura/persistencia/clasificaciones-efectivas.js';
 import { UnidadDeTrabajoPostgres } from '../compartido/infraestructura/postgres/unidad-de-trabajo.js';
 import { IdempotenciaPostgres } from '../compartido/infraestructura/idempotencia.js';
 import { RelojServidor, SecretosCrypto } from '../modulos/usuarios-acceso/infraestructura/seguridad/crypto.js';
@@ -70,6 +71,8 @@ export const USUARIOS_ACCESO_002 = Symbol('UsuariosAcceso público para 002');
 export const UNIDAD_DE_TRABAJO_002 = Symbol('Unidad de trabajo compartida de 002');
 export const REVISION_OFERTA_002 = Symbol('Revisión de oferta de Catálogo');
 export const PROYECCION_PUBLICA_002 = Symbol('Proyección pública de Catálogo');
+export const IDEMPOTENCIA_002 = Symbol('Idempotencia transaccional de 002');
+export const CLASIFICACIONES_EFECTIVAS_002 = Symbol('Clasificaciones efectivamente activas de Catálogo');
 
 async function contratoDeOferta(contrato001: string, registro: Composicion002) {
   const base: DocumentoOpenApi = JSON.parse(await readFile(contrato001, 'utf8'));
@@ -172,6 +175,8 @@ export async function crearAplicacion(config: Configuracion, opciones: Opciones 
     { provide: UNIDAD_DE_TRABAJO_002, useValue: uow },
     { provide: REVISION_OFERTA_002, useValue: new RevisionDeOfertaPostgres(uow) },
     { provide: PROYECCION_PUBLICA_002, useValue: new ProyeccionPublicaPostgres(uow) },
+    { provide: IDEMPOTENCIA_002, useValue: idempotencia },
+    { provide: CLASIFICACIONES_EFECTIVAS_002, useValue: new ClasificacionesEfectivasPostgres(uow) },
   ] : [];
   @Module({ controllers: [ContrasenaController, CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController, ...(registro?.controladores ?? [])], providers: [{ provide: CAMBIAR_CONTRASENA, useValue: cambiarContrasena }, {provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }, ...proveedores002] })
   class AppModule {}

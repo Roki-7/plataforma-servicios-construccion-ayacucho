@@ -9,6 +9,8 @@ import { EstadoSesion } from '../features/usuarios-acceso/presentacion/EstadoSes
 import { EstadoAcceso } from '../features/usuarios-acceso/presentacion/EstadoAcceso.js';
 import { RecuperarAcceso } from '../features/usuarios-acceso/presentacion/RecuperarAcceso.js';
 import { EstablecerContrasena } from '../features/usuarios-acceso/presentacion/EstablecerContrasena.js';
+import { PerfilProfesional } from '../features/prestadores-catalogo/presentacion/PerfilProfesional.js';
+import { portafolioWeb } from './prestadores-catalogo.js';
 import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
 import './estilos.css';
 export function App() {
@@ -49,8 +51,9 @@ export function App() {
   else if (estado.autenticada) {
     if (ruta === '/confirmar-correo') contenido = <PantallaConfirmarCorreo key={enlaceVersion} />;
     else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
+    else if (ruta === '/prestador/perfil') contenido = <PerfilProfesional servicio={portafolioWeb} />;
     else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} />;
-  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena'].includes(ruta)) {
+  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil'].includes(ruta)) {
     contenido = <>{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
   } else {
     contenido = <Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} />;
@@ -63,6 +66,7 @@ export function App() {
         {estado.autenticada ? <>
           <a href="/cuenta" aria-current={ruta === '/cuenta' ? 'page' : undefined} onClick={navegar}>Mi cuenta</a>
           <a href="/habilitar-perfil" aria-current={ruta === '/habilitar-perfil' ? 'page' : undefined} onClick={navegar}>Mis perfiles</a>
+          <a href="/prestador/perfil" aria-current={ruta === '/prestador/perfil' ? 'page' : undefined} onClick={navegar}>Mi perfil profesional</a>
           <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
             try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
             catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }

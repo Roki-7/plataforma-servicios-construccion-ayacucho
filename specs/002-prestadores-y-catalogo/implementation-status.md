@@ -19,7 +19,7 @@
 | Grupo | Estado inicial | Alcance y evidencia esperada |
 |---|---|---|
 | T001–T006 | PENDIENTE | Inventario estático, preparación local, Compose, controles del iniciador, PostgreSQL real y selectores e informes de prueba. |
-| HU03 / RF06 | PENDIENTE | CA-PRE-01 a 08. |
+| HU03 / RF06 | APROBADA | CA-PRE-01 a 08 con el arnés US1 (ver «Resultados de la fase 3»). La integración conjunta de 40 operaciones sigue pendiente. |
 | HU04 / RF08 | PENDIENTE | CA-SER-01 a 09. |
 | HU05 / RF09, RF10 | PENDIENTE | CA-BUS-01 a 08. |
 | HU25 / RF39 | PENDIENTE | CA-CAT-01 a 10. |
@@ -90,4 +90,66 @@ Configuración comprobada con `iniciar-validacion-002.ts migrar --verificar-conf
 - El modo completo de la fábrica carga y compone los 40 operaciones, pero la aplicación no arranca hasta montar los controladores de las historias (T031, T040, T050, T063, T066).
 - `docker build` del backend solo se verificó una vez. El entorno temporal de regresión 001 y la imagen de prueba permanecen locales.
 
-Los escenarios funcionales de las historias, la regresión conjunta de 40 operaciones y el resto de las verificaciones siguen `PENDIENTES`.
+Los escenarios funcionales de las historias distintas de HU03, la regresión conjunta de 40 operaciones y el resto de las verificaciones siguen `PENDIENTES`.
+
+## Resultados de la fase 3 — HU03 · Perfil profesional y portafolio (RF06)
+
+Entorno: Node.js 24.15.0 del toolchain local, PostgreSQL 18, Redis 8 y Garage de la validación 002 (bases temporales de la suite, eliminadas al terminar) y la regresión de 001 en el proyecto Compose aislado `ayacucho-regresion-001-aislada`. Todos los datos son ficticios.
+
+### Montaje de US1
+
+El arnés `aplicacionPorHistoria('HU03', …)` carga con `registroPrestadores002` los dos controladores, los proveedores, la migración `PerfilesYPortafolio1795000000004` y las ocho operaciones contractuales. Antes de arrancar comprueba la correspondencia entre el router de Nest y el contrato. `fixtures-hu03.ts` registra cuentas reales por HTTP (prestador, prestador ajeno y solo cliente) y carga cuatro clasificaciones, una de ellas inactiva y una hija de raíz inactiva.
+
+El almacenamiento propio se aprovisionó con `storage:init:002`: bucket `portafolio-002-validacion` en el Garage de la 002 e identidad exclusiva con permiso de lectura y escritura solo sobre ese bucket. La ejecución escribió las credenciales en `tecnologia/.local/002/backend.env`, que Git ignora. El script es idempotente y se repitió sin cambios. Una prueba confirma que esa identidad no crea buckets ni accede a otros.
+
+### Verificaciones ejecutadas
+
+| Grupo | Resultado |
+|---|---|
+| Contrato HU03 (`perfil-y-portafolio.spec.ts`) | 13 de 13 aprobadas |
+| Unitarias de dominio, saneamiento y servicios (`perfil-y-portafolio.spec.ts`) | 28 de 28 aprobadas |
+| Integración con PostgreSQL y Garage (`portafolio.spec.ts`) | 16 de 16 aprobadas (incluye 2 del retraso de 60 s) |
+| Interfaz web (`portafolio.test.tsx`) | 14 de 14 aprobadas |
+| Todas las suites 002 del backend (10 suites, fases 2 y 3) | 84 de 84 aprobadas |
+| Unitarias y arquitectura del backend, incl. 001 | 122 de 122 aprobadas |
+| Contrato e integración de 001 en entorno aislado (21 suites) | 222 de 222 aprobadas |
+| Pruebas de la interfaz web (9 archivos) | 69 de 69 aprobadas |
+| `typecheck`, `lint` y `build` de backend y frontend | Correctos. El `build` de frontend también |
+
+### Criterios de aceptación
+
+| Criterio | Evidencia |
+|---|---|
+| CA-PRE-01 | Alta con versión 0, consulta propia, edición con versión, replay idempotente, 409 por versión obsoleta o clave reutilizada. Los datos se devuelven con tipo, especialidades, experiencia, zonas, disponibilidad y trabajos |
+| CA-PRE-02 | Una zona fuera de los cinco distritos devuelve 400 con `distritos[1]` y el perfil guardado no cambia. La especialidad inactiva, hija de raíz inactiva o inexistente devuelve 422 `CATEGORIA_NO_ACTIVA` |
+| CA-PRE-03 | Visitante 401, solo cliente 403, prestador ajeno 404 al agregar, reemplazar o eliminar. Identidad o propiedades enviadas en el cuerpo se rechazan. Las imágenes protegidas se conservan |
+| CA-PRE-04 | JPG, PNG y WEBP válidos. Se aceptan por HTTP un PNG de exactamente 10 000 000 bytes y imágenes de 4096 píxeles por lado. Se rechazan 10 000 001 bytes (413), 4097 píxeles, GIF o contenido corrupto con tipo de imagen y tipo declarado distinto del real, siempre con la causa y sin alterar lo ya vinculado |
+| CA-PRE-05 | Cuatro fotos por trabajo y diez trabajos por prestador. La quinta foto y el undécimo trabajo reciben 422 `LIMITE_PORTAFOLIO` indicando el límite. Los últimos cupos simultáneos se serializan y no se exceden |
+| CA-PRE-06 | Con la confirmación retenida, el identificador pendiente devuelve 404 `RECURSO_NO_DISPONIBLE` sin bytes. Tras confirmar, 200 con WebP sin EXIF, GPS, XMP ni IPTC y sin el marcador sensible de prueba |
+| CA-PRE-07 | El reemplazo inválido conserva la imagen anterior. El válido conserva `fotografiaId` y el recuento, y durante el reemplazo solo se sirve la variante anterior |
+| CA-PRE-08 | Tras eliminar, el acceso público devuelve 404 desde el commit, el trabajo y las demás fotos se conservan y se libera un cupo. La purga se reintenta con Garage caído y se completa al recuperarse |
+
+### Estado de T021–T033
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T021, T022, T023, T024 | APROBADA | Pruebas escritas antes de la implementación y ejecutadas con el arnés de T019. Cubren los criterios de cierre indicados arriba |
+| T025 | APROBADA | Dominio con límites exactos, cuenta única y UUID público distinto, textos planos sin marcado ni controles |
+| T026 | APROBADA | Restricciones de PostgreSQL probadas (cuenta única, UUID distinto, tipo, texto, distrito, clave de objeto, MIME) y cuotas bajo bloqueo de perfil antes que trabajo |
+| T027 | APROBADA | PUT con versión 0, edición con versión, alta de trabajo avanza `versionPerfil`, especialidades activas, proyección y revisión de Catálogo en la misma transacción y revertidas juntas |
+| T028 | APROBADA | Base64 canónico, formato real, 10 000 000 bytes, 4096 píxeles, orientación, variante WebP de hasta 1600 píxeles, calidad 80 y sin metadatos |
+| T029 | APROBADA | Intención durable antes del PUT, vínculo solo con objeto verificado por checksum, reemplazo con nueva clave inmutable y `storage:init:002` con identidad limitada al bucket |
+| T030 | APROBADA | Purgas y preparaciones vencidas con arrendamiento, reintentos, ámbito verificado, ausencia de referencias y reconciliación de huérfanos. No toca objetos de otro ámbito |
+| T031 | APROBADA | Las ocho operaciones respetan versiones, respuestas y titularidad. La entrega pública solo sirve WebP saneado con `no-store` y responde 404 para altas pendientes, fotos retiradas o perfiles no publicables |
+| T032 | APROBADA | Formulario de perfil y portafolio con versiones, mensajes de rechazo, imágenes bajo demanda y ruta `/prestador/perfil`. Las pruebas de interfaz pasan. No se ejecutó Playwright, que corresponde a T075 |
+| T033 | APROBADA | CA-PRE-01 a CA-PRE-08 demostrados con el arnés US1 (ver arriba), con 404 antes de confirmar y 200 con la variante saneada después |
+
+### Decisiones y limitaciones
+
+- La validación con esquema de las rutas de 002 ahora devuelve `detalles` con el campo y el motivo, sin reflejar valores del cliente. La respuesta de las rutas de 001 no cambió y su regresión pasa.
+- La composición base de `app.module.ts` añade dos tokens internos (`IDEMPOTENCIA_002` y `CLASIFICACIONES_EFECTIVAS_002`). El módulo Catálogo expone la lista de distritos y un contrato `ClasificacionesEfectivas` mediante su API pública.
+- Las migraciones y controladores de Prestadores no están registrados todavía en `db:migrate:002` ni en la aplicación de 40 operaciones. Su integración corresponde a T066 y T067, y no se declara completa.
+- El selector de especialidades de la web recibe la lista desde la composición. Hasta que exista la consulta de categorías (HU25, T063) la pantalla muestra solo las especialidades ya registradas del perfil.
+- El limpiador está implementado y probado como servicio, pero no hay un temporizador del monolito que lo ejecute. La planificación periódica corresponde a T066.
+- La purga de una foto reemplazada o eliminada tiene un retraso de 60 segundos en producción para no interrumpir lecturas en curso. La mayoría de las pruebas usa retraso cero. Dos pruebas permanentes ejercitan la regla de producción con el reloj inyectable del limpiador, sin esperas reales: la purga queda programada a 60 s (medidos por PostgreSQL), no se elimina nada con el reloj real ni 50 s después, al vencer el plazo se elimina solo la clave anterior y la nueva sigue entregándose con 200, una foto eliminada devuelve 404 de inmediato, y una purga vencida de un objeto que volvió a estar referenciado se descarta sin borrarlo.
+- La prueba de contrato de 001 CA-PER-02 sigue con el antecedente de una falla intermitente no explicada de la fase 2. No volvió a aparecer.

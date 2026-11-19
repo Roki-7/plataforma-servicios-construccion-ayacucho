@@ -46,6 +46,16 @@ function validarConsulta(url: string, definiciones: ReadonlyMap<string, Consulta
   }
   return Object.fromEntries(entrada);
 }
+/** Convierte errores de esquema en detalles sin reflejar los valores del cliente. */
+function detallesDeEsquema(errores: ValidateFunction['errors']): { campo?: string; motivo: string }[] {
+  const motivos: Record<string, string> = { enum: 'Valor no admitido.', type: 'Tipo no válido.', required: 'Campo obligatorio.', minLength: 'Es demasiado corto.', maxLength: 'Supera la longitud máxima.',
+    minItems: 'Faltan elementos.', maxItems: 'Hay demasiados elementos.', uniqueItems: 'Hay elementos repetidos.', minimum: 'Es menor que el mínimo.', maximum: 'Supera el máximo.', format: 'Formato no válido.', pattern: 'Formato no válido.', minProperties: 'Faltan campos.' };
+  return (errores ?? []).slice(0, 20).map((e) => {
+    const ruta = e.instancePath.split('/').filter(Boolean).map((p) => (/^\d+$/.test(p) ? '[' + p + ']' : p)).join('.').replaceAll('.[', '[');
+    const campo = e.keyword === 'required' ? [ruta, String(e.params['missingProperty'])].filter(Boolean).join('.') : ruta;
+    return { ...(campo ? { campo } : {}), motivo: motivos[e.keyword] ?? 'Valor no válido.' };
+  });
+}
 function responder(res: Response, error: ErrorAplicacion): void {
   res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer');
   if (error.http === 429 && error.reintentarEnSegundos !== undefined) res.setHeader('Retry-After', String(error.reintentarEnSegundos));
@@ -142,7 +152,8 @@ export async function configurarApi(app: INestApplication, config: { origen: str
         if (typeof contenido === 'string' && (contenido.length > 13333336 || Buffer.byteLength(contenido,'base64') > 10000000)) throw new ErrorAplicacion(413,'ARCHIVO_DEMASIADO_GRANDE','La imagen supera 10 MB.');
         if (ruta?.validar && (!unicodeValido(req.body) || !ruta.validar(req.body))) {
           if (ruta.validar.errors?.some((e) => e.keyword === 'additionalProperties')) throw new ErrorAplicacion(400, 'PROPIEDAD_NO_ADMITIDA', 'Se envió un campo no permitido.');
-          throw datosInvalidos();
+          // Solo 002 informa el campo rechazado. Los motivos no reproducen los valores recibidos. 001 conserva su respuesta.
+          throw ruta.consultas ? datosInvalidos('Revise los datos enviados.', detallesDeEsquema(ruta.validar.errors)) : datosInvalidos();
         }
         next();
       } catch (error) { responder(res, error instanceof ErrorAplicacion ? error : datosInvalidos()); }

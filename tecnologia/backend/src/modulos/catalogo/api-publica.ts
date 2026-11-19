@@ -12,3 +12,10 @@ export interface RevisionDeOferta {
 // Dentro de cada nivel, adquirir las filas por identificador.
 export const ordenBloqueosOferta = ['permiso-rf39', 'idempotencia', 'revision-oferta', 'clasificacion-raiz',
   'subcategoria', 'servicio', 'perfil', 'trabajo'] as const;
+
+export { distritosCanonicos } from './dominio/clasificacion.js';
+
+/** Contrato interno para validar clasificaciones declaradas. Resuelve la actividad efectiva con su jerarquía. */
+export interface ClasificacionesEfectivas {
+  efectivamenteActivas(tx: ContextoTransaccion, ids: readonly string[]): Promise<ReadonlySet<string>>;
+}
