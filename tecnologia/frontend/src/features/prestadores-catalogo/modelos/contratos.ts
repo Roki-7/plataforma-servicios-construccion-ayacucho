@@ -28,3 +28,12 @@ export interface EscrituraFotografia { readonly versionTrabajo: number; readonly
 export interface TrabajoCreado { readonly trabajo: TrabajoPrivado; readonly versionPerfil: number }
 export interface FotografiaModificada { readonly fotografia: FotografiaPrivada; readonly versionTrabajo: number }
 export interface ImagenPublica { readonly tipoMime: 'image/webp'; readonly contenidoBase64: string }
+
+export type EstadoServicio = 'PUBLICADO' | 'PAUSADO' | 'RETIRADO';
+export const limitesServicio = { titulo: 120, descripcion: 2000, pagina: 50 } as const;
+export interface ServicioPrivado {
+  readonly servicioId: string; readonly prestadorId: string; readonly titulo: string; readonly descripcion: string;
+  readonly categoriaId: string; readonly estado: EstadoServicio; readonly version: number;
+}
+export interface EntradaServicio { readonly titulo: string; readonly descripcion: string; readonly categoriaId: string }
+export interface PaginaServicios { readonly elementos: readonly ServicioPrivado[]; readonly total: number; readonly pagina: number; readonly tamano: number }

@@ -10,7 +10,8 @@ import { EstadoAcceso } from '../features/usuarios-acceso/presentacion/EstadoAcc
 import { RecuperarAcceso } from '../features/usuarios-acceso/presentacion/RecuperarAcceso.js';
 import { EstablecerContrasena } from '../features/usuarios-acceso/presentacion/EstablecerContrasena.js';
 import { PerfilProfesional } from '../features/prestadores-catalogo/presentacion/PerfilProfesional.js';
-import { portafolioWeb } from './prestadores-catalogo.js';
+import { ServiciosPropios } from '../features/prestadores-catalogo/presentacion/ServiciosPropios.js';
+import { portafolioWeb, serviciosWeb } from './prestadores-catalogo.js';
 import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
 import './estilos.css';
 export function App() {
@@ -52,8 +53,9 @@ export function App() {
     if (ruta === '/confirmar-correo') contenido = <PantallaConfirmarCorreo key={enlaceVersion} />;
     else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
     else if (ruta === '/prestador/perfil') contenido = <PerfilProfesional servicio={portafolioWeb} />;
+    else if (ruta === '/prestador/servicios') contenido = <PantallaServicios />;
     else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} />;
-  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil'].includes(ruta)) {
+  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
     contenido = <>{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
   } else {
     contenido = <Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} />;
@@ -67,6 +69,7 @@ export function App() {
           <a href="/cuenta" aria-current={ruta === '/cuenta' ? 'page' : undefined} onClick={navegar}>Mi cuenta</a>
           <a href="/habilitar-perfil" aria-current={ruta === '/habilitar-perfil' ? 'page' : undefined} onClick={navegar}>Mis perfiles</a>
           <a href="/prestador/perfil" aria-current={ruta === '/prestador/perfil' ? 'page' : undefined} onClick={navegar}>Mi perfil profesional</a>
+          <a href="/prestador/servicios" aria-current={ruta === '/prestador/servicios' ? 'page' : undefined} onClick={navegar}>Mis servicios</a>
           <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
             try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
             catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
@@ -82,6 +85,15 @@ export function App() {
       {contenido}
     </div>
   </main>;
+}
+
+/** Las categorías disponibles proceden de las especialidades del perfil hasta que exista la consulta de categorías (HU25). */
+function PantallaServicios() {
+  const [categorias, setCategorias] = useState<readonly { id: string; nombre: string }[]>(); const [error, setError] = useState('');
+  useEffect(() => { void portafolioWeb.perfil().then(p => setCategorias((p?.especialidadesIds ?? []).map(id => ({ id, nombre: `Especialidad registrada ${id.slice(0, 8)}` })))).catch(() => setError('No fue posible consultar su perfil profesional.')); }, []);
+  if (error) return <p role="alert">{error}</p>;
+  if (!categorias) return <p>Cargando mis servicios…</p>;
+  return <ServiciosPropios servicio={serviciosWeb} categorias={categorias} />;
 }
 
 function PantallaCambiarContrasena() {

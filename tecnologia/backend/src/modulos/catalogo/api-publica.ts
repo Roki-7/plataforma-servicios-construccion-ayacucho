@@ -19,3 +19,22 @@ export { distritosCanonicos } from './dominio/clasificacion.js';
 export interface ClasificacionesEfectivas {
   efectivamenteActivas(tx: ContextoTransaccion, ids: readonly string[]): Promise<ReadonlySet<string>>;
 }
+
+export type { EstadoServicio } from './dominio/servicio.js';
+export interface RegistroServicio {
+  readonly servicioId: string; readonly prestadorId: string; readonly categoriaId: string;
+  readonly titulo: string; readonly descripcion: string; readonly estado: 'PUBLICADO' | 'PAUSADO' | 'RETIRADO'; readonly version: number;
+}
+export interface EvaluacionElegibilidad {
+  readonly servicioId: string;
+  readonly elegible: boolean;
+  /** Presente solo cuando no es elegible. */
+  readonly motivo?: 'NO_EXISTE' | 'ESTADO_NO_PUBLICADO' | 'CLASIFICACION_INACTIVA';
+}
+/** Contrato interno para Solicitudes (003) y otros procesos autorizados. No registra rutas HTTP. */
+export interface ElegibilidadServicio {
+  /** Con `tx` toma el bloqueo compartido de la revisión de Catálogo hasta el commit del llamador. Sin `tx` lee el estado vigente. */
+  evaluar(servicioId: string, tx?: ContextoTransaccion): Promise<EvaluacionElegibilidad>;
+  /** Registro histórico en cualquier estado, incluido RETIRADO. Devuelve `null` si el identificador no existe. */
+  registro(servicioId: string, tx?: ContextoTransaccion): Promise<RegistroServicio | null>;
+}

@@ -253,3 +253,63 @@ describe('fotografías de portafolio', () => {
     await e.fotoPublica(a.prestadorId, a.trabajoId, fotoId).expect(200);
   });
 });
+
+describe('identificadores UUID en mayúsculas y minúsculas', () => {
+  const MAYUS = clasificaciones002.conLetras.toUpperCase();
+  const mixto = clasificaciones002.conLetras.slice(0, 18).toUpperCase() + clasificaciones002.conLetras.slice(18);
+
+  test('las especialidades válidas se aceptan en cualquier capitalización y se guardan en minúsculas', async () => {
+    expect(MAYUS).not.toBe(clasificaciones002.conLetras);
+    for (const id of [clasificaciones002.conLetras, MAYUS, mixto]) {
+      const t = (await e.nuevaCuenta('prestador')).token;
+      const r = await e.guardarPerfil(t, perfilValido(clasificaciones002, { especialidadesIds: [id] })).expect(201);
+      await validarRespuesta002('C002PerfilPrivado', r.body);
+      expect(r.body.especialidadesIds).toEqual([clasificaciones002.conLetras]);
+      expect((await e.obtenerPerfil(t).expect(200)).body.especialidadesIds).toEqual([clasificaciones002.conLetras]);
+    }
+  });
+
+  test('una misma especialidad en dos capitalizaciones cuenta como repetida y los identificadores inválidos se rechazan', async () => {
+    const t = (await e.nuevaCuenta('prestador')).token;
+    for (const especialidadesIds of [[clasificaciones002.conLetras, MAYUS], [MAYUS, mixto]]) {
+      const r = await e.guardarPerfil(t, perfilValido(clasificaciones002, { especialidadesIds })).expect(400);
+      await validarRespuesta002('C002Error400', r.body);
+    }
+    for (const id of [MAYUS.slice(0, -1), MAYUS.replace(/^./, 'G'), `{${MAYUS}}`, MAYUS.replaceAll('-', '')]) {
+      await e.guardarPerfil(t, perfilValido(clasificaciones002, { especialidadesIds: [id] })).expect(400);
+    }
+    await e.obtenerPerfil(t).expect(404);
+  });
+
+  test('una especialidad inactiva o inexistente en mayúsculas sigue rechazándose', async () => {
+    const t = (await e.nuevaCuenta('prestador')).token;
+    for (const id of [clasificaciones002.inactiva, clasificaciones002.hijaDeInactiva, randomUUID()]) {
+      const r = await e.guardarPerfil(t, perfilValido(clasificaciones002, { especialidadesIds: [id.toUpperCase()] })).expect(422);
+      expect(r.body.codigo).toBe('CATEGORIA_NO_ACTIVA');
+    }
+    await e.db.query('UPDATE catalogo_clasificaciones SET activa=false WHERE id=$1', [clasificaciones002.conLetras]);
+    try { await e.guardarPerfil(t, perfilValido(clasificaciones002, { especialidadesIds: [MAYUS] })).expect(422); }
+    finally { await e.db.query('UPDATE catalogo_clasificaciones SET activa=true WHERE id=$1', [clasificaciones002.conLetras]); }
+    await e.obtenerPerfil(t).expect(404);
+  });
+
+  test('trabajos y fotografías se operan con identificadores en mayúsculas sin cambiar la titularidad', async () => {
+    const { cuenta, prestadorId, trabajoId, version } = await conTrabajo();
+    const editado = await e.editarTrabajo(cuenta.token, trabajoId.toUpperCase(), { version, titulo: 'Título con ruta en mayúsculas' }).expect(200);
+    expect(editado.body).toMatchObject({ trabajoId, version: version + 1 });
+    const alta = await e.agregarFoto(cuenta.token, trabajoId.toUpperCase(), await foto(version + 1)).expect(201);
+    const fotoId = alta.body.fotografia.fotografiaId as string;
+    expect(fotoId).toBe(fotoId.toLowerCase());
+    const reemplazo = await e.reemplazarFoto(cuenta.token, trabajoId.toUpperCase(), fotoId.toUpperCase(), await foto(alta.body.versionTrabajo, '#22aa22')).expect(200);
+    expect(reemplazo.body.fotografia.fotografiaId).toBe(fotoId);
+    await e.fotoPublica(prestadorId.toUpperCase(), trabajoId.toUpperCase(), fotoId.toUpperCase()).expect(200);
+    const baja = await e.eliminarFoto(cuenta.token, trabajoId.toUpperCase(), fotoId.toUpperCase(), reemplazo.body.versionTrabajo).expect(200);
+    expect(baja.body.versionTrabajo).toBe(reemplazo.body.versionTrabajo + 1);
+    await e.fotoPublica(prestadorId, trabajoId, fotoId).expect(404);
+    // La capitalización no cambia quién es el titular.
+    const ajeno = (await e.nuevaCuenta('prestador')).token;
+    await e.guardarPerfil(ajeno, perfilValido(clasificaciones002)).expect(201);
+    await e.editarTrabajo(ajeno, trabajoId.toUpperCase(), { version: version + 1, titulo: 'Intrusión' }).expect(404);
+    await e.agregarFoto(ajeno, trabajoId.toUpperCase(), await foto(version + 1)).expect(404);
+  });
+});

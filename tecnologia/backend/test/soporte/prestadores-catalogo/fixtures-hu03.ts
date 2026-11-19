@@ -11,7 +11,9 @@ import { aplicacionPorHistoria } from './aplicacion-por-historia.js';
 
 export const origenWeb002 = 'https://localhost:8444';
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-export const clasificaciones002 = { raiz: uuid(230), hija: uuid(231), inactiva: uuid(232), hijaDeInactiva: uuid(233) } as const;
+export const clasificaciones002 = { raiz: uuid(230), hija: uuid(231), inactiva: uuid(232), hijaDeInactiva: uuid(233),
+  /** Identificador con dígitos hexadecimales a-f: permite probar mayúsculas y minúsculas. */
+  conLetras: 'abcdefab-cdef-4abc-8def-abcdefabcdef' } as const;
 
 /** Bucket de portafolio de 002 con un prefijo exclusivo de la corrida. Se limpia al terminar. */
 export async function almacenDePrueba002() {
@@ -39,8 +41,8 @@ export const perfilValido = (c: typeof clasificaciones002, extra: object = {}) =
   especialidadesIds: [c.hija], distritos: ['ayacucho'], disponibilidadDeclarada: true, ...extra,
 });
 
-type AplicacionBase = Parameters<Parameters<typeof aplicacionPorHistoria>[2]['cargar']>[0];
-async function registrarCuenta(app: AplicacionBase, http: ReturnType<typeof request>, perfil: 'cliente' | 'prestador'): Promise<CuentaPrueba> {
+export type AplicacionBase = Parameters<Parameters<typeof aplicacionPorHistoria>[2]['cargar']>[0];
+export async function registrarCuenta(app: AplicacionBase, http: ReturnType<typeof request>, perfil: 'cliente' | 'prestador'): Promise<CuentaPrueba> {
   const persona = { ...registroValido(), perfiles: [perfil] };
   await http.post('/api/v1/cuentas').set('Origin', origenWeb002).set('Idempotency-Key', randomUUID()).send(persona).expect(201);
   const sesion = await http.post('/api/v1/sesiones').set('Origin', origenWeb002).send({ correo: persona.correo, contrasena: persona.contrasena }).expect(200);
@@ -61,12 +63,13 @@ export async function montarHu03(opciones: Partial<OpcionesPrestadores002> & Pic
       await insertar(clasificaciones002.hija, 'Albañilería de prueba 002', 2, clasificaciones002.raiz, true);
       await insertar(clasificaciones002.inactiva, 'Raíz inactiva de prueba 002', 1, null, false);
       await insertar(clasificaciones002.hijaDeInactiva, 'Hija de raíz inactiva 002', 2, clasificaciones002.inactiva, true);
+      await insertar(clasificaciones002.conLetras, 'Identificador con letras 002', 2, clasificaciones002.raiz, true);
       const datos: Hu03Datos = { prestador: await cuenta('prestador'), ajeno: await cuenta('prestador'), cliente: await cuenta('cliente'), clasificaciones: clasificaciones002 };
       return datos;
     },
     verificar: async (app, datos) => {
       const filas: unknown[] = await app.db.query('SELECT id FROM catalogo_clasificaciones');
-      return filas.length === 4 && (await app.usuariosAcceso.exigir(datos.prestador.token)).perfiles.includes('prestador')
+      return filas.length === 5 && (await app.usuariosAcceso.exigir(datos.prestador.token)).perfiles.includes('prestador')
         && !(await app.usuariosAcceso.exigir(datos.cliente.token)).perfiles.includes('prestador');
     },
   }, registrar ? { registrar } : {});

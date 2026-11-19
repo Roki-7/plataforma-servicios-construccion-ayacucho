@@ -1,4 +1,4 @@
-import type { EntradaPerfil, EntradaTrabajo, EscrituraFotografia, FotografiaModificada, ImagenPublica, PerfilPrivado, TrabajoCreado, TrabajoPrivado } from '../modelos/contratos.js';
+import type { EntradaPerfil, EntradaServicio, EntradaTrabajo, EscrituraFotografia, EstadoServicio, FotografiaModificada, ImagenPublica, PaginaServicios, PerfilPrivado, ServicioPrivado, TrabajoCreado, TrabajoPrivado } from '../modelos/contratos.js';
 
 /** Puerto de la API de Prestadores. Cada mutación recibe su clave de idempotencia. */
 export interface ApiPrestadores {
@@ -10,4 +10,12 @@ export interface ApiPrestadores {
   reemplazarFotografia(trabajoId: string, fotografiaId: string, escritura: EscrituraFotografia, clave: string): Promise<FotografiaModificada>;
   eliminarFotografia(trabajoId: string, fotografiaId: string, versionTrabajo: number, clave: string): Promise<{ versionTrabajo: number }>;
   obtenerFotografiaPublica(prestadorId: string, trabajoId: string, fotografiaId: string): Promise<ImagenPublica>;
+}
+
+/** Puerto de la API de servicios propios (HU04). */
+export interface ApiServicios {
+  listarMios(pagina: number, tamano: number): Promise<PaginaServicios>;
+  publicar(entrada: EntradaServicio, clave: string): Promise<ServicioPrivado>;
+  editar(servicioId: string, version: number, cambios: Partial<EntradaServicio>, clave: string): Promise<ServicioPrivado>;
+  cambiarEstado(servicioId: string, version: number, destino: EstadoServicio, clave: string): Promise<ServicioPrivado>;
 }

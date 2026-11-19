@@ -11,6 +11,13 @@ export async function exigirIdentidad002(usuarios: Pick<UsuariosAcceso, 'exigir'
 
 export interface PeticionIdentidad002 extends Request { identidad002?: IdentidadAcceso }
 
+/** Actor autenticado por el guard del servidor: identidad y token para revalidar antes de un replay. Nunca se lee del cuerpo. */
+export function actor002(req: PeticionIdentidad002): { readonly token: string; readonly identidad: IdentidadAcceso } {
+  const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1];
+  if (!req.identidad002 || !token) throw new ErrorAplicacion(401, 'NO_AUTENTICADO', 'Debe autenticarse.');
+  return { token, identidad: req.identidad002 };
+}
+
 export class GuardIdentidad002 implements CanActivate {
   constructor(private readonly usuarios: Pick<UsuariosAcceso, 'exigir'>,
     private readonly sesionBase: { canActivate(ctx: ExecutionContext): Promise<boolean> }) {}

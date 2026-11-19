@@ -20,7 +20,7 @@
 |---|---|---|
 | T001–T006 | PENDIENTE | Inventario estático, preparación local, Compose, controles del iniciador, PostgreSQL real y selectores e informes de prueba. |
 | HU03 / RF06 | APROBADA | CA-PRE-01 a 08 con el arnés US1 (ver «Resultados de la fase 3»). La integración conjunta de 40 operaciones sigue pendiente. |
-| HU04 / RF08 | PENDIENTE | CA-SER-01 a 09. |
+| HU04 / RF08 | APROBADA parcial | CA-SER-01 a 07 y 09 con el arnés US2. CA-SER-08 se completa con las consultas públicas de US3 (T052). |
 | HU05 / RF09, RF10 | PENDIENTE | CA-BUS-01 a 08. |
 | HU25 / RF39 | PENDIENTE | CA-CAT-01 a 10. |
 | Integración y calidad | PENDIENTE | Unión de contratos y regresión de 001, Redis, seguridad, arquitectura, restauración, CI, accesibilidad, responsive, EQ-01 y EQ-03 según [tareas](tasks.md) y [guía de validación](quickstart.md). |
@@ -153,3 +153,90 @@ El almacenamiento propio se aprovisionó con `storage:init:002`: bucket `portafo
 - El limpiador está implementado y probado como servicio, pero no hay un temporizador del monolito que lo ejecute. La planificación periódica corresponde a T066.
 - La purga de una foto reemplazada o eliminada tiene un retraso de 60 segundos en producción para no interrumpir lecturas en curso. La mayoría de las pruebas usa retraso cero. Dos pruebas permanentes ejercitan la regla de producción con el reloj inyectable del limpiador, sin esperas reales: la purga queda programada a 60 s (medidos por PostgreSQL), no se elimina nada con el reloj real ni 50 s después, al vencer el plazo se elimina solo la clave anterior y la nueva sigue entregándose con 200, una foto eliminada devuelve 404 de inmediato, y una purga vencida de un objeto que volvió a estar referenciado se descarta sin borrarlo.
 - La prueba de contrato de 001 CA-PER-02 sigue con el antecedente de una falla intermitente no explicada de la fase 2. No volvió a aparecer.
+
+## Resultados de la fase 4 — HU04 · Publicación y estados de servicios (RF08)
+
+Entorno: Node.js 24.15.0 del toolchain local, PostgreSQL 18, Redis 8 y Garage de la validación 002 (bases temporales, eliminadas al terminar) y la regresión de 001 en el proyecto Compose aislado. Todos los datos son ficticios.
+
+### Montaje de US2
+
+`registroServicios002` monta el controlador de las cuatro operaciones (`publicarServicio002`, `listarMisServicios002`, `editarServicio002`, `cambiarEstadoServicio002`), los proveedores y la migración `ServiciosCatalogo1795000000005`. El arnés `aplicacionPorHistoria('HU04', …)` comprueba antes de arrancar que el router coincide con el contrato. `fixtures-hu04.ts` carga cuentas reales por HTTP, perfiles profesionales, seis clasificaciones (activa, hija activa, raíz inactiva, hija de raíz inactiva, raíz activa con hija inactiva) y una tabla de referencias históricas de prueba (solicitud, cotización y contratación) con clave foránea restrictiva hacia los servicios.
+
+Las consultas públicas del servicio (`GET /servicios` y `GET /servicios/{servicioId}`) pertenecen a US3 y no se implementaron.
+
+### Verificaciones ejecutadas
+
+| Grupo | Resultado |
+|---|---|
+| Unitarias de estados y casos de uso (`estados-servicio.spec.ts`) | 30 de 30 aprobadas |
+| Contrato HU04 (`servicios-propios.spec.ts`) | 12 de 12 aprobadas |
+| Integración con PostgreSQL real (`ciclo-servicios.spec.ts`), repetida tres veces | 9 de 9 aprobadas cada vez |
+| Interfaz web (`servicios-propios.test.tsx`) | 11 de 11 aprobadas |
+| Todas las suites 002 del backend (13 suites, fases 2 a 4) | 135 de 135 aprobadas |
+| Unitarias y arquitectura de todo el backend | 184 de 184 aprobadas |
+| Contrato e integración de 001 en entorno aislado (21 suites) | 222 de 222 aprobadas |
+| Pruebas de la interfaz web (10 archivos) | 80 de 80 aprobadas |
+| `typecheck`, `lint` y `build` de backend y frontend | Correctos |
+
+### Criterios de aceptación
+
+| Criterio | Evidencia |
+|---|---|
+| CA-SER-01 | Alta en PUBLICADO con versión 1 asociada al perfil del titular. La consulta propia muestra los datos guardados y la edición avanza la versión. El alta con la misma clave devuelve el mismo resultado y no duplica el servicio |
+| CA-SER-02 | Las cuatro transiciones permitidas. El servicio queda inelegible para nuevas solicitudes y las referencias de solicitudes, cotizaciones y contrataciones se conservan y siguen consultables |
+| CA-SER-03 | Visitante 401, solo cliente 403, prestador ajeno o sin perfil profesional 404, versión obsoleta 409, transición no permitida 422. Cada rechazo conserva estado y datos |
+| CA-SER-04 | Publicar en una clasificación inactiva, hija de raíz inactiva, hija inactiva o inexistente devuelve 422 `CATEGORIA_NO_ACTIVA` sin crear el servicio ni avanzar la revisión |
+| CA-SER-05 | La edición de un servicio PAUSADO conserva el estado. La reactivación con condiciones vigentes lo publica |
+| CA-SER-06 | Reactivar con la clasificación desactivada devuelve 422 y el servicio sigue PAUSADO. Los datos que incumplen una condición se rechazan con 400 sin cambios |
+| CA-SER-07 | Un servicio RETIRADO rechaza edición y cambios de estado con 422 `SERVICIO_RETIRADO`, también del titular. Sigue consultable como registro histórico por el inventario propio y por la API interna. PostgreSQL impide reabrirlo, modificarlo o borrarlo |
+| CA-SER-08 | Pendiente: depende de las consultas públicas de US3 (T052) |
+| CA-SER-09 | Solo PUBLICADO con clasificación efectivamente activa es elegible. PAUSADO, RETIRADO, clasificación inactiva por estado propio, por su categoría padre o servicio inexistente son inelegibles. La evaluación no crea solicitudes ni modifica el servicio |
+
+### Estado de T034–T042
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T034 | APROBADA | Contrato de las cuatro operaciones con 401, 403, 404, 409 y 422 según el contrato, versiones y titularidad |
+| T035 | APROBADA | Las cuatro transiciones y sus rechazos, retiro terminal, edición, revalidación y elegibilidad, incluida la actividad efectiva de la clasificación |
+| T036 | APROBADA | PostgreSQL real: clave idéntica con una sola mutación, escrituras simultáneas serializadas, fallo de escritura que conserva estado, datos, revisión y clave, y referencias históricas |
+| T037 | APROBADA | Un propietario y una clasificación por servicio, límites de texto, alta en PUBLICADO, edición solo en PUBLICADO o PAUSADO y registro RETIRADO conservado con restricciones de PostgreSQL |
+| T038 | APROBADA | Titularidad, clasificación efectiva, versión, idempotencia y transición en cada caso de uso, con la revisión pública avanzada bajo bloqueo exclusivo |
+| T039 | APROBADA | API interna `ElegibilidadServicio` con evaluación y registro histórico. Con transacción toma el bloqueo compartido de la revisión y una transición concurrente espera hasta el commit |
+| T040 | APROBADA | Las cuatro rutas con guard, inventario con los tres estados, estados inválidos y actores ajenos rechazados e identificadores estables |
+| T041 | APROBADA | Alta, edición, pausa, reactivación, retiro con confirmación y consulta propia en la web. Muestra versión, conflictos y el registro RETIRADO en modo lectura y conserva el estado ante una escritura fallida. No se ejecutó Playwright (T075) |
+| T042 | APROBADA | CA-SER-01 a 07 y CA-SER-09 con el arnés US2. CA-SER-08 queda para US3 como indica el criterio |
+
+### Decisiones y limitaciones
+
+- Un servicio ajeno o inexistente responde 404 y no revela su existencia. Una edición o transición sobre un servicio RETIRADO responde 422 `SERVICIO_RETIRADO`. Con dos transiciones simultáneas con la misma versión, el perdedor recibe 409 si el ganador pausó y 422 si el ganador retiró.
+- La condición de «perfil publicable» no se modela todavía: todo perfil guardado es publicable. La elegibilidad evalúa estado y clasificación efectiva.
+- El selector de categorías de la web usa las especialidades del perfil hasta que exista la consulta de categorías (HU25, T063).
+- La migración de servicios se registra de forma aditiva por la composición de US2 y no forma parte de `db:migrate:002`. Esa integración, la del limpiador y la de las 40 operaciones corresponden a T066 y T067 y no se declaran completas.
+- `textoPlano` y `filasDe` pasaron a `compartido` para que Catálogo y Prestadores no dependan uno del otro. El comportamiento de Prestadores no cambió y sus pruebas siguen aprobadas.
+
+### Correcciones de la auditoría de la fase 4
+
+La auditoría independiente de la fase 4 encontró dos defectos. Ambos se corrigieron con pruebas permanentes.
+
+| Defecto | Causa | Corrección |
+|---|---|---|
+| Agotamiento del pool de PostgreSQL con 6 o más escrituras simultáneas (503 generalizado). Afectaba a servicios (fase 4) y a perfil y fotografías (fase 3) | `ejecutar002` llama a `autorizar` dentro de la transacción, y los tres servicios pasaban un `autorizar` que revalidaba la sesión con otra conexión del pool (`usuarios.exigir`). Con el pool de 6, seis transacciones esperaban una conexión que ninguna liberaba y vencían a los 1,5 s | La sesión y el perfil de prestador se revalidan **antes de abrir la transacción** (`revalidarActor` y `revalidar`), y el callback devuelve la identidad ya validada, sin E/S. Se conserva la revalidación antes de devolver un replay. En fotografías se hace justo antes de abrir la transacción, después del saneamiento y la escritura del objeto. `ejecutar002` y el pool (6 conexiones) no se modificaron |
+| UUID válidos en mayúsculas rechazados como `CATEGORIA_NO_ACTIVA`, y fotografías con identificador en mayúsculas respondían 404 | El contrato admite cualquier capitalización, pero PostgreSQL y los registros persistidos usan minúsculas, y se comparaba en memoria con cadenas de otra capitalización | `uuidEnMinusculas` (nuevo en `compartido/dominio/identificadores.ts`) normaliza los UUID ya validados por el contrato antes de comparar categorías, especialidades y los identificadores de trabajo, fotografía y servicio. Las especialidades repetidas con distinta capitalización cuentan como repetidas. No cambia la validación de formato ni la titularidad |
+
+Evidencia:
+
+| Verificación | Resultado |
+|---|---|
+| `concurrencia-escrituras.spec.ts` (5 pruebas), con 8 escrituras simultáneas y el pool de 6 | 5 de 5 aprobadas, repetida 10 veces sin fallos ni 503 |
+| Servicios: 8 altas a la vez; segunda ola de 8 con transiciones, edición, conflicto 409, ajeno 404, categoría inactiva 422, alta nueva y transición inválida 422 | Estados exactos por petición, filas y versiones esperadas y revisión avanzada solo por las 4 mutaciones confirmadas |
+| Servicios con sesión inválida en la mitad de una ola de 8 | 401 en esas y 201 en las demás, sin 503 |
+| Perfil: 8 altas a la vez, ola con 5 actualizaciones, 1 versión obsoleta, 1 especialidad inactiva y 1 alta de trabajo | 8 proyecciones y revisión +8, luego +5, con 409, 422 y 201 correctos |
+| Fotografías: 8 altas, luego 4 reemplazos y 4 eliminaciones a la vez | 8 objetos verificados, 4 fotografías finales y 8 purgas programadas |
+| Control negativo: reintroducir la revalidación dentro de la transacción en cada flujo | Los tres flujos fallan con 503. Se restauró el código y se comprobó |
+| UUID en mayúsculas, minúsculas y mixtas: servicios (3 pruebas) y perfil y fotografías (4 pruebas) | Aprobadas: se guardan en minúsculas, la misma solicitud con otra capitalización es el mismo intento idempotente, los inválidos siguen en 400, las categorías inactivas o inexistentes en 422 y el actor ajeno en 404 |
+| Suites 002 del backend (14 suites) | 147 de 147 aprobadas |
+| Unitarias y arquitectura de todo el backend | 184 de 184 aprobadas |
+| Contrato e integración de 001 en entorno aislado | 222 de 222 aprobadas |
+| `typecheck`, `lint` y `build` del backend | Correctos |
+
+Limitación observada: en tres ejecuciones aisladas de Jest durante el desarrollo, el registro de salida quedó vacío sin un fallo asociado. No se reprodujo en 10 ejecuciones posteriores y no se identificó la causa.

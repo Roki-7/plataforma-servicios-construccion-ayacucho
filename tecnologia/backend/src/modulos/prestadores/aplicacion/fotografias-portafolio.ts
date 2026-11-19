@@ -3,7 +3,8 @@ import type { Idempotencia002, ResultadoIdempotente } from '../../../compartido/
 import type { ValorJson } from '../../../compartido/aplicacion/transaccion.js';
 import { dependenciaNoDisponible, ErrorAplicacion } from '../../../compartido/dominio/errores.js';
 import { exigirCupoFotografia } from '../dominio/portafolio.js';
-import { autorizadorVigente, exigirPrestador, noDisponible, versionDesactualizada, type ActorPrestador, type Autorizador } from './perfil-profesional.js';
+import { uuidEnMinusculas } from '../../../compartido/dominio/identificadores.js';
+import { revalidarActor, exigirPrestador, noDisponible, versionDesactualizada, type ActorPrestador, type Autorizador } from './perfil-profesional.js';
 import type { AlmacenPortafolio, ImagenSaneada, RepositorioPrestadores, SaneadorImagen } from './puertos/puertos.js';
 
 const vigenciaPreparacionMs = 10 * 60 * 1000;
@@ -26,10 +27,10 @@ export class FotografiasPortafolioServicio {
   private ahora(): Date { return this.d.ahora?.() ?? new Date(); }
 
   agregar(actor: ActorPrestador, clave: string, trabajoId: string, entrada: EscrituraFotografia): Promise<ResultadoIdempotente> {
-    return this.escribir(actor, clave, trabajoId, undefined, entrada);
+    return this.escribir(actor, clave, uuidEnMinusculas(trabajoId), undefined, entrada);
   }
   reemplazar(actor: ActorPrestador, clave: string, trabajoId: string, fotografiaId: string, entrada: EscrituraFotografia): Promise<ResultadoIdempotente> {
-    return this.escribir(actor, clave, trabajoId, fotografiaId, entrada);
+    return this.escribir(actor, clave, uuidEnMinusculas(trabajoId), uuidEnMinusculas(fotografiaId), entrada);
   }
 
   /** Orden: titularidad y cupo previos, saneamiento y escritura del objeto fuera de bloqueos, y vínculo transaccional al final. */
@@ -52,6 +53,8 @@ export class FotografiasPortafolioServicio {
     try { leido = await this.d.almacen.leer(objetoClave); } catch { throw dependenciaNoDisponible(); }
     if (!iguales(createHash('sha256').update(leido).digest(), imagen.checksum)) throw dependenciaNoDisponible();
 
+    // La sesión se revalida con una conexión libre del pool antes de abrir la transacción, incluso para devolver un replay.
+    if (await revalidarActor(this.d.usuarios, actor) !== cuentaId) throw new ErrorAplicacion(401, 'NO_AUTENTICADO', 'Debe autenticarse.');
     let vinculada = false;
     const id = fotografiaId ?? randomUUID();
     try {
@@ -59,7 +62,7 @@ export class FotografiasPortafolioServicio {
         actor: cuentaId, metodo: fotografiaId ? 'PUT' : 'POST',
         rutaLogica: fotografiaId ? '/prestadores/perfil/trabajos/{trabajoId}/fotografias/{fotografiaId}' : '/prestadores/perfil/trabajos/{trabajoId}/fotografias',
         clave, ids: fotografiaId ? { trabajoId, fotografiaId } : { trabajoId }, version: entrada.versionTrabajo,
-        cuerpo: { tipoMime: entrada.tipoMime }, fotografia: imagen.original, autorizar: autorizadorVigente(this.d.usuarios, actor),
+        cuerpo: { tipoMime: entrada.tipoMime }, fotografia: imagen.original, autorizar: async () => cuentaId,
       }, async (tx) => {
         const bloqueado = await repo.perfilPorCuenta(cuentaId, tx, true);
         const trabajo = bloqueado ? await repo.trabajoDe(bloqueado.id, trabajoId, tx, true) : null;
@@ -83,13 +86,15 @@ export class FotografiasPortafolioServicio {
     }
   }
 
-  async eliminar(actor: ActorPrestador, clave: string, trabajoId: string, fotografiaId: string, versionTrabajo: number): Promise<ResultadoIdempotente> {
+  async eliminar(actor: ActorPrestador, clave: string, trabajoIdEntrada: string, fotografiaIdEntrada: string, versionTrabajo: number): Promise<ResultadoIdempotente> {
     exigirPrestador(actor.identidad);
-    const cuentaId = actor.identidad.cuentaId;
+    const trabajoId = uuidEnMinusculas(trabajoIdEntrada);
+    const fotografiaId = uuidEnMinusculas(fotografiaIdEntrada);
+    const cuentaId = await revalidarActor(this.d.usuarios, actor);
     const repo = this.d.repositorio;
     return this.d.idempotencia.ejecutar002({
       actor: cuentaId, metodo: 'DELETE', rutaLogica: '/prestadores/perfil/trabajos/{trabajoId}/fotografias/{fotografiaId}', clave,
-      ids: { trabajoId, fotografiaId }, version: versionTrabajo, cuerpo: {}, autorizar: autorizadorVigente(this.d.usuarios, actor),
+      ids: { trabajoId, fotografiaId }, version: versionTrabajo, cuerpo: {}, autorizar: async () => cuentaId,
     }, async (tx) => {
       const perfil = await repo.perfilPorCuenta(cuentaId, tx, true);
       const trabajo = perfil ? await repo.trabajoDe(perfil.id, trabajoId, tx, true) : null;

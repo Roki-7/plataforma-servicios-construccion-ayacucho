@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Idempotencia002, ResultadoIdempotente } from '../../../compartido/aplicacion/idempotencia.js';
 import type { ContextoTransaccion, ValorJson } from '../../../compartido/aplicacion/transaccion.js';
 import { ErrorAplicacion } from '../../../compartido/dominio/errores.js';
+import { uuidEnMinusculas } from '../../../compartido/dominio/identificadores.js';
 import type { ClasificacionesEfectivas, DistritoCodigo, ProyeccionPublica, RevisionDeOferta } from '../../catalogo/api-publica.js';
 import type { IdentidadAcceso, UsuariosAcceso } from '../../usuarios-acceso/api-publica.js';
 import { validarEntradaPerfil, type EntradaPerfil, type PerfilProfesional } from '../dominio/perfil-profesional.js';
@@ -20,12 +21,14 @@ export const versionDesactualizada = (motivo = 'La versión enviada ya no es la 
 export function exigirPrestador(identidad: IdentidadAcceso): void {
   if (!identidad.perfiles.includes('prestador')) throw new ErrorAplicacion(403, 'SIN_PERMISO', 'Se requiere un perfil de prestador habilitado.');
 }
-export function autorizadorVigente(usuarios: Autorizador, actor: ActorPrestador): () => Promise<string> {
-  return async () => {
-    const vigente = await usuarios.exigir(actor.token);
-    exigirPrestador(vigente);
-    return vigente.cuentaId;
-  };
+/**
+ * Revalida la sesión y el perfil de prestador con la conexión libre del pool, ANTES de abrir la transacción de escritura.
+ * Hacerlo dentro de la transacción exigiría una segunda conexión mientras la primera permanece ocupada y agotaría el pool.
+ */
+export async function revalidarActor(usuarios: Autorizador, actor: ActorPrestador): Promise<string> {
+  const vigente = await usuarios.exigir(actor.token);
+  exigirPrestador(vigente);
+  return vigente.cuentaId;
 }
 
 export const trabajoPrivado = (t: TrabajoAnterior) => ({
@@ -61,12 +64,12 @@ export class PerfilProfesionalServicio {
 
   async guardar(actor: ActorPrestador, clave: string, entrada: EntradaPerfil & { readonly version: number }): Promise<ResultadoIdempotente> {
     exigirPrestador(actor.identidad);
-    const datos = validarEntradaPerfil(entrada, this.d.cobertura);
-    const cuentaId = actor.identidad.cuentaId;
+    const datos = validarEntradaPerfil({ ...entrada, especialidadesIds: Array.isArray(entrada.especialidadesIds) ? entrada.especialidadesIds.map(id => (typeof id === 'string' ? uuidEnMinusculas(id) : id)) : entrada.especialidadesIds }, this.d.cobertura);
+    const cuentaId = await revalidarActor(this.d.usuarios, actor);
     return this.d.idempotencia.ejecutar002({
       actor: cuentaId, metodo: 'PUT', rutaLogica: '/prestadores/perfil', clave, ids: {}, version: entrada.version,
       cuerpo: { ...datos, especialidadesIds: [...datos.especialidadesIds], distritos: [...datos.distritos] },
-      autorizar: autorizadorVigente(this.d.usuarios, actor),
+      autorizar: async () => cuentaId,
     }, async (tx) => {
       // Orden global: revisión de Catálogo antes que las filas de perfil. La proyección cambia filtros públicos.
       await this.d.revision.bloquear(tx, 'exclusivo');
@@ -96,10 +99,10 @@ export class PerfilProfesionalServicio {
   async crearTrabajo(actor: ActorPrestador, clave: string, entrada: { versionPerfil: number; titulo: string; descripcion: string }): Promise<ResultadoIdempotente> {
     exigirPrestador(actor.identidad);
     const datos = validarDatosTrabajo(entrada) as { titulo: string; descripcion: string };
-    const cuentaId = actor.identidad.cuentaId;
+    const cuentaId = await revalidarActor(this.d.usuarios, actor);
     return this.d.idempotencia.ejecutar002({
       actor: cuentaId, metodo: 'POST', rutaLogica: '/prestadores/perfil/trabajos', clave, ids: {}, version: entrada.versionPerfil, cuerpo: datos,
-      autorizar: autorizadorVigente(this.d.usuarios, actor),
+      autorizar: async () => cuentaId,
     }, async (tx) => {
       const perfil = await this.d.repositorio.perfilPorCuenta(cuentaId, tx, true);
       if (!perfil) throw noDisponible();
@@ -112,15 +115,16 @@ export class PerfilProfesionalServicio {
     });
   }
 
-  async editarTrabajo(actor: ActorPrestador, clave: string, trabajoId: string,
+  async editarTrabajo(actor: ActorPrestador, clave: string, trabajoIdEntrada: string,
     entrada: { version: number; titulo?: string; descripcion?: string }): Promise<ResultadoIdempotente> {
     exigirPrestador(actor.identidad);
+    const trabajoId = uuidEnMinusculas(trabajoIdEntrada);
     const { version, ...resto } = entrada;
     const cambios = validarDatosTrabajo(resto, true);
-    const cuentaId = actor.identidad.cuentaId;
+    const cuentaId = await revalidarActor(this.d.usuarios, actor);
     return this.d.idempotencia.ejecutar002({
       actor: cuentaId, metodo: 'PATCH', rutaLogica: '/prestadores/perfil/trabajos/{trabajoId}', clave, ids: { trabajoId }, version,
-      cuerpo: cambios as ValorJson, autorizar: autorizadorVigente(this.d.usuarios, actor),
+      cuerpo: cambios as ValorJson, autorizar: async () => cuentaId,
     }, async (tx) => {
       const perfil = await this.d.repositorio.perfilPorCuenta(cuentaId, tx, true);
       const trabajo = perfil ? await this.d.repositorio.trabajoDe(perfil.id, trabajoId, tx, true) : null;
