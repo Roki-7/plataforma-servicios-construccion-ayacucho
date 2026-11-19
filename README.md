@@ -203,7 +203,7 @@ Primero se escribe la especificación y después el código. Cada funcionalidad 
 
 | N.º | Funcionalidad | Requisitos | Prioridad | Estado |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | RF01–RF05 | MVP | Siete historias implementadas; T117 y T118 cerradas con limitaciones, T119 pendiente |
+| 001 | Usuarios y acceso | RF01–RF05 | MVP | Siete historias implementadas; 119/119 tareas completadas; T117–T119 cerradas con limitaciones; PR #1 fusionado en `main` (`b6c998a`) |
 | 002 | Prestadores y catálogo | RF06, RF08–RF10, RF39 | MVP | Planificada |
 | 003 | Solicitudes y cotizaciones | RF12–RF14, RF17–RF19 | MVP | Planificada |
 | 004 | Contratación | RF20–RF22, RF26 | MVP | Planificada |

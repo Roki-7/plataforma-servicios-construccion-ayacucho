@@ -234,7 +234,7 @@ Al cierre de US7 quedaban pendientes T110–T119, el incidente 503, los abortos 
 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
-| 001 | Usuarios y acceso | HU01, HU02 | 118/119 tareas verificadas (T117 y T118 cerradas con limitaciones documentadas). T119 pendiente | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
+| 001 | Usuarios y acceso | HU01, HU02 | 119/119 tareas completadas (T117–T119 cerradas con limitaciones documentadas). PR #1 fusionado en `main` (`b6c998a`) | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
 | 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |
