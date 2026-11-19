@@ -13,7 +13,7 @@ const archivos = ['unidad-de-trabajo.ts', 'unidad-de-trabajo.js', 'idempotencia.
 function stderr(linea: string): void { process.stderr.write(linea + '\n'); }
 /** patron procede exclusivamente de las rutas compiladas del contrato, nunca de req.url. */
 export function conDiagnostico<T>(metodo: string, patron: string | undefined, registrar: Registrar | undefined, trabajo: () => T): T {
-  return contexto.run({ peticionId: randomUUID(), metodo: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'].includes(metodo) ? metodo : 'OTRO', ruta: patron?.replace(/\{[^}]+\}/g, ':redactado') ?? 'ruta_no_catalogada', registrar: registrar ?? stderr }, trabajo);
+  return contexto.run({ peticionId: randomUUID(), metodo: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(metodo) ? metodo : 'OTRO', ruta: patron?.replace(/\{[^}]+\}/g, ':redactado') ?? 'ruta_no_catalogada', registrar: registrar ?? stderr }, trabajo);
 }
 function resumen(error: unknown) {
   try {

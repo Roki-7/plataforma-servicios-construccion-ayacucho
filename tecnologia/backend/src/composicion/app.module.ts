@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common';
+import type { INestApplication, Provider, Type } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { S3Client } from '@aws-sdk/client-s3';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import type { Configuracion } from './configuracion.js';
-import { persistenciaFundacional } from './persistencia.js';
+import { persistencia002, persistenciaFundacional, type RegistroPersistencia002 } from './persistencia.js';
+import { componerOpenApi, inventarioOpenApi, type DocumentoOpenApi } from './componer-openapi.js';
+import { GuardIdentidad002 } from './identidad-002.js';
+import { RevisionDeOfertaPostgres } from '../modulos/catalogo/infraestructura/persistencia/revision-de-oferta.js';
+import { ProyeccionPublicaPostgres } from '../modulos/catalogo/infraestructura/persistencia/proyeccion-publica.js';
 import { UnidadDeTrabajoPostgres } from '../compartido/infraestructura/postgres/unidad-de-trabajo.js';
 import { IdempotenciaPostgres } from '../compartido/infraestructura/idempotencia.js';
 import { RelojServidor, SecretosCrypto } from '../modulos/usuarios-acceso/infraestructura/seguridad/crypto.js';
@@ -52,8 +59,60 @@ import { CambiarContrasena } from '../modulos/usuarios-acceso/aplicacion/cambiar
 import { CAMBIAR_CONTRASENA, ContrasenaController } from '../modulos/usuarios-acceso/presentacion/contrasena.controller.js';
 import { ESTADO_SALUD, SaludController } from '../compartido/infraestructura/http/salud.controller.js';
 
-export async function crearAplicacion(config: Configuracion, opciones: { worker?: boolean; registrarDiagnostico?: (linea: string) => void } = {}) {
-  const db = persistenciaFundacional(config.databaseUrl);
+interface RegistroHttp002 {
+  readonly controladores: readonly Type[];
+  readonly proveedores?: readonly Provider[];
+  readonly persistencia?: readonly RegistroPersistencia002[];
+}
+type Composicion002 = RegistroHttp002 & ({ modo: 'completa' } | { modo: 'prueba'; operaciones: readonly string[] });
+type Opciones = { worker?: boolean; registrarDiagnostico?: (linea: string) => void; registrar?: (linea: string) => void; oferta002?: Composicion002 };
+export const USUARIOS_ACCESO_002 = Symbol('UsuariosAcceso público para 002');
+export const UNIDAD_DE_TRABAJO_002 = Symbol('Unidad de trabajo compartida de 002');
+export const REVISION_OFERTA_002 = Symbol('Revisión de oferta de Catálogo');
+export const PROYECCION_PUBLICA_002 = Symbol('Proyección pública de Catálogo');
+
+async function contratoDeOferta(contrato001: string, registro: Composicion002) {
+  const base: DocumentoOpenApi = JSON.parse(await readFile(contrato001, 'utf8'));
+  const oferta: DocumentoOpenApi = JSON.parse(await readFile(resolve(contrato001, '../prestadores-catalogo.openapi.json'), 'utf8'));
+  const inventario = inventarioOpenApi(oferta);
+  if (inventarioOpenApi(base).length !== 17 || inventario.length !== 23) throw new Error('Inventario de los activos OpenAPI incompatible.');
+  const seleccionadas = registro.modo === 'completa' ? inventario.map(({ operacion }) => operacion.operationId) : registro.operaciones;
+  const ids = new Set(seleccionadas);
+  const seleccion = inventario.filter(({ operacion }) => ids.has(operacion.operationId));
+  if (!ids.size || seleccion.length !== seleccionadas.length) throw new Error('Subconjunto 002 vacío, duplicado o desconocido.');
+  const contrato = componerOpenApi(base, oferta);
+  const propias = new Set(inventario.map(({ operacion }) => operacion.operationId));
+  const paths = new Map<string, DocumentoOpenApi['paths'][string]>();
+  for (const { metodo, ruta, operacion } of inventarioOpenApi(contrato)) {
+    if (propias.has(operacion.operationId) && !ids.has(operacion.operationId)) continue;
+    paths.set(ruta, { ...paths.get(ruta), [metodo]: operacion });
+  }
+  return { contrato: { ...contrato, paths: Object.fromEntries(paths) }, ids };
+}
+
+function verificarRouter(app: INestApplication, contrato: DocumentoOpenApi): void {
+  const instancia = app.getHttpAdapter().getInstance() as { router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] } };
+  const registradas = instancia.router.stack.flatMap(({ route }) => route ? Object.keys(route.methods).map(metodo => ({
+    metodo, ruta: route.path.replace(/^\/api\/v1/, '').replace(/:([\w]+)/g, '{$1}'),
+  })) : []);
+  const claves = (rutas: { metodo: string; ruta: string }[]) => rutas.map(({ metodo, ruta }) => `${metodo} ${ruta}`).sort();
+  if (JSON.stringify(claves(registradas)) !== JSON.stringify(claves(inventarioOpenApi(contrato)))) throw new Error('El router no coincide con las operaciones seleccionadas.');
+  // Express atiende la primera ruta compatible. Detectar controladores montados en orden incorrecto.
+  for (const [i, { metodo, ruta }] of registradas.entries()) {
+    const partes = ruta.split('/');
+    if (registradas.slice(i + 1).some(otra => {
+      if (otra.metodo !== metodo) return false;
+      const destino = otra.ruta.split('/');
+      return partes.length === destino.length && partes.some((p, j) => p.startsWith('{') && !destino[j]?.startsWith('{')) &&
+        partes.every((p, j) => p.startsWith('{') || p === destino[j]);
+    })) throw new Error('Una ruta parametrizada oculta una ruta literal en Nest.');
+  }
+}
+
+export async function crearAplicacion(config: Configuracion, opciones: Opciones = {}) {
+  const registro = opciones.oferta002;
+  const oferta = registro ? await contratoDeOferta(config.contrato, registro) : undefined;
+  const db = registro ? persistencia002(config.databaseUrl, registro.persistencia) : persistenciaFundacional(config.databaseUrl);
   const catalogo = new CatalogoLocal(config.catalogo, config.validacion);
   let conexion: Promise<void> | undefined;
   const conectar = async () => {
@@ -107,13 +166,34 @@ export async function crearAplicacion(config: Configuracion, opciones: { worker?
   }, 60000);
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
-  @Module({ controllers: [ContrasenaController, CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController], providers: [{ provide: CAMBIAR_CONTRASENA, useValue: cambiarContrasena }, {provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }] })
+  const proveedores002: Provider[] = registro ? [
+    ...(registro.proveedores ?? []),
+    { provide: USUARIOS_ACCESO_002, useValue: usuariosAcceso },
+    { provide: UNIDAD_DE_TRABAJO_002, useValue: uow },
+    { provide: REVISION_OFERTA_002, useValue: new RevisionDeOfertaPostgres(uow) },
+    { provide: PROYECCION_PUBLICA_002, useValue: new ProyeccionPublicaPostgres(uow) },
+  ] : [];
+  @Module({ controllers: [ContrasenaController, CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController, ...(registro?.controladores ?? [])], providers: [{ provide: CAMBIAR_CONTRASENA, useValue: cambiarContrasena }, {provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }, ...proveedores002] })
   class AppModule {}
-  const app = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
-  await configurarApi(app, { origen: config.origen, contrato: config.contrato, ...(opciones.registrarDiagnostico ? { registrarDiagnostico: opciones.registrarDiagnostico } : {}) });
-  app.useGlobalGuards(new GuardSesion(lector, app.get(Reflector)));
-  app.enableShutdownHooks();
-  await app.init();
+  let creada: INestApplication | undefined;
+  const app = await (async () => {
+    try {
+      creada = await NestFactory.create(AppModule, { logger: false, bodyParser: false, abortOnError: false });
+      await configurarApi(creada, { origen: config.origen, contrato: oferta?.contrato ?? config.contrato,
+        ...(oferta ? { operaciones002: oferta.ids } : {}), ...(opciones.registrar ? { registrar: opciones.registrar } : {}),
+        ...(opciones.registrarDiagnostico ? { registrarDiagnostico: opciones.registrarDiagnostico } : {}) });
+      const sesionBase = new GuardSesion(lector, creada.get(Reflector));
+      creada.useGlobalGuards(oferta ? new GuardIdentidad002(usuariosAcceso, sesionBase) : sesionBase);
+      creada.enableShutdownHooks();
+      await creada.init();
+      if (oferta) verificarRouter(creada, oferta.contrato);
+      return creada;
+    } catch (error) {
+      if (creada) await creada.close();
+      else await cerrar();
+      throw error;
+    }
+  })();
   if (opciones.worker !== false) worker.iniciar();
   return { app, db, catalogo, uow, reloj, hash, idempotencia, notificaciones, cifrado, smtp, worker, fotos, lector, cuentas, sesiones, serviciosSesion, recuperaciones, serviciosRecuperacion, consentimientos, perfiles, serviciosPerfil, servicioFotografias, usuariosAcceso, evaluarAcceso, cambiosCorreo, serviciosCorreo, reautenticar };
 }

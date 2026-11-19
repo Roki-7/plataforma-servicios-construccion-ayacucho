@@ -1,0 +1,3262 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plataforma de Servicios de Construcción — Prestadores y catálogo",
+    "version": "1.0.0",
+    "description": "Contrato de diseño aditivo de la funcionalidad 002. Autoriza gestión de categorías mediante RF39 y reutiliza la identidad autenticada de la 001. Clasificaciones, servicios y perfiles públicos omiten datos privados."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Prestadores"
+    },
+    {
+      "name": "Catálogo"
+    },
+    {
+      "name": "Administración de categorías"
+    }
+  ],
+  "paths": {
+    "/prestadores/perfil": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "obtenerMiPerfilProfesional002",
+        "summary": "Consultar el perfil y portafolio propios",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "responses": {
+          "200": {
+            "description": "Perfil propio.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PerfilPrivado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "guardarMiPerfilProfesional002",
+        "summary": "Registrar o actualizar el perfil profesional propio",
+        "description": "Requiere perfil de prestador habilitado. Las nuevas selecciones de especialidad remiten a clasificaciones efectivamente activas. Titular derivado de la sesión.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002PerfilEscritura"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil actualizado.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PerfilPrivado"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Perfil registrado.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PerfilPrivado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores/perfil/trabajos": {
+      "post": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "crearTrabajoAnterior002",
+        "summary": "Registrar un trabajo en el portafolio propio",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002TrabajoAlta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trabajo creado y nueva versión del perfil.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002TrabajoCreado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores/perfil/trabajos/{trabajoId}": {
+      "patch": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "editarTrabajoAnterior002",
+        "summary": "Editar un trabajo del portafolio propio",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002TrabajoId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002TrabajoEdicion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trabajo actualizado.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002TrabajoPrivado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores/perfil/trabajos/{trabajoId}/fotografias": {
+      "post": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "agregarFotografiaPortafolio002",
+        "summary": "Agregar una foto a un trabajo propio",
+        "description": "Una foto por solicitud. Debe pasar validación de formato real, tamaño y dimensiones y retirar los metadatos sensibles antes de aparecer en la vista pública.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 14000000,
+        "x-limite-imagen-decodificada-bytes": 10000000,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002TrabajoId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002FotografiaEscritura"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Fotografía registrada y nueva versión del trabajo.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002FotografiaModificada"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores/perfil/trabajos/{trabajoId}/fotografias/{fotografiaId}": {
+      "put": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "reemplazarFotografiaPortafolio002",
+        "summary": "Reemplazar una foto de un trabajo propio",
+        "description": "El reemplazo válido conserva el número de fotos y el identificador de la foto. El rechazo conserva la imagen anterior.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 14000000,
+        "x-limite-imagen-decodificada-bytes": 10000000,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002TrabajoId"
+          },
+          {
+            "$ref": "#/components/parameters/C002FotografiaId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002FotografiaEscritura"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fotografía sustituida y nueva versión del trabajo.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002FotografiaModificada"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "eliminarFotografiaPortafolio002",
+        "summary": "Eliminar una foto de un trabajo propio",
+        "description": "El parámetro version contiene la versión del trabajo. Tras el éxito, la publicación y la URL anterior de la foto dejan de entregarla.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "x-query-estricta": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002TrabajoId"
+          },
+          {
+            "$ref": "#/components/parameters/C002FotografiaId"
+          },
+          {
+            "$ref": "#/components/parameters/C002VersionTrabajo"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cupo liberado y nueva versión del trabajo.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002FotografiaEliminada"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores/{prestadorId}/trabajos/{trabajoId}/fotografias/{fotografiaId}": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "obtenerFotografiaPublica002",
+        "summary": "Obtener una fotografía validada y saneada",
+        "description": "Devuelve JSON con base64 de la variante WebP estática saneada. Verifica la relación prestador–trabajo–foto y la visibilidad actual en cada acceso.",
+        "security": [],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002PrestadorId"
+          },
+          {
+            "$ref": "#/components/parameters/C002TrabajoId"
+          },
+          {
+            "$ref": "#/components/parameters/C002FotografiaId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imagen saneada.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002ImagenPublica"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores/{prestadorId}": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "obtenerPerfilPublico002",
+        "summary": "Consultar el perfil público de un prestador",
+        "description": "La paginación corresponde a sus servicios visibles. Incluye las fotos publicables por enlace a la API y los dos avisos independientes aplicables a 002.",
+        "security": [],
+        "x-limite-cuerpo-bytes": 65536,
+        "x-query-estricta": true,
+        "x-avisos-requeridos-002": [
+          "calificaciones",
+          "verificaciones"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002PrestadorId"
+          },
+          {
+            "$ref": "#/components/parameters/C002Pagina"
+          },
+          {
+            "$ref": "#/components/parameters/C002Tamano"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil público.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PrestadorPublico"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/prestadores": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "operationId": "buscarPrestadores002",
+        "summary": "Buscar prestadores",
+        "description": "Busca perfiles profesionales públicos con filtros combinados. Al filtrar por categoría, exige que el prestador tenga un servicio visible en esa clasificación.",
+        "security": [],
+        "x-limite-cuerpo-bytes": 65536,
+        "x-query-estricta": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002FiltroCategoria"
+          },
+          {
+            "$ref": "#/components/parameters/C002FiltroEspecialidad"
+          },
+          {
+            "$ref": "#/components/parameters/C002FiltroDistrito"
+          },
+          {
+            "$ref": "#/components/parameters/C002FiltroDisponibilidad"
+          },
+          {
+            "$ref": "#/components/parameters/C002Pagina"
+          },
+          {
+            "$ref": "#/components/parameters/C002Tamano"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de prestadores. Sin coincidencias devuelve elementos vacíos y total 0.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PaginaPrestadores"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/servicios": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "buscarServicios002",
+        "summary": "Buscar servicios visibles",
+        "description": "Los filtros se combinan con AND y la respuesta solo incluye servicios visibles de la clasificación efectiva.",
+        "security": [],
+        "x-limite-cuerpo-bytes": 65536,
+        "x-query-estricta": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002FiltroCategoria"
+          },
+          {
+            "$ref": "#/components/parameters/C002FiltroEspecialidad"
+          },
+          {
+            "$ref": "#/components/parameters/C002FiltroDistrito"
+          },
+          {
+            "$ref": "#/components/parameters/C002FiltroDisponibilidad"
+          },
+          {
+            "$ref": "#/components/parameters/C002Pagina"
+          },
+          {
+            "$ref": "#/components/parameters/C002Tamano"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de servicios. Sin coincidencias devuelve elementos vacíos y total 0.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PaginaServicios"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "publicarServicio002",
+        "summary": "Publicar un servicio propio",
+        "description": "Se crea en PUBLICADO con la clasificación efectiva y el perfil de prestador vigentes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002ServicioAlta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Servicio publicado.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002ServicioPrivado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/servicios/mios": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "listarMisServicios002",
+        "summary": "Listar servicios propios, incluidos los históricos",
+        "description": "El titular autorizado puede consultar sus servicios PUBLICADOS, PAUSADOS y RETIRADOS aunque su clasificación esté inactiva.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "x-query-estricta": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002Pagina"
+          },
+          {
+            "$ref": "#/components/parameters/C002Tamano"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página privada de servicios propios.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PaginaServiciosPropios"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/servicios/{servicioId}": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "obtenerServicioPublico002",
+        "summary": "Consultar un servicio público",
+        "description": "Exige servicio PUBLICADO, clasificación efectivamente activa y cumplimiento de las demás condiciones vigentes.",
+        "security": [],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002ServicioId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Servicio público.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002ServicioPublico"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "editarServicio002",
+        "summary": "Editar un servicio propio",
+        "description": "Edición en PUBLICADO o PAUSADO. El estado se cambia por su subrecurso de transición. Una nueva clasificación debe estar efectivamente activa.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002ServicioId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002ServicioEdicion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Servicio actualizado.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002ServicioPrivado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/servicios/{servicioId}/transiciones": {
+      "post": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "cambiarEstadoServicio002",
+        "summary": "Pausar, reactivar o retirar un servicio propio",
+        "description": "PUBLICADO puede pasar a PAUSADO o RETIRADO, y PAUSADO a PUBLICADO o RETIRADO. Reactivar revalida perfil, clasificación y condiciones vigentes. RETIRADO es terminal.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002ServicioId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002ServicioTransicion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002ServicioPrivado"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/categorias": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "operationId": "listarCategoriasActivas002",
+        "summary": "Consultar categorías y subcategorías efectivamente activas",
+        "security": [],
+        "x-limite-cuerpo-bytes": 65536,
+        "responses": {
+          "200": {
+            "description": "Clasificaciones activas para publicación y búsqueda.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002CategoriasPublicas"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/admin/categorias": {
+      "get": {
+        "tags": [
+          "Administración de categorías"
+        ],
+        "operationId": "listarCategoriasAdmin002",
+        "summary": "Consultar las clasificaciones para gestión interna",
+        "description": "Exige permiso vigente de RF39. Devuelve estado propio, estado efectivo y versión.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "responses": {
+          "200": {
+            "description": "Clasificaciones para gestión.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002CategoriasAdmin"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Administración de categorías"
+        ],
+        "operationId": "crearCategoria002",
+        "summary": "Crear una categoría o subcategoría inactiva",
+        "description": "Si se indica un padre debe ser una categoría raíz existente. La relación queda fija después del alta. Exige permiso vigente de RF39 y motivo auditable.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002CategoriaAlta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Clasificación creada en estado propio inactivo.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002CategoriaAdmin"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/admin/categorias/{categoriaId}": {
+      "patch": {
+        "tags": [
+          "Administración de categorías"
+        ],
+        "operationId": "editarCategoria002",
+        "summary": "Actualizar el nombre de una clasificación",
+        "description": "Exige permiso vigente de RF39 y motivo auditable. Los cambios de estado usan sus subrecursos.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002CategoriaId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002CategoriaEdicion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Clasificación actualizada.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002CategoriaAdmin"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/admin/categorias/{categoriaId}/previsualizaciones-desactivacion": {
+      "post": {
+        "tags": [
+          "Administración de categorías"
+        ],
+        "operationId": "previsualizarDesactivacionCategoria002",
+        "summary": "Informar el impacto de desactivar una clasificación",
+        "description": "Exige permiso vigente de RF39. Cuenta servicios que perderían visibilidad o elegibilidad, incluidas sus subcategorías afectadas. La confirmación vale cinco minutos y se vincula al actor y a la clasificación, versión, revisión de oferta e impacto previsualizados. La clasificación conserva su estado.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002CategoriaId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002PrevisualizacionAlta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Impacto y referencia de confirmación temporal.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002PrevisualizacionDesactivacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/admin/categorias/{categoriaId}/desactivaciones": {
+      "post": {
+        "tags": [
+          "Administración de categorías"
+        ],
+        "operationId": "desactivarCategoria002",
+        "summary": "Confirmar y aplicar una desactivación",
+        "description": "Comprueba nuevamente permiso, versión, vigencia, actor e impacto. Oculta los servicios afectados desde el éxito, sin cambiar su estado ni sus relaciones. Requiere motivo y audita el cambio.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002CategoriaId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002CategoriaDesactivacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Clasificación desactivada.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002CategoriaAdmin"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    },
+    "/admin/categorias/{categoriaId}/activaciones": {
+      "post": {
+        "tags": [
+          "Administración de categorías"
+        ],
+        "operationId": "activarCategoria002",
+        "summary": "Activar una clasificación",
+        "description": "Exige permiso vigente y motivo auditable. Recuperan visibilidad los servicios PUBLICADOS en clasificaciones efectivamente activas que cumplan las condiciones vigentes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-limite-cuerpo-bytes": 65536,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/C002CategoriaId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/C002CategoriaActivacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Clasificación activada.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/C002CacheControl"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/C002CategoriaAdmin"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/C002Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/C002Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/C002Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/C002Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/C002Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/C002Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/C002Error422"
+          },
+          "503": {
+            "$ref": "#/components/responses/C002Error503"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token opaco de acceso; no JWT autónomo. Consulta de sesión vigente en PostgreSQL."
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Clave de al menos 128 bits aleatorios, 16–128 caracteres. Misma clave y mismos datos devuelve resultado previo; otros datos: 409. Sin caducidad automática de resultado confirmado en 001.",
+        "schema": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128
+        }
+      },
+      "Origin": {
+        "name": "Origin",
+        "in": "header",
+        "required": true,
+        "description": "Cabecera obligatoria en las 13 mutaciones. Ausente:400 CABECERA_REQUERIDA; URI malformada:400 DATOS_INVALIDOS; origen válido distinto del autorizado:403 ORIGEN_NO_ADMITIDO. En pruebas enviar el origen exacto configurado. No se exige en GET.",
+        "schema": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "C002PrestadorId": {
+        "name": "prestadorId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002TrabajoId": {
+        "name": "trabajoId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002FotografiaId": {
+        "name": "fotografiaId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002ServicioId": {
+        "name": "servicioId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002CategoriaId": {
+        "name": "categoriaId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002FiltroCategoria": {
+        "name": "categoria",
+        "in": "query",
+        "description": "Clasificación activa. Si es una categoría padre, incluye sus subcategorías efectivamente activas.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002FiltroEspecialidad": {
+        "name": "especialidad",
+        "in": "query",
+        "description": "Identificador de categoría o subcategoría usado como especialidad declarada.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "C002FiltroDistrito": {
+        "name": "distrito",
+        "in": "query",
+        "description": "Distrito de atención.",
+        "schema": {
+          "$ref": "#/components/schemas/C002Distrito"
+        }
+      },
+      "C002FiltroDisponibilidad": {
+        "name": "disponibilidad",
+        "in": "query",
+        "description": "Valores exactos true o false. Corresponde a la disponibilidad declarada.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "C002Pagina": {
+        "name": "pagina",
+        "in": "query",
+        "description": "Página de resultados, contando desde 1.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "default": 1
+        }
+      },
+      "C002Tamano": {
+        "name": "tamano",
+        "in": "query",
+        "description": "Resultados por página. Máximo 50.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 20
+        }
+      },
+      "C002VersionTrabajo": {
+        "name": "version",
+        "in": "query",
+        "required": true,
+        "description": "Versión consultada del trabajo para un DELETE sin cuerpo.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "headers": {
+      "C002CacheControl": {
+        "description": "Evita que un cliente, navegador o intermediario sirva datos fuera de la autorización o vigencia actual.",
+        "schema": {
+          "type": "string",
+          "const": "no-store"
+        }
+      }
+    },
+    "schemas": {
+      "C002Distrito": {
+        "type": "string",
+        "enum": [
+          "ayacucho",
+          "carmen-alto",
+          "san-juan-bautista",
+          "jesus-nazareno",
+          "andres-avelino-caceres-dorregaray"
+        ]
+      },
+      "C002TipoPrestador": {
+        "type": "string",
+        "enum": [
+          "TRABAJADOR_DE_OFICIO",
+          "TECNICO",
+          "PROFESIONAL",
+          "EMPRESA"
+        ]
+      },
+      "C002EstadoServicio": {
+        "type": "string",
+        "enum": [
+          "PUBLICADO",
+          "PAUSADO",
+          "RETIRADO"
+        ]
+      },
+      "C002TipoMime": {
+        "type": "string",
+        "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp"
+        ]
+      },
+      "C002ImagenBase64": {
+        "type": "string",
+        "format": "byte",
+        "contentEncoding": "base64",
+        "minLength": 4,
+        "maxLength": 13333336
+      },
+      "C002PerfilEscritura": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "nombrePublico",
+          "tipo",
+          "experiencia",
+          "especialidadesIds",
+          "distritos",
+          "disponibilidadDeclarada"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "Use 0 para el alta sin perfil existente. Para actualizar use la versión actual."
+          },
+          "nombrePublico": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/C002TipoPrestador"
+          },
+          "experiencia": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000,
+            "pattern": "\\S"
+          },
+          "especialidadesIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "distritos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002Distrito"
+            },
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "disponibilidadDeclarada": {
+            "type": "boolean",
+            "description": "Declaración del prestador. No constituye reserva o confirmación."
+          }
+        }
+      },
+      "C002PerfilPrivado": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prestadorId",
+          "version",
+          "nombrePublico",
+          "tipo",
+          "experiencia",
+          "especialidadesIds",
+          "distritos",
+          "disponibilidadDeclarada",
+          "trabajos"
+        ],
+        "properties": {
+          "prestadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "nombrePublico": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/C002TipoPrestador"
+          },
+          "experiencia": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000,
+            "pattern": "\\S"
+          },
+          "especialidadesIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "distritos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002Distrito"
+            },
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "disponibilidadDeclarada": {
+            "type": "boolean",
+            "description": "Declaración del prestador. No constituye reserva o confirmación."
+          },
+          "trabajos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002TrabajoPrivado"
+            },
+            "maxItems": 10
+          }
+        }
+      },
+      "C002TrabajoAlta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "versionPerfil",
+          "titulo",
+          "descripcion"
+        ],
+        "properties": {
+          "versionPerfil": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "C002TrabajoEdicion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          }
+        },
+        "minProperties": 2
+      },
+      "C002TrabajoPrivado": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trabajoId",
+          "version",
+          "titulo",
+          "descripcion",
+          "fotografias"
+        ],
+        "properties": {
+          "trabajoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "fotografias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002FotografiaPrivada"
+            },
+            "maxItems": 4
+          }
+        }
+      },
+      "C002TrabajoCreado": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trabajo",
+          "versionPerfil"
+        ],
+        "properties": {
+          "trabajo": {
+            "$ref": "#/components/schemas/C002TrabajoPrivado"
+          },
+          "versionPerfil": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "C002TrabajoPublico": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trabajoId",
+          "titulo",
+          "descripcion",
+          "fotografias"
+        ],
+        "properties": {
+          "trabajoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "fotografias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002FotografiaPublica"
+            },
+            "maxItems": 4
+          }
+        }
+      },
+      "C002FotografiaPrivada": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fotografiaId",
+          "tipoMime",
+          "ancho",
+          "alto"
+        ],
+        "properties": {
+          "fotografiaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipoMime": {
+            "type": "string",
+            "const": "image/webp"
+          },
+          "ancho": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1600
+          },
+          "alto": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1600
+          }
+        }
+      },
+      "C002FotografiaPublica": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fotografiaId",
+          "tipoMime",
+          "ancho",
+          "alto",
+          "ruta"
+        ],
+        "properties": {
+          "fotografiaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipoMime": {
+            "type": "string",
+            "const": "image/webp"
+          },
+          "ancho": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1600
+          },
+          "alto": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1600
+          },
+          "ruta": {
+            "type": "string",
+            "pattern": "^/api/v1/prestadores/[0-9a-f-]+/trabajos/[0-9a-f-]+/fotografias/[0-9a-f-]+$"
+          }
+        }
+      },
+      "C002FotografiaEscritura": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "versionTrabajo",
+          "tipoMime",
+          "contenidoBase64"
+        ],
+        "properties": {
+          "versionTrabajo": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Versión del trabajo al que pertenece la foto."
+          },
+          "tipoMime": {
+            "$ref": "#/components/schemas/C002TipoMime"
+          },
+          "contenidoBase64": {
+            "$ref": "#/components/schemas/C002ImagenBase64"
+          }
+        }
+      },
+      "C002FotografiaModificada": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fotografia",
+          "versionTrabajo"
+        ],
+        "properties": {
+          "fotografia": {
+            "$ref": "#/components/schemas/C002FotografiaPrivada"
+          },
+          "versionTrabajo": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "C002FotografiaEliminada": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "versionTrabajo"
+        ],
+        "properties": {
+          "versionTrabajo": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "C002ImagenPublica": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tipoMime",
+          "contenidoBase64"
+        ],
+        "properties": {
+          "tipoMime": {
+            "type": "string",
+            "const": "image/webp"
+          },
+          "contenidoBase64": {
+            "$ref": "#/components/schemas/C002ImagenBase64"
+          }
+        }
+      },
+      "C002PrestadorResumen": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prestadorId",
+          "nombrePublico",
+          "tipo",
+          "especialidadesIds",
+          "distritos",
+          "disponibilidadDeclarada"
+        ],
+        "properties": {
+          "prestadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombrePublico": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/C002TipoPrestador"
+          },
+          "especialidadesIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "uniqueItems": true
+          },
+          "distritos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002Distrito"
+            },
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "disponibilidadDeclarada": {
+            "type": "boolean",
+            "description": "Declaración del prestador. No constituye reserva o confirmación."
+          }
+        }
+      },
+      "C002AvisosPublicos": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "calificaciones",
+          "verificaciones"
+        ],
+        "properties": {
+          "calificaciones": {
+            "enum": [
+              "Calificaciones aún no disponibles",
+              null
+            ]
+          },
+          "verificaciones": {
+            "enum": [
+              "Verificaciones aún no disponibles",
+              null
+            ]
+          }
+        },
+        "description": "Ambos avisos de texto se devuelven en la entrega 002. El valor nulo reserva la representación de una fuente disponible para las integraciones independientes de 011 y 012. Los contratos de datos reales se definirán en esas funcionalidades."
+      },
+      "C002PrestadorPublico": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prestadorId",
+          "nombrePublico",
+          "tipo",
+          "experiencia",
+          "especialidadesIds",
+          "distritos",
+          "disponibilidadDeclarada",
+          "trabajos",
+          "servicios",
+          "avisos"
+        ],
+        "properties": {
+          "prestadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombrePublico": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/C002TipoPrestador"
+          },
+          "experiencia": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000,
+            "pattern": "\\S"
+          },
+          "especialidadesIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "uniqueItems": true
+          },
+          "distritos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002Distrito"
+            },
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "disponibilidadDeclarada": {
+            "type": "boolean",
+            "description": "Declaración del prestador. No constituye reserva o confirmación."
+          },
+          "trabajos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002TrabajoPublico"
+            },
+            "maxItems": 10
+          },
+          "servicios": {
+            "$ref": "#/components/schemas/C002PaginaServicios"
+          },
+          "avisos": {
+            "$ref": "#/components/schemas/C002AvisosPublicos"
+          }
+        }
+      },
+      "C002ServicioAlta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "titulo",
+          "descripcion",
+          "categoriaId"
+        ],
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "categoriaId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "C002ServicioEdicion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "categoriaId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "minProperties": 2
+      },
+      "C002ServicioTransicion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "destino"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "destino": {
+            "$ref": "#/components/schemas/C002EstadoServicio"
+          }
+        }
+      },
+      "C002ServicioPublico": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "servicioId",
+          "prestadorId",
+          "titulo",
+          "descripcion",
+          "categoriaId",
+          "estado"
+        ],
+        "properties": {
+          "servicioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prestadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "categoriaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "type": "string",
+            "const": "PUBLICADO"
+          }
+        }
+      },
+      "C002ServicioPrivado": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "servicioId",
+          "prestadorId",
+          "titulo",
+          "descripcion",
+          "categoriaId",
+          "estado",
+          "version"
+        ],
+        "properties": {
+          "servicioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prestadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "categoriaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/C002EstadoServicio"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "C002PaginaServicios": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "elementos",
+          "total",
+          "pagina",
+          "tamano"
+        ],
+        "properties": {
+          "elementos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002ServicioPublico"
+            },
+            "maxItems": 50
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pagina": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tamano": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      },
+      "C002PaginaServiciosPropios": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "elementos",
+          "total",
+          "pagina",
+          "tamano"
+        ],
+        "properties": {
+          "elementos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002ServicioPrivado"
+            },
+            "maxItems": 50
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pagina": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tamano": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      },
+      "C002PaginaPrestadores": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "elementos",
+          "total",
+          "pagina",
+          "tamano"
+        ],
+        "properties": {
+          "elementos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002PrestadorResumen"
+            },
+            "maxItems": 50
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pagina": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tamano": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      },
+      "C002CategoriaPublica": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categoriaId",
+          "categoriaPadreId",
+          "nombre"
+        ],
+        "properties": {
+          "categoriaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoriaPadreId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "C002CategoriasPublicas": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categorias"
+        ],
+        "properties": {
+          "categorias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002CategoriaPublica"
+            }
+          }
+        }
+      },
+      "C002CategoriaAdmin": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categoriaId",
+          "categoriaPadreId",
+          "nombre",
+          "activaPropia",
+          "activaEfectiva",
+          "version"
+        ],
+        "properties": {
+          "categoriaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoriaPadreId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "activaPropia": {
+            "type": "boolean"
+          },
+          "activaEfectiva": {
+            "type": "boolean",
+            "description": "Actividad según el estado propio y el de la categoría padre, si existe."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "C002CategoriasAdmin": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categorias"
+        ],
+        "properties": {
+          "categorias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/C002CategoriaAdmin"
+            }
+          }
+        }
+      },
+      "C002CategoriaAlta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nombre",
+          "motivo"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "categoriaPadreId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "C002CategoriaEdicion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "nombre",
+          "motivo"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "\\S"
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "C002CategoriaActivacion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "motivo"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "C002PrevisualizacionAlta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "C002PrevisualizacionDesactivacion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "confirmacionId",
+          "afectados",
+          "venceEn"
+        ],
+        "properties": {
+          "confirmacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "afectados": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "venceEn": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$",
+            "description": "Fecha ISO 8601 en UTC."
+          }
+        }
+      },
+      "C002CategoriaDesactivacion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "confirmacionId",
+          "version",
+          "motivo"
+        ],
+        "properties": {
+          "confirmacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "C002Error400": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "DATOS_INVALIDOS",
+              "CABECERA_REQUERIDA",
+              "PROPIEDAD_NO_ADMITIDA"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error401": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "NO_AUTENTICADO",
+              "SESION_NO_VALIDA"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error403": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "SIN_PERMISO",
+              "ORIGEN_NO_ADMITIDO"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error404": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "RECURSO_NO_DISPONIBLE"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error409": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "VERSION_DESACTUALIZADA",
+              "CLAVE_IDEMPOTENCIA_REUTILIZADA",
+              "CONFIRMACION_NO_VALIDA",
+              "IMPACTO_DESACTUALIZADO"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error413": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "CUERPO_DEMASIADO_GRANDE",
+              "ARCHIVO_DEMASIADO_GRANDE"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error422": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "CATEGORIA_NO_ACTIVA",
+              "JERARQUIA_CATEGORIA_NO_VALIDA",
+              "TRANSICION_NO_ADMITIDA",
+              "SERVICIO_RETIRADO",
+              "LIMITE_PORTAFOLIO",
+              "IMAGEN_FORMATO_NO_ADMITIDO",
+              "IMAGEN_DIMENSIONES_NO_ADMITIDAS"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "C002Error503": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "mensaje",
+          "detalles"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "DEPENDENCIA_NO_DISPONIBLE"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "detalles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "campo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "C002Error400": {
+        "description": "Entrada, cabecera o parámetro inválido.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error400"
+            }
+          }
+        }
+      },
+      "C002Error401": {
+        "description": "Sesión ausente, vencida o revocada.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error401"
+            }
+          }
+        }
+      },
+      "C002Error403": {
+        "description": "Identidad sin permiso o solicitud desde origen no admitido.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error403"
+            }
+          }
+        }
+      },
+      "C002Error404": {
+        "description": "Recurso inexistente o no visible para el actor.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error404"
+            }
+          }
+        }
+      },
+      "C002Error409": {
+        "description": "Versión, clave idempotente o confirmación en conflicto.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error409"
+            }
+          }
+        }
+      },
+      "C002Error413": {
+        "description": "El transporte o el archivo supera su límite.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error413"
+            }
+          }
+        }
+      },
+      "C002Error422": {
+        "description": "La acción es sintácticamente válida y no cumple una regla del negocio.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error422"
+            }
+          }
+        }
+      },
+      "C002Error503": {
+        "description": "Dependencia necesaria no disponible.",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/C002CacheControl"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/C002Error503"
+            }
+          }
+        }
+      }
+    }
+  }
+}

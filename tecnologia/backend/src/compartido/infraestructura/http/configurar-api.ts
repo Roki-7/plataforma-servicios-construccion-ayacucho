@@ -10,9 +10,42 @@ import { ErrorAplicacion, datosInvalidos } from '../../dominio/errores.js';
 import { eventoPeticion } from './logs-seguros.js';
 import { conDiagnostico, registrarFallo } from '../diagnostico-fallos.js';
 
-interface Operacion { requestBody?: { content: { 'application/json': { schema: AnySchemaObject } } }; parameters?: { $ref?: string }[]; security?: Record<string, string[]>[]; 'x-limite-cuerpo-bytes': number }
-type DocumentoContrato = AnySchemaObject & { paths: Record<string, Record<string, Operacion>> };
-interface Ruta { patron: string; regex: RegExp; metodo: string; operacion: Operacion; validar?: ValidateFunction; parametros: { nombre: string; validar: ValidateFunction }[] }
+interface Parametro { name: string; in: string; required?: boolean; schema: AnySchemaObject }
+interface Operacion { operationId: string; requestBody?: { content: { 'application/json': { schema: AnySchemaObject } } }; parameters?: ({ $ref: string } | Parametro)[]; security?: Record<string, string[]>[]; 'x-limite-cuerpo-bytes': number }
+type DocumentoContrato = { paths: Record<string, Record<string, unknown>> };
+interface Consulta { tipo: unknown; requerido: boolean; predeterminado: unknown; validar: ValidateFunction }
+interface Ruta { patron: string; regex: RegExp; metodo: string; operacion: Operacion; validar?: ValidateFunction; parametros: { nombre: string; validar: ValidateFunction }[]; consultas?: ReadonlyMap<string, Consulta> }
+
+function validarConsulta(url: string, definiciones: ReadonlyMap<string, Consulta>): Record<string, unknown> {
+  const indice = url.indexOf('?');
+  const query = indice === -1 ? '' : url.slice(indice + 1);
+  const entrada = new Map<string, unknown>();
+  const decodificar = (s: string) => decodeURIComponent(s.replaceAll('+', ' '));
+  for (const par of query ? query.split('&') : []) {
+    const igual = par.indexOf('=');
+    if (igual === -1) throw datosInvalidos('Parámetro de consulta no válido.');
+    const clave = decodificar(par.slice(0, igual));
+    const texto = decodificar(par.slice(igual + 1));
+    const parametro = definiciones.get(clave);
+    if (!parametro || entrada.has(clave)) throw datosInvalidos('Parámetro de consulta desconocido o duplicado.');
+    let valor: string | number | boolean = texto;
+    if (parametro.tipo === 'integer') {
+      if (!/^(?:0|[1-9][0-9]*)$/.test(texto) || !Number.isSafeInteger(Number(texto))) throw datosInvalidos('Entero de consulta no válido.');
+      valor = Number(texto);
+    } else if (parametro.tipo === 'boolean') {
+      if (texto !== 'true' && texto !== 'false') throw datosInvalidos('Booleano de consulta no válido.');
+      valor = texto === 'true';
+    }
+    if (!parametro.validar(valor)) throw datosInvalidos('Parámetro de consulta no válido.');
+    entrada.set(clave, valor);
+  }
+  for (const [clave, parametro] of definiciones) {
+    if (entrada.has(clave)) continue;
+    if (parametro.requerido) throw datosInvalidos('Falta un parámetro de consulta.');
+    if (parametro.predeterminado !== undefined) entrada.set(clave, parametro.predeterminado);
+  }
+  return Object.fromEntries(entrada);
+}
 function responder(res: Response, error: ErrorAplicacion): void {
   res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer');
   if (error.http === 429 && error.reintentarEnSegundos !== undefined) res.setHeader('Retry-After', String(error.reintentarEnSegundos));
@@ -24,8 +57,8 @@ function unicodeValido(valor: unknown): boolean {
   if (valor !== null && typeof valor === 'object') return Object.entries(valor).every(([k, v]) => k.isWellFormed() && unicodeValido(v));
   return typeof valor !== 'number' || Number.isFinite(valor);
 }
-export async function configurarApi(app: INestApplication, config: { origen: string; contrato: string; registrar?: (evento: string) => void; registrarDiagnostico?: (evento: string) => void }): Promise<void> {
-  const contrato = JSON.parse(await readFile(config.contrato, 'utf8')) as DocumentoContrato;
+export async function configurarApi(app: INestApplication, config: { origen: string; contrato: string | DocumentoContrato; operaciones002?: ReadonlySet<string>; registrar?: (evento: string) => void; registrarDiagnostico?: (evento: string) => void }): Promise<void> {
+  const contrato: DocumentoContrato = typeof config.contrato === 'string' ? JSON.parse(await readFile(config.contrato, 'utf8')) : config.contrato;
   const ajv = new Ajv2020({ strict: false, allErrors: true });
   const aplicarFormatos = createRequire(import.meta.url)('ajv-formats') as (instance: Ajv2020) => void;
   aplicarFormatos(ajv);
@@ -35,33 +68,45 @@ export async function configurarApi(app: INestApplication, config: { origen: str
   ajv.addSchema(contrato, 'contrato');
   const rutas: Ruta[] = [];
   for (const [patron, metodos] of Object.entries(contrato.paths)) {
-    for (const [metodo, operacion] of Object.entries(metodos)) {
-      if (!['get', 'post', 'patch', 'delete'].includes(metodo)) continue;
-      const schema = operacion.requestBody?.content['application/json'].schema;
+    for (const [metodo, dato] of Object.entries(metodos)) {
+      if (!['get', 'post', 'patch', 'delete', 'put'].includes(metodo)) continue;
+      const operacion = dato as Operacion;
+      const es002 = config.operaciones002?.has(operacion.operationId) === true;
+      const schema = operacion.requestBody?.content['application/json']?.schema;
       const validar = schema ? ajv.compile({ ...schema, ...(schema['$ref'] ? { $ref: `contrato${String(schema['$ref'])}` } : {}) }) : undefined;
       const nombres = Array.from(patron.matchAll(/\{([^}]+)\}/g), (m) => m[1] ?? '');
-      const parametros = nombres.map((nombre) => {
-        const referencias = operacion.parameters ?? [];
-        const componentes = contrato['components'] as { parameters: Record<string, { name: string; in: string; schema: AnySchemaObject }> };
-        const p = referencias.map((r) => componentes.parameters[r.$ref?.split('/').at(-1) ?? '']).find((p) => p?.in === 'path' && p.name === nombre);
-        if (!p) throw new Error('Parámetro contractual no definido.');
-        return { nombre, validar: ajv.compile(p.schema) };
+      const referencias = (operacion.parameters ?? []).map(p => 'name' in p ? { parametro: p, ref: undefined } : {
+        parametro: (contrato as { components?: { parameters?: Record<string, Parametro> } }).components?.parameters?.[p.$ref.split('/').at(-1) ?? ''], ref: p.$ref,
       });
-      rutas.push({ patron, metodo: metodo.toUpperCase(), regex: new RegExp(`^/api/v1${patron.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '([^/]+)')}$`), operacion, parametros, ...(validar ? { validar } : {}) });
+      const compilar = (p: Parametro, ref: string | undefined) => ajv.compile(ref ? { $ref: `contrato${ref}/schema` } : p.schema);
+      const parametros = nombres.map((nombre) => {
+        const dato = referencias.find(p => p.parametro?.in === 'path' && p.parametro.name === nombre);
+        if (!dato?.parametro) throw new Error('Parámetro contractual no definido.');
+        return { nombre, validar: compilar(dato.parametro, dato.ref) };
+      });
+      const consultas = new Map<string, Consulta>();
+      if (es002) for (const { parametro: p, ref } of referencias) {
+        if (p?.in === 'query') consultas.set(p.name, { tipo: p.schema['type'], requerido: p.required === true, predeterminado: p.schema['default'], validar: compilar(p, ref) });
+      }
+      const patronRegex = patron.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '([^/]+)');
+      rutas.push({ patron, metodo: metodo.toUpperCase(), regex: new RegExp(`^/api/v1${patronRegex}${es002 ? '/?' : ''}$`, es002 ? 'i' : ''), operacion, parametros, ...(es002 ? { consultas } : {}), ...(validar ? { validar } : {}) });
     }
   }
+  if (config.operaciones002?.size) rutas.sort((a, b) => a.parametros.length - b.parametros.length);
+  const buscar = (req: Request) => rutas.find(r => (r.metodo === req.method || (r.consultas && req.method === 'HEAD' && r.metodo === 'GET')) && r.regex.test(req.path));
   app.setGlobalPrefix('api/v1');
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    const ruta = rutas.find(r => r.metodo === req.method && r.regex.test(req.path));
+    const ruta = buscar(req);
     conDiagnostico(req.method, ruta?.patron, config.registrarDiagnostico, next);
   });
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Content-Type-Options', 'nosniff');
-    const ruta = rutas.find((r) => r.metodo === req.method && r.regex.test(req.path));
+    const ruta = buscar(req);
     // Marca del servidor, nunca tomada de body/headers. El guard también aplica
     // Bearer contractual si un controlador omite accidentalmente el decorador.
     res.locals['requiereBearer']=ruta?.operacion.security?.some(s=>Object.hasOwn(s,'bearerAuth'))??false;
+    res.locals['ruta002'] = ruta?.consultas !== undefined;
     if (config.registrar) res.on('finish', () => config.registrar?.(eventoPeticion(req.method, ruta?.patron, res.statusCode)));
     const limite = ruta?.operacion['x-limite-cuerpo-bytes'] ?? 65536;
     if (Number(req.headers['content-length'] ?? 0) > limite) { responder(res, new ErrorAplicacion(413, 'CUERPO_DEMASIADO_GRANDE', 'El cuerpo supera el límite permitido.')); req.resume(); return; }
@@ -74,23 +119,25 @@ export async function configurarApi(app: INestApplication, config: { origen: str
         }
         if (ruta?.patron === '/cuentas' && !req.body?.fotografia && bytes > 65536) throw new ErrorAplicacion(413, 'CUERPO_DEMASIADO_GRANDE', 'El cuerpo supera el límite permitido.');
         if (bytes > 0 && (!ruta?.operacion.requestBody || !/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] ?? ''))) throw datosInvalidos();
+        if (ruta?.consultas) res.locals['consulta002'] = validarConsulta(req.originalUrl, ruta.consultas);
         const valoresRuta = ruta?.regex.exec(req.path);
         if (ruta && valoresRuta) for (const [i, parametro] of ruta.parametros.entries()) {
           let valor: string; try { valor = decodeURIComponent(valoresRuta[i + 1] ?? ''); } catch { throw datosInvalidos(); }
           if (!parametro.validar(valor)) throw datosInvalidos('Parámetro de ruta no válido.');
         }
-        if (ruta?.operacion.parameters?.some((p) => p.$ref === '#/components/parameters/Origin')) {
+        if (ruta?.operacion.parameters?.some((p) => '$ref' in p && p.$ref === '#/components/parameters/Origin')) {
           const origen = req.headers.origin;
           if (!origen) throw new ErrorAplicacion(400, 'CABECERA_REQUERIDA', 'Falta la cabecera Origin.');
           try { new URL(origen); } catch { throw datosInvalidos('Origin no tiene formato válido.'); }
           if (origen !== config.origen) throw new ErrorAplicacion(403, 'ORIGEN_NO_ADMITIDO', 'Origen no admitido.');
         }
-        if (ruta?.operacion.parameters?.some((p) => p.$ref === '#/components/parameters/IdempotencyKey')) {
+        if (ruta?.operacion.parameters?.some((p) => '$ref' in p && p.$ref === '#/components/parameters/IdempotencyKey')) {
           const clave = req.get('Idempotency-Key');
           if (!clave) throw new ErrorAplicacion(400, 'CABECERA_REQUERIDA', 'Falta Idempotency-Key.');
           if (clave.length < 16 || clave.length > 128) throw datosInvalidos();
         }
-        const imagen = ruta?.patron === '/perfil/fotografias' && req.method === 'POST' ? req.body : ruta?.patron === '/cuentas' ? req.body?.fotografia : undefined;
+        const foto002 = ruta?.consultas !== undefined && ruta.operacion['x-limite-cuerpo-bytes'] === 14000000;
+        const imagen = foto002 || (ruta?.patron === '/perfil/fotografias' && req.method === 'POST') ? req.body : ruta?.patron === '/cuentas' ? req.body?.fotografia : undefined;
         const contenido = imagen?.contenidoBase64;
         if (typeof contenido === 'string' && (contenido.length > 13333336 || Buffer.byteLength(contenido,'base64') > 10000000)) throw new ErrorAplicacion(413,'ARCHIVO_DEMASIADO_GRANDE','La imagen supera 10 MB.');
         if (ruta?.validar && (!unicodeValido(req.body) || !ruta.validar(req.body))) {
