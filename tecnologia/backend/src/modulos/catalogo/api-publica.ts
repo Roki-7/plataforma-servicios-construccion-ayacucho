@@ -41,6 +41,27 @@ export interface ElegibilidadServicio {
 
 export type { ServicioPublicoDto, PaginaDto } from './aplicacion/puertos/consultas-publicas.js';
 /** Oferta visible de un prestador para su perfil público. Solo servicios PUBLICADO con clasificación efectivamente activa. */
+/** Clasificación vista por la gestión autorizada (RF39). Nunca incluye datos de cuentas. */
+export interface ClasificacionAdmin {
+  readonly categoriaId: string; readonly categoriaPadreId: string | null; readonly nombre: string;
+  readonly activaPropia: boolean; readonly activaEfectiva: boolean; readonly version: number;
+}
+export interface ClasificacionPublica { readonly categoriaId: string; readonly categoriaPadreId: string | null; readonly nombre: string }
+export interface PrevisualizacionDesactivacion { readonly confirmacionId: string; readonly afectados: number; readonly venceEn: string }
+/**
+ * API interna para Administración. Cada mutación exige una transacción abierta por el llamador, que ya tomó el permiso RF39 y la idempotencia.
+ * Catálogo toma después la revisión exclusiva, la raíz y la subcategoría. No audita ni autoriza.
+ */
+export interface GestionClasificaciones {
+  listarAdmin(): Promise<readonly ClasificacionAdmin[]>;
+  listarPublicas(): Promise<readonly ClasificacionPublica[]>;
+  crear(tx: ContextoTransaccion, entrada: { nombre: unknown; padreId?: string | null }): Promise<ClasificacionAdmin>;
+  editar(tx: ContextoTransaccion, id: string, version: number, nombre: unknown): Promise<ClasificacionAdmin>;
+  activar(tx: ContextoTransaccion, id: string, version: number): Promise<ClasificacionAdmin>;
+  previsualizarDesactivacion(tx: ContextoTransaccion, id: string, version: number, actorCuentaId: string): Promise<PrevisualizacionDesactivacion>;
+  desactivar(tx: ContextoTransaccion, id: string, version: number, confirmacionId: string, actorCuentaId: string): Promise<ClasificacionAdmin>;
+}
+
 export interface OfertaPublica {
   serviciosVisiblesDe(prestadorId: string, pagina: number, tamano: number): Promise<import('./aplicacion/puertos/consultas-publicas.js').PaginaDto<import('./aplicacion/puertos/consultas-publicas.js').ServicioPublicoDto>>;
 }

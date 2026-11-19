@@ -319,3 +319,64 @@ La regresión de 001 no se repitió: esta fase no modificó código compartido n
 - Las migraciones de índices y los controladores públicos no están registrados todavía en `db:migrate:002` ni en la aplicación de 40 operaciones. Esa integración corresponde a T066 y T067 y no se declara completa.
 - Una fila de la proyección se actualiza con el perfil. Si cambia el estado `publicable` por SQL, hay que avanzar también la revisión para invalidar la caché, como hacen las operaciones de negocio.
 - No se ejecutó Playwright (T075) ni el ensayo de rendimiento con 1 000 prestadores y 5 000 servicios.
+
+## Resultados de la fase 6 (HU25)
+
+Estado: **fase 6 completa**, 11 de 11 tareas pendientes verificadas más T055 (65 de 94 acumuladas).
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T054 | Verificada | Contrato `categorias.spec.ts`: 9/9 (siete operaciones, esquemas OpenAPI, 400/401/403/404/409/422). |
+| T055 | Verificada | Unitaria `clasificaciones.spec.ts`: 12/12. Códigos alineados con el contrato (`JERARQUIA_CATEGORIA_NO_VALIDA`, `TRANSICION_NO_ADMITIDA`). |
+| T056 | Verificada | Integración `autorizacion-y-categorias.spec.ts`: 24/24 con PostgreSQL real. Cubre revocación con sesión abierta, entre vista previa y confirmación y en replay; actor ajeno; confirmación vencida y cambio de impacto; alta operativa (ejecutor no habilitado, firmante como ejecutor, autoconcesión, sustitución de cuenta, firma ajena o alterada, vigencia, entorno, aprobación y constancia reutilizadas); reversión conjunta ante fallo de auditoría; carreras; 10 escrituras simultáneas sin agotar el pool. |
+| T057 | Verificada | Migraciones `PermisosYAuditoria1795000000007` y `ConfirmacionesDesactivacion1795000000008`. Auditoría de solo adición. |
+| T058 | Verificada | Permiso bloqueado con `FOR UPDATE` dentro de `autorizar`, antes de la idempotencia y de Catálogo. El replay revalida. |
+| T059 | Verificada | Comando real ejecutado como proceso separado contra un PostgreSQL aislado (ver abajo): 9/9. |
+| T060 | Verificada | Permiso, consumo de aprobación y constancia, y auditoría en una transacción (prueba de reversión). |
+| T061 | Verificada | Alta inactiva, edición, activación y desactivación con jerarquía inmutable. Servicios conservados. |
+| T062 | Verificada | Impacto de servicios distintos con vencimiento de cinco minutos. Confirmación de un solo uso con revalidación bajo bloqueo. |
+| T063 | Verificada | Arnés `fixtures-hu25.ts`, siete operaciones y consulta pública con caché. |
+| T064 | Verificada | `visibilidad-categorias.spec.ts`: 4/4 con Redis real y claves calientes (CA-CAT-02, 04, 07 a 10). |
+| T065 | Verificada | CA-CAT-01 a CA-CAT-09 con datos y permiso operativos (T054, T056, T059, T064). CA-CAT-10: exclusión inmediata con caché caliente (T064). La desactivación durante la caída y la recuperación de Redis corresponde a T069. |
+
+### Evidencia de T059: comando operativo contra un entorno aislado
+
+Entorno: proyecto Docker `ayacucho-rf39-aislada`, contenedor y volumen propios, PostgreSQL 18 (misma imagen fijada por digest que la 002) en `127.0.0.1:54340`, credencial aleatoria en `tecnologia/.local/rf39-aislada/.env` (ignorado por Git). No se usó `ayacucho_002_validacion`, ninguna base de 001 ni producción. Cada ejecución crea una base `rf39_<uuid>`, la migra, y la elimina al terminar. Antes de cada comando la prueba valida el destino (host, puerto, usuario y nombre de la base) y consulta `current_database()` en el servidor.
+
+Prueba: `procedimiento-rf39-aislado.spec.ts` (opt-in con `RF39_AISLADA_URL`; sin esa variable se omite). Ejecuta `scripts/gestionar-permisos-rf39.ts` en procesos nuevos con un entorno construido desde cero. Todas las comprobaciones se hicieron con SQL directo sobre PostgreSQL. Resultado: 9/9.
+
+- `constancia`: sesión por entrada estándar. Una sesión inválida no deja filas. La constancia guarda cuenta y entorno, sin el Bearer. El token no aparece en la salida ni en la base.
+- `conceder` rechazado sin cambiar la base (0 permisos, 0 aprobaciones, 0 auditorías, constancia sin consumir): firma de otra clave, cuenta distinta, aprobación vencida, firmante no designado y motivo alterado tras firmar.
+- `conceder` válido: permiso `VIGENTE` versión 1. Aprobación registrada con firmante, ejecutor (principal del sistema operativo) y cuenta. Constancia consumida. Auditoría con `operativo:<principal>`, aprobación, acción y motivo. Otro proceso de la aplicación autoriza con ese permiso.
+- Reutilización: la misma aprobación se rechaza y no duplica aprobaciones ni auditorías.
+- `revocar`: una firma ajena se rechaza. Con una aprobación válida el permiso queda `REVOCADO` versión 2, con la fila conservada y `revocado_en` informado. La sesión 001, todavía abierta, recibe 403 en lectura y escritura. Una revocación repetida se rechaza con `PERMISO_NO_VIGENTE`.
+- Auditoría: `UPDATE`, `DELETE` y `TRUNCATE` fallan con «solo adición» y el recuento no cambia.
+- Ejecutor: si el principal del sistema no está habilitado en la configuración protegida, o falta esa configuración, el comando falla sin cambios.
+
+Claves: el par Ed25519 se genera en memoria en cada ejecución. En la configuración protegida solo hay clave pública, y el cargador rechaza texto con clave privada. No hay secretos en Git.
+
+Verificaciones transversales: `tsc` y `eslint` limpios. Unit + architecture: 18 suites, 217/217. Las suites 002 de contrato e integración pasan en ejecución individual o por grupos en serie. Frontend sin cambios.
+
+Observaciones: ejecutar todas las suites en paralelo supera el límite de 30 s de algunos hooks por carga de la máquina. Cada suite afectada pasó al repetirse en serie. Esas ejecuciones dejaron bases `ayacucho_002_test_*` huérfanas, y se eliminaron solo esas. La base `ayacucho_002_validacion` no se modificó (no se ejecutaron migraciones sobre ella).
+
+Limitaciones: los controladores, migraciones y rutas de categorías no están registrados todavía en `db:migrate:002` ni en la aplicación de 40 operaciones (T066 y T067). El comando usa `cargarConfiguracion`, que en modo validación solo admite bases `ayacucho_001_*`. Para 002 se resolverá con la raíz de composición de T066. El panel web de categorías pertenece a 012.
+
+### Correcciones tras la auditoría final de la fase 6
+
+Hallazgos de la auditoría y su resolución:
+
+1. **Autoprotección del ejecutor sensible a mayúsculas (defecto confirmado).** `GestionarPermisosRf39` comparaba `ejecutor.cuentaId === a.cuentaId` con texto exacto. Una sonda demostró que el ejecutor asociado a una cuenta podía revocar su propio permiso con el UUID en mayúsculas. Corrección: la firma Ed25519 se verifica sobre el contenido original recibido, sin modificarlo. Solo después se normalizan con `uuidEnMinusculas` el ID de aprobación, la cuenta y la constancia. La comparación del ejecutor normaliza también la cuenta asociada en la configuración. La concesión no era evadible: la constancia se compara con el valor de la base y ya rechazaba mayúsculas.
+2. **`emitirConstancia` sin validar al ejecutor.** Ahora recibe el principal del sistema y lo valida con el mismo `ejecutor()` que usan `conceder` y `revocar`, antes de consultar la sesión. Una identidad no habilitada, el firmante o una cadena vacía no crean registros. El comando pasa el principal del sistema operativo; no hay otra vía de autorización.
+3. **Concesiones iniciales simultáneas.** No se cambió la lógica. Análisis: con dos constancias y dos aprobaciones válidas y distintas para una cuenta sin fila, ambas concesiones se aceptan (6 de 6 intentos de la sonda): permiso `VIGENTE` en versión 2, dos auditorías y dos aprobaciones consumidas. Una concesión secuencial posterior se rechaza con `PERMISO_YA_VIGENTE`. No incumple ninguna regla de negocio ni de contrato: el permiso es único por cuenta, cada aprobación y constancia se consume una sola vez, cada concesión queda auditada y exige una aprobación válida del Product Owner. Es una diferencia de comportamiento entre el caso secuencial y el concurrente, sin efecto de seguridad. Queda documentada y una prueba permanente fija los invariantes (un único permiso, y versión, auditorías, aprobaciones y constancias consumidas iguales al número de concesiones aceptadas).
+4. **Estabilidad del arnés.** Los fallos observados eran siempre hooks `afterAll` de 30 s, nunca aserciones. PostgreSQL no era el límite: máximo 17 conexiones de 100, y crear y eliminar bases con 7 procesos tardó 3 s. Con 7 trabajadores las suites tardaban unos 90 s por contención de CPU de una máquina de 8 núcleos. Con 2 trabajadores terminan en 8 a 30 s. Se añadió el script `test:integration:002` (`--maxWorkers=2`, solo `prestadores-catalogo`). La configuración global de Jest y los timeouts no cambian, y `test:integration` sigue igual.
+
+Pruebas permanentes nuevas (todas en `autorizacion-y-categorias.spec.ts`, ahora 32): autoprotección con UUID en minúsculas, mayúsculas y capitalización mixta; cuenta asociada en mayúsculas en la configuración; operar con UUID en mayúsculas persistiendo en minúsculas; firma sobre el original (cambiar solo la capitalización la invalida); constancia y cuenta en mayúsculas al conceder; emisión de constancias por ejecutor habilitado, no habilitado, firmante y cadena vacía, y la identidad comprobada antes de la sesión; concesiones simultáneas. En `procedimiento-rf39-aislado.spec.ts`: el comando `constancia` con un principal no habilitado y sin configuración no crea registros. Prueba de mutación: con la comparación antigua, 2 de las pruebas de autoprotección fallan, y con la corrección pasan. En `visibilidad-categorias.spec.ts` (7): referencias previas de solicitudes, cotizaciones y contrataciones, reactivación de un servicio PAUSADO con información anterior (CA-CAT-04) y subcategoría con estado propio inactivo (CA-CAT-08 y 09).
+
+Verificación final (Node 24.15.0 local):
+- Comando real RF39 contra PostgreSQL aislado (`ayacucho-rf39-aislada`): 9/9.
+- Integración 002 con `--maxWorkers=2` (12 suites, incluido el comando aislado): 109/109, sin fallos de hooks y con 0 bases residuales.
+- Contrato 002, unit y architecture (23 suites): 280/280.
+- `tsc` y `eslint`: limpios.
+- Regresión 001: se reutiliza 222/222 de la auditoría. No cambió código de 001 ni compartido.
+
+Limitación de las pruebas paralelas: con más de 2 trabajadores las suites de integración 002 pueden superar los 30 s de `afterAll` en esta máquina. Es contención de CPU y no un defecto, pero conviene usar `test:integration:002`.

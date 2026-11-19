@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import type { Provider, Type } from '@nestjs/common';
 import request from 'supertest';
+import type { RegistroPersistencia002 } from '../../../src/composicion/persistencia.js';
 import { PerfilesYPortafolio1795000000004 } from '../../../src/modulos/prestadores/infraestructura/migraciones/perfiles-y-portafolio.js';
 import { registroBusqueda002, type OpcionesBusqueda002 } from '../../../src/composicion/busqueda-002.js';
 import { registroServicios002 } from '../../../src/composicion/servicios-002.js';
@@ -20,12 +22,14 @@ export const total = 4 + 25;
 export interface Hu05Datos { readonly titular: CuentaPrueba; readonly otro: CuentaPrueba; readonly cuentaA: string }
 
 /** Monta US3 con US2 (ciclo de servicios) y sus rutas reales, migraciones y un catálogo ficticio con perfiles, proyección, servicios y trabajos. */
-export async function montarHu05(opciones: OpcionesBusqueda002 = {}, registrar?: (linea: string) => void) {
+export interface RegistroAdicional { readonly controladores: readonly Type[]; readonly proveedores: readonly Provider[]; readonly operaciones: readonly string[]; readonly persistencia: readonly RegistroPersistencia002[] }
+
+export async function montarHu05(opciones: OpcionesBusqueda002 = {}, registrar?: (linea: string) => void, adicional?: RegistroAdicional) {
   const propios = registroServicios002();
   const busqueda = registroBusqueda002(opciones);
-  const registro = { controladores: [...propios.controladores, ...busqueda.controladores], proveedores: [...propios.proveedores, ...busqueda.proveedores],
-    operaciones: [...propios.operaciones, ...busqueda.operaciones],
-    persistencia: [{ migraciones: [PerfilesYPortafolio1795000000004] }, ...propios.persistencia, ...busqueda.persistencia] };
+  const registro = { controladores: [...propios.controladores, ...busqueda.controladores, ...(adicional?.controladores ?? [])], proveedores: [...propios.proveedores, ...busqueda.proveedores, ...(adicional?.proveedores ?? [])],
+    operaciones: [...propios.operaciones, ...busqueda.operaciones, ...(adicional?.operaciones ?? [])],
+    persistencia: [{ migraciones: [PerfilesYPortafolio1795000000004] }, ...propios.persistencia, ...busqueda.persistencia, ...(adicional?.persistencia ?? [])] };
   const e = await aplicacionPorHistoria('HU05', registro, {
     cargar: async (app) => {
       const http = request(app.app.getHttpServer());

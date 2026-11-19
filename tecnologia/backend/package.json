@@ -30,6 +30,7 @@
     "test:respaldo": "tsx scripts/ensayar-recuperacion.ts",
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects unit --runInBand",
     "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration",
+    "test:integration:002": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration --maxWorkers=2 --testPathPatterns prestadores-catalogo",
     "test:contract": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects contract --runInBand",
     "test:architecture": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects architecture --runInBand",
     "test:coverage:001": "tsx scripts/verificar-cobertura-001.ts"
