@@ -1,0 +1,25 @@
+name: ayacucho-002-validacion
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ayacucho_002_validacion
+      POSTGRES_USER: ayacucho_validacion_002
+    ports: !override ["127.0.0.1:54330:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ayacucho_validacion_002 -d ayacucho_002_validacion"]
+  redis:
+    ports: !override ["127.0.0.1:63800:6379"]
+  correo:
+    ports: !override ["127.0.0.1:1026:1025", "127.0.0.1:8026:8025"]
+  objetos:
+    command: ["/garage", "server", "--single-node"]
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: !reset null
+      GARAGE_DEFAULT_SECRET_KEY: !reset null
+      GARAGE_DEFAULT_BUCKET: !reset null
+    ports: !override ["127.0.0.1:3910:3900"]
+  proxy:
+    ports: !override ["127.0.0.1:8444:8444"]
+    volumes: !override
+      - ./.local/002/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.local/002/tls:/certs:ro

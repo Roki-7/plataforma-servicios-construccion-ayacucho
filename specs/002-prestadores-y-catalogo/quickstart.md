@@ -20,37 +20,43 @@ npm.cmd --prefix tecnologia/frontend run
 
 El Compose actual declara PostgreSQL 18, Redis 8, Mailpit, Garage y el proxy Caddy bajo el perfil `web`. Si Node global no alcanza la versión requerida, usar el wrapper local con Node 24. En Linux, usar `npm` en los ejemplos de PowerShell. Los scripts `dev:prepare`, `test:seed` y `test:performance` existentes preparan o prueban la 001. La cuenta ficticia administrativa de referencia de ese seed carece de un permiso concedido. [Wrapper local](../../tecnologia/scripts/npm-local.ps1) · [Guía de validación 001](../001-usuarios-y-acceso/quickstart.md).
 
-## Preparación y arranque previstos para la 002
+## Preparación y arranque para la 002
 
-Se prevé un entorno aislado reconocido por los scripts de validación de la 002, con base, espacio Redis, bucket y archivos locales independientes. `dev:prepare:002` solo generará la configuración, TLS y el catálogo de contraseñas de prueba. Compose iniciará PostgreSQL, Redis, correo y objetos. Después se ejecutarán, por separado, `db:migrate:002` para aplicar el esquema, `storage:init:002` para preparar el bucket privado y `test:seed:002` para cargar los datos ficticios. La concesión al operador de prueba usará el procedimiento operativo de RF39. El arranque rechazará una configuración ajena al entorno de validación. Los scripts de la 001 conservarán sus bases y fixtures.
+`dev:prepare:002` genera configuración, TLS y un catálogo ficticio en `tecnologia/.local/002/` antes de iniciar Compose. Compose inicia PostgreSQL, Redis, correo y objetos. El iniciador verifica la configuración dedicada de la 002. La fase de preparación permite llegar hasta el arranque de estos servicios y comprobar la configuración con `start:validation:002 -- --verificar-config`.
 
-Los siguientes comandos especifican los puntos de entrada que deberán quedar disponibles tras la implementación. Los comandos nuevos y el archivo Compose de la 002 pertenecen al diseño y todavía no existen.
+Los puntos de entrada `db:migrate:002`, `storage:init:002`, `test:seed:002` y `start:validation:002` validan el entorno. La migración, la creación del bucket privado, la carga de datos y la aplicación compuesta se habilitarán en T008, T029 y T066–T067. La concesión al operador de prueba usará el procedimiento operativo de RF39. En Windows, si Node global no cumple la versión, sustituir `npm.cmd` por `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tecnologia/scripts/npm-local.ps1`.
 
 ```powershell
 npm.cmd --prefix tecnologia/backend ci
 npm.cmd --prefix tecnologia/frontend ci
 npm.cmd --prefix tecnologia/backend run dev:prepare:002 -- --validation
 docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml up -d --wait postgres redis correo objetos
+npm.cmd --prefix tecnologia/backend run start:validation:002 -- --verificar-config
+```
+
+Ejecutar estos tres pasos por separado cuando estén implementados.
+
+```powershell
 npm.cmd --prefix tecnologia/backend run db:migrate:002
 npm.cmd --prefix tecnologia/backend run storage:init:002
 npm.cmd --prefix tecnologia/backend run test:seed:002
 ```
 
-La preparación 002 debe generar o reutilizar en solo lectura un catálogo de contraseñas de prueba bajo su propia configuración. El script existente de la 001 utiliza rutas locales fijas. Los puertos y la CA local se reservan para una demostración a la vez. Usar el ejecutor 001 en su propia demostración para las regresiones.
+Los puertos locales de la 002 son PostgreSQL `54330`, Redis `63800`, SMTP `1026`, Mailpit web `8026`, Garage `3910`, backend `3002`, Vite `5175` y HTTPS `8444`. Compose aísla la red y los volúmenes por nombre de proyecto. Para las regresiones usar el ejecutor, los puertos y la CA de la 001.
 
 Antes del cierre por historia, el arnés de prueba instalará sus controladores reales con la validación HTTP compartida, un subconjunto explícito de las rutas del contrato y las migraciones y datos ya disponibles. Comprobar primero que responde la ruta esperada con su guard y que la semilla existe. Ejecutar entonces la suite HTTP o de integración. Los ensayos de la unión de 40 rutas esperan el arranque completo y su carga de datos.
 
 Asignar un proyecto de Compose, base, instancia Redis, bucket, puertos HTTPS y destino de evidencias independientes cuando se ejecuten ensayos concurrentes. Si se comparte infraestructura, ejecutar en serie las suites que escriben categorías, servicios o fotos y las que detienen Redis o restauran PostgreSQL. Entre corridas, restablecer servicios y espacio Redis, reaplicar la semilla en recursos descartables y comprobar estado y recuentos esperados. El ensayo de rendimiento usa un entorno dedicado sin otras corridas que puedan variar carga o datos.
 
-Después de la preparación, arrancar la API y la web en terminales independientes y levantar el proxy. El origen de referencia y las comprobaciones funcionales conservan TLS activo.
+Una vez implementada la aplicación compuesta y cargados los datos, arrancar la API y la web en terminales independientes y levantar el proxy. El origen de referencia y las comprobaciones funcionales conservan TLS activo.
 
 ```powershell
 npm.cmd --prefix tecnologia/backend run start:validation:002
-npm.cmd --prefix tecnologia/frontend run dev -- --host 127.0.0.1 --mode validation
+npm.cmd --prefix tecnologia/frontend run dev -- --host 127.0.0.1 --port 5175 --strictPort --mode validation
 docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml --profile web up -d proxy
-curl.exe --cacert tecnologia/.local/002/tls/ca.crt https://localhost:8443/api/v1/salud
-curl.exe --cacert tecnologia/.local/002/tls/ca.crt "https://localhost:8443/api/v1/categorias"
-curl.exe --cacert tecnologia/.local/002/tls/ca.crt "https://localhost:8443/api/v1/servicios?pagina=1&tamano=20"
+curl.exe --cacert tecnologia/.local/002/tls/ca.crt https://localhost:8444/api/v1/salud
+curl.exe --cacert tecnologia/.local/002/tls/ca.crt "https://localhost:8444/api/v1/categorias"
+curl.exe --cacert tecnologia/.local/002/tls/ca.crt "https://localhost:8444/api/v1/servicios?pagina=1&tamano=20"
 ```
 
 Se espera HTTP 200, categorías vigentes y una página conforme al contrato. Validar la CA con el navegador de prueba y conservar los controles negativos de confianza. Las pruebas con sesión obtienen el token mediante el inicio de sesión real de la 001.
@@ -116,7 +122,7 @@ La ejecución prevista utiliza un script 002 independiente de `test:performance`
 
 ```powershell
 $env:VALIDATION_MODE = 'true'
-$env:ORIGEN_VALIDACION = 'https://localhost:8443'
+$env:ORIGEN_VALIDACION = 'https://localhost:8444'
 $env:SSL_CERT_FILE = (Resolve-Path 'tecnologia/.local/002/tls/ca.crt').Path
 k6 run --vus 50 --duration 15m --summary-export "$evidencia002/eq01-50.json" tecnologia/backend/test/performance/prestadores-catalogo.k6.js
 ```
