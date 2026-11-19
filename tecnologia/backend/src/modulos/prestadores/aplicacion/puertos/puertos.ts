@@ -35,6 +35,8 @@ export interface NuevaFotografia {
 /** Persistencia de Prestadores. Con `tx` participa en la unidad de trabajo. Sin `tx` lee del primario. */
 export interface RepositorioPrestadores {
   perfilPorCuenta(cuentaId: string, tx?: ContextoTransaccion, bloquear?: boolean): Promise<PerfilProfesional | null>;
+  /** Perfil publicable por su identificador público. `null` si no existe o no es publicable. */
+  perfilPublicoPorId(prestadorId: string): Promise<PerfilProfesional | null>;
   trabajos(prestadorId: string, tx?: ContextoTransaccion): Promise<TrabajoAnterior[]>;
   trabajoDe(prestadorId: string, trabajoId: string, tx?: ContextoTransaccion, bloquear?: boolean): Promise<TrabajoAnterior | null>;
   contarTrabajos(prestadorId: string, tx?: ContextoTransaccion): Promise<number>;

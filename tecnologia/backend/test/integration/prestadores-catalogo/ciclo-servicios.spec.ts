@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from '@jest/globals';
 import { randomUUID } from 'node:crypto';
+import { ConsultasPublicasPostgres } from '../../../src/modulos/catalogo/infraestructura/persistencia/consultas-publicas.js';
 import { clasificaciones04 as c, montarHu04, servicioValido, type EntornoHu04 } from '../../soporte/prestadores-catalogo/fixtures-hu04.js';
 
 let e: EntornoHu04;
@@ -165,5 +166,29 @@ describe('elegibilidad vigente (CA-SER-09)', () => {
     expect((await solicitud).elegible).toBe(true);
     expect((await pausa).status).toBe(200);
     expect(await e.elegibilidad.evaluar(s.servicioId)).toMatchObject({ elegible: false, motivo: 'ESTADO_NO_PUBLICADO' });
+  }, 30000);
+});
+
+describe('CA-SER-08 en la capa de datos: exclusión de las consultas públicas tras pausar o retirar', () => {
+  test('consultas sucesivas dejan de devolver el servicio y conservan el resto del prestador', async () => {
+    const publicas = new ConsultasPublicasPostgres(e.uow);
+    await e.db.query(`INSERT INTO catalogo_proyeccion_prestadores(prestador_id,nombre_publico,tipo,disponibilidad_declarada,especialidades,distritos,publicable)
+      VALUES($1,'Prestador 04','TECNICO',true,$2::uuid[],'{ayacucho}',true) ON CONFLICT (prestador_id) DO NOTHING`, [e.datos.perfiles.prestador, [c.hija]]);
+    const t = e.datos.prestador.token;
+    const [a, b, resto] = [await publicar(t), await publicar(t), await publicar(t)];
+    const visibles = async () => (await publicas.serviciosVisiblesDe(e.datos.perfiles.prestador, 1, 50)).elementos.map(x => x.servicioId);
+    const filtro = { categoria: c.hija, pagina: 1, tamano: 50 };
+    const buscados = async () => (await publicas.buscarServicios(filtro)).elementos.map(x => x.servicioId);
+    for (const s of [a, b, resto]) { expect(await visibles()).toContain(s.servicioId); expect(await buscados()).toContain(s.servicioId); expect(await publicas.servicioVisible(s.servicioId)).not.toBeNull(); }
+    await e.transicionar(t, a.servicioId, { version: 1, destino: 'PAUSADO' }).expect(200);
+    await e.transicionar(t, b.servicioId, { version: 1, destino: 'RETIRADO' }).expect(200);
+    for (let i = 0; i < 3; i++) {
+      for (const s of [a, b]) { expect(await visibles()).not.toContain(s.servicioId); expect(await buscados()).not.toContain(s.servicioId); expect(await publicas.servicioVisible(s.servicioId)).toBeNull(); }
+      expect(await visibles()).toContain(resto.servicioId);
+    }
+    // El registro histórico sigue disponible para los procesos autorizados, aunque no sea visible al público.
+    expect(await e.elegibilidad.registro(b.servicioId)).toMatchObject({ estado: 'RETIRADO' });
+    const pagina = await publicas.buscarServicios({ ...filtro, pagina: 1, tamano: 1 });
+    expect(pagina.total).toBe((await buscados()).length);
   }, 30000);
 });

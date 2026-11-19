@@ -20,8 +20,8 @@
 |---|---|---|
 | T001–T006 | PENDIENTE | Inventario estático, preparación local, Compose, controles del iniciador, PostgreSQL real y selectores e informes de prueba. |
 | HU03 / RF06 | APROBADA | CA-PRE-01 a 08 con el arnés US1 (ver «Resultados de la fase 3»). La integración conjunta de 40 operaciones sigue pendiente. |
-| HU04 / RF08 | APROBADA parcial | CA-SER-01 a 07 y 09 con el arnés US2. CA-SER-08 se completa con las consultas públicas de US3 (T052). |
-| HU05 / RF09, RF10 | PENDIENTE | CA-BUS-01 a 08. |
+| HU04 / RF08 | APROBADA | CA-SER-01 a 07 y 09 con el arnés US2 y CA-SER-08 con las consultas públicas de US3 (fase 5). |
+| HU05 / RF09, RF10 | APROBADA | CA-BUS-01 a 08 con el arnés US3 (ver «Resultados de la fase 5»). Los avisos de 011 y 012 usan dobles de fuentes. |
 | HU25 / RF39 | PENDIENTE | CA-CAT-01 a 10. |
 | Integración y calidad | PENDIENTE | Unión de contratos y regresión de 001, Redis, seguridad, arquitectura, restauración, CI, accesibilidad, responsive, EQ-01 y EQ-03 según [tareas](tasks.md) y [guía de validación](quickstart.md). |
 | Integraciones futuras | PENDIENTE | Solicitudes en 003, referencias posteriores, calificaciones en 011 y verificaciones en 012. |
@@ -240,3 +240,82 @@ Evidencia:
 | `typecheck`, `lint` y `build` del backend | Correctos |
 
 Limitación observada: en tres ejecuciones aisladas de Jest durante el desarrollo, el registro de salida quedó vacío sin un fallo asociado. No se reprodujo en 10 ejecuciones posteriores y no se identificó la causa.
+
+## Resultados de la fase 5 — HU05 · Búsqueda y consultas públicas (RF09, RF10)
+
+Entorno: Node.js 24.15.0 del toolchain local, PostgreSQL 18, Redis 8 y Garage de la validación 002 (bases temporales eliminadas al terminar) y Redis con un espacio de claves propio por prueba. Todos los datos son ficticios.
+
+### Montaje de US3
+
+`registroBusqueda002` monta `BusquedaController` (`GET /servicios`, `GET /servicios/{servicioId}`, `GET /prestadores`) y `PerfilPublicoController` (`GET /prestadores/{prestadorId}`), con la migración `IndicesBusqueda1795000000006` y una caché opcional (`CatalogoCache` sobre Redis). `fixtures-hu05.ts` los monta junto con los servicios propios de US2 y carga una jerarquía de clasificaciones (una raíz inactiva con una hija de estado propio activo), siete prestadores (uno no publicable), servicios en los tres estados, 25 servicios para paginar y un trabajo con fotografía. El arnés comprueba antes de arrancar que el router coincide con las ocho operaciones.
+
+Los controladores de `servicios/mios` y `prestadores/perfil` deben registrarse antes que los de parámetro. Queda documentado en los controladores y en la composición.
+
+### Consultas e índices
+
+Cada búsqueda es una sola sentencia con el total y la página de la misma instantánea (CTE materializada) y orden estable: servicios por UUID, prestadores por nombre sin distinguir mayúsculas y UUID. Un servicio es visible solo si está PUBLICADO, su clasificación está efectivamente activa (propia y de su padre) y su prestador es publicable. La categoría raíz incluye sus subcategorías activas y, para prestadores, exige al menos un servicio visible coincidente. Todos los valores son parámetros enlazados.
+
+Plan con `enable_seqscan=off`, extraído de la prueba de integración (resumen):
+
+| Consulta | Plan |
+|---|---|
+| Servicios | `Index Scan using catalogo_servicios_publicados_por_prestador`, `Index Scan using catalogo_clasificaciones_id_nivel_key` (hija y padre) y `Bitmap Index Scan on catalogo_proyeccion_disponibilidad`, con `Sort` por `id` |
+| Prestadores | `Bitmap Index Scan on catalogo_proyeccion_disponibilidad` con los filtros de especialidades y zonas aplicados sobre las filas seleccionadas (los índices GIN no intervienen en este plan con pocas filas) y `Sort` por `lower(nombre_publico), prestador_id` |
+
+Los planes se forzaron con `enable_seqscan=off` porque las tablas de prueba son pequeñas: demuestran que los índices son utilizables, no que el planificador los elija con ese volumen. El plan con volumen real (1 000 prestadores y 5 000 servicios) se mide en la fase de rendimiento (EQ-01, EQ-03).
+
+### Verificaciones ejecutadas
+
+| Grupo | Resultado |
+|---|---|
+| Contrato (`busqueda-publica.spec.ts`) | 12 de 12 aprobadas |
+| Unitarias (`filtros-y-avisos.spec.ts`) | 17 de 17 aprobadas |
+| Integración (`busqueda-publica.spec.ts`: filtros, proyección, índices, Redis) | 9 de 9 aprobadas |
+| Integración (`privacidad-publica.spec.ts`) | 8 de 8 aprobadas |
+| Integración (`ciclo-servicios.spec.ts`, con la nueva prueba de CA-SER-08 en la capa de datos) | 10 de 10 aprobadas |
+| Interfaz web (`busqueda-publica.test.tsx`) | 11 de 11 aprobadas |
+| Todas las suites 002 del backend (18 suites, fases 2 a 5) | 194 de 194 aprobadas |
+| Unitarias y arquitectura de todo el backend | 201 de 201 aprobadas |
+| Pruebas de la interfaz web (11 archivos) | 91 de 91 aprobadas |
+| `typecheck`, `lint` y `build` de backend y frontend | Correctos |
+
+La regresión de 001 no se repitió: esta fase no modificó código compartido ni de 001. Se conserva la evidencia de la fase 4 (222 de 222).
+
+### Criterios de aceptación
+
+| Criterio | Evidencia |
+|---|---|
+| CA-BUS-01 | Cada filtro (categoría, especialidad, zona, disponibilidad) y sus combinaciones devuelven solo coincidencias. Recorrer las páginas conserva los filtros y devuelve todas las coincidencias sin repetir ni omitir |
+| CA-BUS-02 | Una combinación válida sin coincidencias responde 200 con lista vacía y total 0. La interfaz informa que no hay coincidencias y permite quitar los filtros |
+| CA-BUS-03 | El detalle del servicio y el perfil público muestran experiencia, trabajos anteriores, servicios visibles y la disponibilidad identificada como declarada, sin prometer reserva. Omiten correo, documento, dirección, credenciales y archivos privados |
+| CA-BUS-04, CA-BUS-05 | El perfil devuelve «Calificaciones aún no disponibles» y «Verificaciones aún no disponibles». No aparecen «Sin valoraciones», puntuaciones, estrellas ni insignias. El filtro `calificacion` se rechaza con 400 |
+| CA-BUS-06 | Con Redis vacío, caído o con datos inválidos, las respuestas son las de PostgreSQL con los mismos filtros y paginación. Una consulta repetida se sirve de Redis y una revisión nueva la invalida de inmediato. Esta es la corrida de referencia del arnés US3 |
+| CA-BUS-07 | Los cuatro casos de disponibilidad de las fuentes, con dobles por separado, retiran solo el aviso de la fuente disponible. Se prueban en dominio, HTTP y web |
+| CA-BUS-08 | Las consultas públicas omiten datos personales con cualquier combinación de fuentes. Un visitante recibe 401 y otra cuenta 404 al pedir el archivo privado de una cuenta, y ninguna respuesta pública lo referencia |
+| CA-SER-08 (parte pública) | Tras pausar o retirar un servicio, tres consultas sucesivas lo excluyen de la búsqueda, del perfil y del detalle, con el mismo 404 que un servicio inexistente y sin exponer el registro privado. Reactivar lo devuelve |
+
+### Estado de T043–T053
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T043 | APROBADA | Los cuatro contratos con cada filtro, duplicados y desconocidos, `calificacion`, detalle no visible, vacío válido, avisos exactos y DTO cerrados |
+| T044 | APROBADA | Normalización, paginación y los cuatro casos de disponibilidad mediante dobles. En 002 salen los dos avisos exactos |
+| T045 | APROBADA | PostgreSQL real: filtros combinados, jerarquía, proyección, retiro y privacidad. Orden estable, total y página coherentes bajo mutaciones concurrentes, y exclusión aun con el UUID conocido |
+| T046 | APROBADA | Filtros, vacío, paginación y avisos independientes. Distingue lo declarado y evita puntuaciones, insignias y representaciones ficticias |
+| T047 | APROBADA | `pagina` desde 1, `tamano` de 20 por defecto y máximo 50, desempate por UUID, raíz que incluye hijas activas, prestadores buscados de forma independiente e índices con su plan |
+| T048 | APROBADA | Perfil y detalles por lista explícita de campos y presentador de avisos independiente, con dobles de fuentes. Excluyen cuenta, sesión, contacto y objetos privados |
+| T049 | APROBADA | Clave con entorno, espacio de despliegue, versión, revisión, tipo, filtros y página. Revisión comprobada antes del acceso y al aceptar un acierto. Respaldo en PostgreSQL y descarte por revisión |
+| T050 | APROBADA | Las cuatro rutas públicas montadas con proyección, perfiles y servicios ficticios. Filtros estrictos, vacío válido distinto de 404, Redis caído sin cambiar la respuesta y `calificacion` con 400 |
+| T051 | APROBADA | Búsqueda sin sesión, resultados, perfil y detalle en la web, con rutas `/buscar`, `/prestadores/{id}` y `/servicios/{id}`. Combina filtros, permite ajustar una búsqueda vacía y distingue visualmente lo declarado de los avisos |
+| T052 | APROBADA | CA-SER-08 en la capa de datos (`ciclo-servicios.spec.ts`) y por HTTP (`privacidad-publica.spec.ts`), y CA-BUS-08 con los dobles de fuentes |
+| T053 | APROBADA | CA-BUS-01 a 08 y la parte pública de CA-SER-08 con entrada válida, vacía, no admitida y datos privados. Redis vacío o caído |
+
+### Decisiones y limitaciones
+
+- Un perfil o servicio no visible responde el mismo 404 que uno inexistente. Un perfil no publicable es 404.
+- La caché solo guarda las dos búsquedas (servicios y prestadores). Los detalles y los servicios de un perfil se leen siempre de PostgreSQL. La caché de categorías activas corresponde a la consulta de categorías de HU25 (T063).
+- La pantalla de búsqueda ofrece el filtro de categoría cuando la composición le entrega las opciones. Hasta que exista la consulta de categorías (HU25, T063), la aplicación web no las entrega, y el filtro de categoría no aparece. Las búsquedas por categoría y especialidad están cubiertas por el contrato y las pruebas.
+- Las fuentes de calificaciones y verificaciones solo existen como dobles. Su contrato real, el filtro por calificación y «Sin valoraciones» pertenecen a 011 y 012.
+- Las migraciones de índices y los controladores públicos no están registrados todavía en `db:migrate:002` ni en la aplicación de 40 operaciones. Esa integración corresponde a T066 y T067 y no se declara completa.
+- Una fila de la proyección se actualiza con el perfil. Si cambia el estado `publicable` por SQL, hay que avanzar también la revisión para invalidar la caché, como hacen las operaciones de negocio.
+- No se ejecutó Playwright (T075) ni el ensayo de rendimiento con 1 000 prestadores y 5 000 servicios.

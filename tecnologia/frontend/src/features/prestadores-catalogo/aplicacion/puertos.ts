@@ -1,3 +1,4 @@
+import type { FiltrosBusqueda, PaginaPublica, PerfilPublico, PrestadorResumen, ServicioPublico } from '../modelos/contratos.js';
 import type { EntradaPerfil, EntradaServicio, EntradaTrabajo, EscrituraFotografia, EstadoServicio, FotografiaModificada, ImagenPublica, PaginaServicios, PerfilPrivado, ServicioPrivado, TrabajoCreado, TrabajoPrivado } from '../modelos/contratos.js';
 
 /** Puerto de la API de Prestadores. Cada mutación recibe su clave de idempotencia. */
@@ -10,6 +11,15 @@ export interface ApiPrestadores {
   reemplazarFotografia(trabajoId: string, fotografiaId: string, escritura: EscrituraFotografia, clave: string): Promise<FotografiaModificada>;
   eliminarFotografia(trabajoId: string, fotografiaId: string, versionTrabajo: number, clave: string): Promise<{ versionTrabajo: number }>;
   obtenerFotografiaPublica(prestadorId: string, trabajoId: string, fotografiaId: string): Promise<ImagenPublica>;
+}
+
+/** Puerto de las consultas públicas (HU05). No requiere sesión. */
+export interface ApiBusqueda {
+  buscarServicios(filtros: FiltrosBusqueda): Promise<PaginaPublica<ServicioPublico>>;
+  buscarPrestadores(filtros: FiltrosBusqueda): Promise<PaginaPublica<PrestadorResumen>>;
+  obtenerServicio(servicioId: string): Promise<ServicioPublico>;
+  obtenerPerfil(prestadorId: string, pagina: number, tamano: number): Promise<PerfilPublico>;
+  obtenerImagen(ruta: string): Promise<{ tipoMime: 'image/webp'; contenidoBase64: string }>;
 }
 
 /** Puerto de la API de servicios propios (HU04). */

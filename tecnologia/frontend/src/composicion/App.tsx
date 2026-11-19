@@ -11,7 +11,9 @@ import { RecuperarAcceso } from '../features/usuarios-acceso/presentacion/Recupe
 import { EstablecerContrasena } from '../features/usuarios-acceso/presentacion/EstablecerContrasena.js';
 import { PerfilProfesional } from '../features/prestadores-catalogo/presentacion/PerfilProfesional.js';
 import { ServiciosPropios } from '../features/prestadores-catalogo/presentacion/ServiciosPropios.js';
-import { portafolioWeb, serviciosWeb } from './prestadores-catalogo.js';
+import { BuscarOferta } from '../features/prestadores-catalogo/presentacion/BuscarOferta.js';
+import { DetallePrestador, DetalleServicio } from '../features/prestadores-catalogo/presentacion/DetallePrestador.js';
+import { busquedaWeb, portafolioWeb, serviciosWeb } from './prestadores-catalogo.js';
 import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
 import './estilos.css';
 export function App() {
@@ -47,7 +49,12 @@ export function App() {
   const pantallaRecuperacion = recuperacion.tieneEnlace() ? <EstablecerContrasena key={enlaceVersion} establecer={(nueva, confirmacion) => recuperacion.consumir(nueva, confirmacion)} completada={() => { sesion.invalidar(); history.replaceState(null, '', '/acceso'); setRuta('/acceso'); setMensaje('Contraseña actualizada. Inicie sesión con su nueva contraseña.'); }} /> : recuperacion.enlaceInvalido ? <section><h2>Enlace no válido</h2><p>Solicite un enlace nuevo para recuperar el acceso.</p><a href="/recuperar">Solicitar un enlace nuevo</a></section> : <RecuperarAcceso solicitar={(correo) => recuperacion.solicitar(correo)} />;
   const rutaCuenta = ruta === '/cuenta' || ruta === '/habilitar-perfil';
   let contenido: ReactNode;
-  if (cargando) contenido = <p>Comprobando sesión…</p>;
+  const uuidRuta = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
+  const prestadorRuta = new RegExp('^/prestadores/' + uuidRuta + '$').exec(ruta)?.[1]; const servicioRuta = new RegExp('^/servicios/' + uuidRuta + '$').exec(ruta)?.[1];
+  if (cargando && ruta !== '/buscar' && !prestadorRuta && !servicioRuta) contenido = <p>Comprobando sesión…</p>;
+  else if (ruta === '/buscar') contenido = <BuscarOferta busqueda={busquedaWeb} alVerPrestador={id => ir('/prestadores/' + id)} alVerServicio={id => ir('/servicios/' + id)} />;
+  else if (prestadorRuta) contenido = <DetallePrestador key={prestadorRuta} busqueda={busquedaWeb} prestadorId={prestadorRuta} alVerServicio={id => ir('/servicios/' + id)} />;
+  else if (servicioRuta) contenido = <DetalleServicio key={servicioRuta} busqueda={busquedaWeb} servicioId={servicioRuta} alVerPrestador={id => ir('/prestadores/' + id)} />;
   else if (ruta === '/recuperar') contenido = pantallaRecuperacion;
   else if (estado.autenticada) {
     if (ruta === '/confirmar-correo') contenido = <PantallaConfirmarCorreo key={enlaceVersion} />;
@@ -65,6 +72,7 @@ export function App() {
     <header>
       <h1>Plataforma Ayacucho</h1>
       <nav aria-label="Navegación principal">
+        <a href="/buscar" aria-current={ruta === '/buscar' ? 'page' : undefined} onClick={navegar}>Buscar servicios</a>
         {estado.autenticada ? <>
           <a href="/cuenta" aria-current={ruta === '/cuenta' ? 'page' : undefined} onClick={navegar}>Mi cuenta</a>
           <a href="/habilitar-perfil" aria-current={ruta === '/habilitar-perfil' ? 'page' : undefined} onClick={navegar}>Mis perfiles</a>

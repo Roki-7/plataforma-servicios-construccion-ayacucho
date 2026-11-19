@@ -25,8 +25,16 @@ export class RepositorioPrestadoresPostgres implements RepositorioPrestadores {
   async perfilPorCuenta(cuentaId: string, tx?: ContextoTransaccion, bloquear = false): Promise<PerfilProfesional | null> {
     const filas = await this.consultar<FilaPerfil>(tx, `SELECT id,cuenta_id,nombre_publico,tipo,experiencia,disponibilidad_declarada,version
       FROM prestadores_perfiles WHERE cuenta_id=$1${bloquear && tx ? ' FOR UPDATE' : ''}`, [cuentaId]);
-    const p = filas[0];
-    if (!p) return null;
+    return filas[0] ? this.completar(filas[0], tx) : null;
+  }
+
+  /** Perfil visible al público: solo un perfil publicable. Los trabajos se piden aparte con `trabajos`. */
+  async perfilPublicoPorId(prestadorId: string): Promise<PerfilProfesional | null> {
+    const filas = await this.consultar<FilaPerfil>(undefined, 'SELECT id,cuenta_id,nombre_publico,tipo,experiencia,disponibilidad_declarada,version FROM prestadores_perfiles WHERE id=$1::uuid AND publicable', [prestadorId]);
+    return filas[0] ? this.completar(filas[0]) : null;
+  }
+
+  private async completar(p: FilaPerfil, tx?: ContextoTransaccion): Promise<PerfilProfesional> {
     const especialidades = await this.consultar<{ categoria_id: string }>(tx, 'SELECT categoria_id FROM prestadores_especialidades WHERE prestador_id=$1 ORDER BY categoria_id', [p.id]);
     const zonas = await this.consultar<{ distrito_codigo: string }>(tx, 'SELECT distrito_codigo FROM prestadores_zonas WHERE prestador_id=$1 ORDER BY distrito_codigo', [p.id]);
     return { id: p.id, cuentaId: p.cuenta_id, nombrePublico: p.nombre_publico, tipo: p.tipo, experiencia: p.experiencia,

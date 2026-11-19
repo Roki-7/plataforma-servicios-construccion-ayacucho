@@ -37,3 +37,22 @@ export interface ServicioPrivado {
 }
 export interface EntradaServicio { readonly titulo: string; readonly descripcion: string; readonly categoriaId: string }
 export interface PaginaServicios { readonly elementos: readonly ServicioPrivado[]; readonly total: number; readonly pagina: number; readonly tamano: number }
+
+// Consultas públicas (HU05)
+export interface ServicioPublico { readonly servicioId: string; readonly prestadorId: string; readonly titulo: string; readonly descripcion: string; readonly categoriaId: string; readonly estado: 'PUBLICADO' }
+export interface PrestadorResumen {
+  readonly prestadorId: string; readonly nombrePublico: string; readonly tipo: TipoPrestador; readonly especialidadesIds: readonly string[];
+  readonly distritos: readonly Distrito[]; readonly disponibilidadDeclarada: boolean;
+}
+export interface PaginaPublica<T> { readonly elementos: readonly T[]; readonly total: number; readonly pagina: number; readonly tamano: number }
+export interface FotografiaPublicaRef { readonly fotografiaId: string; readonly tipoMime: 'image/webp'; readonly ancho: number; readonly alto: number; readonly ruta: string }
+export interface TrabajoPublico { readonly trabajoId: string; readonly titulo: string; readonly descripcion: string; readonly fotografias: readonly FotografiaPublicaRef[] }
+/** Un aviso nulo indica que la fuente correspondiente está disponible. En la entrega 002 ambos son textos. */
+export interface AvisosPublicos { readonly calificaciones: string | null; readonly verificaciones: string | null }
+export interface PerfilPublico {
+  readonly prestadorId: string; readonly nombrePublico: string; readonly tipo: TipoPrestador; readonly experiencia: string;
+  readonly especialidadesIds: readonly string[]; readonly distritos: readonly Distrito[]; readonly disponibilidadDeclarada: boolean;
+  readonly trabajos: readonly TrabajoPublico[]; readonly servicios: PaginaPublica<ServicioPublico>; readonly avisos: AvisosPublicos;
+}
+export type TipoResultado = 'servicios' | 'prestadores';
+export interface FiltrosBusqueda { readonly categoria?: string; readonly especialidad?: string; readonly distrito?: Distrito; readonly disponibilidad?: boolean; readonly pagina: number; readonly tamano: number }

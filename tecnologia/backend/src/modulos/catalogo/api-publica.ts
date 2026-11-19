@@ -38,3 +38,9 @@ export interface ElegibilidadServicio {
   /** Registro histórico en cualquier estado, incluido RETIRADO. Devuelve `null` si el identificador no existe. */
   registro(servicioId: string, tx?: ContextoTransaccion): Promise<RegistroServicio | null>;
 }
+
+export type { ServicioPublicoDto, PaginaDto } from './aplicacion/puertos/consultas-publicas.js';
+/** Oferta visible de un prestador para su perfil público. Solo servicios PUBLICADO con clasificación efectivamente activa. */
+export interface OfertaPublica {
+  serviciosVisiblesDe(prestadorId: string, pagina: number, tamano: number): Promise<import('./aplicacion/puertos/consultas-publicas.js').PaginaDto<import('./aplicacion/puertos/consultas-publicas.js').ServicioPublicoDto>>;
+}
