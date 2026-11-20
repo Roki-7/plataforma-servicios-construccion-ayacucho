@@ -380,3 +380,191 @@ Verificación final (Node 24.15.0 local):
 - Regresión 001: se reutiliza 222/222 de la auditoría. No cambió código de 001 ni compartido.
 
 Limitación de las pruebas paralelas: con más de 2 trabajadores las suites de integración 002 pueden superar los 30 s de `afterAll` en esta máquina. Es contención de CPU y no un defecto, pero conviene usar `test:integration:002`.
+
+
+## Avance de la fase 7 (integración del monolito y regresión, en curso)
+
+Estado: **fase 7 incompleta**. Verificadas T066 a T071 (71 de 94 acumuladas). T072 a T074 no se iniciaron.
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T066 | Verificada | `crearAplicacionCompleta002` (`aplicacion-002.ts`, `oferta-002.ts`) registra las 23 operaciones de 002 con las 17 de la 001: el router coincide exactamente con la unión de los dos contratos (40) y la composición base conserva 17. Migraciones aditivas 4 a 8 (`persistenciaOferta002`). Unidad de trabajo, idempotencia e identidad compartidas. Arquitectura sin ciclos ni accesos cruzados. `main.ts` añade `iniciarValidacion002`. `cargarConfiguracion002` valida la base dedicada de 002 sin modificar el cargador de la 001. |
+| T067 | Verificada | `arranque-completo.spec.ts` 9/9 (base vacía, copia de la 001 con esquema idéntico, 40 operaciones, semilla, pasos separados) y ejecución real sobre el entorno de validación 002 (ver abajo): `db:migrate:002`, `storage:init:002` y `test:seed:002` aplicados e idempotentes, y verificación HTTPS 22/22 a través del proxy. |
+| T068 | Verificada | `regresion-001-002.spec.ts` 2/2: las 17 operaciones de la 001 son idénticas en el contrato compuesto, y la misma secuencia (registro, Origin ajeno o ausente, sin clave, cuerpo de 400 KB, sesión, CSRF, renovación, perfil, lectura de fotografías de cuenta, salud, ruta desconocida, cierre con cuerpo, cinco registros simultáneos, replay idempotente) da estados, cabeceras y atributos de cookie idénticos en la composición base y en la compuesta. X-08 de la 001 (`usuarios-acceso/openapi.spec.ts`, sin modificar) ejecutado en el entorno aislado de la 001: 20/20. La subida de fotografías de cuenta se cubre con X-08 de la 001 (`POST /perfil/fotografias`). |
+| T069 | Verificada | `redis-revision.spec.ts` 5/5 con dos réplicas, PostgreSQL real y un Redis propio detenido y reiniciado: caché compartida y TTL ≤ 60 s; CA-CAT-10 con Redis detenido (desactivación excluida de inmediato en ambas réplicas y entradas antiguas recuperadas ni servidas ni sobrescritas); repoblación tardía sin escritura; 503 con la revisión inaccesible; restaurar una base descartable (`pg_dump` y `psql`) sin rotar el espacio sirve el listado de otra línea de tiempo con la misma revisión, y con espacio rotado no. |
+| T070 | Verificada | Ver «T070» más abajo: respaldo y restauración coordinados, con rotación del espacio Redis y puerta de restauración. |
+| T071 | Verificada | Ver «T071» más abajo: ensayo en un proyecto Docker descartable. |
+| T072 a T074 | No iniciadas | Interfaz compuesta, límites con 003 y otras, y CI. |
+
+### Operaciones sobre el entorno de validación 002 (autorizadas)
+
+Verificación previa, sin modificar datos: destino confirmado como `127.0.0.1:54330`, base `ayacucho_002_validacion`, usuario dedicado `ayacucho_validacion_002`, contenedor `ayacucho-002-validacion-postgres-1` (proyecto `ayacucho-002-validacion`). Modo `validation`. Estado inicial: 11 migraciones, 15 tablas, 0 usuarios, 5 distritos y revisión 1. Las migraciones pendientes (4 a 8) solo contienen `CREATE TABLE`, `CREATE INDEX` y funciones y disparadores nuevos. Los `DROP` solo existen en `down`. No alteran tablas existentes. Respaldo previo con `pg_dump` en el directorio temporal de la sesión (fuera de Git, 31 557 bytes, SHA-256 `7a190e02…`), restaurado en una base descartable con resultado idéntico (11 migraciones, 5 distritos, 15 tablas). Garage: bucket `portafolio-002-validacion` y una identidad `portafolio-002` ya existentes. El script no la reemplaza.
+
+- `db:migrate:002`: primera ejecución, 5 migraciones aplicadas (de 11 a 16; de 15 a 27 tablas); segunda, 0. Datos preexistentes intactos.
+- `storage:init:002`: dos ejecuciones idempotentes, mismo bucket y misma identidad de lectura y escritura (sin permiso de propietario).
+- `test:seed:002`: 6 clasificaciones ficticias; cuenta ficticia `operador-categorias-002@example.invalid`; permiso RF39 concedido por constancia, aprobación firmada con firmante efímero en memoria (entorno `validacion-002`) y comando interno, con auditoría `operativo:<principal del sistema>`. La segunda ejecución no cambia datos. La credencial ficticia queda solo en `tecnologia/.local/002/operador-ficticio.json` (ignorado por Git). La identidad y el permiso solo existen en esta base y la aprobación quedó consumida.
+- Nota: la semilla avanza la revisión de Catálogo en cada ejecución, aunque los datos no cambien. Es inocuo (solo invalida caché).
+- Estado final de la base de validación: 16 migraciones; tras la verificación HTTPS hay 4 cuentas ficticias, 9 categorías (6 de la semilla y 3 `Prueba HTTPS`, todas inactivas), 1 permiso y 4 auditorías. No se ejecutaron comandos destructivos.
+
+### Verificación HTTPS (proxy de la 002)
+
+Proxy `ayacucho-002-validacion-proxy-1` (ya definido en el proyecto, solo `127.0.0.1:8444`; se inició y se detuvo de nuevo al terminar) y backend integrado (`start:validation:002`, 40 operaciones) en `127.0.0.1:3002`. Certificado `CN=localhost` con SAN `localhost` y `127.0.0.1`, emitido por la CA local de la 002, válido hasta el 19/12/2026. La cadena se verifica con la CA local, y sin ella el cliente rechaza el certificado (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`). `curl` con la CA local responde 200, y el HTTP plano en 8444 no sirve la API. La revocación no se consulta porque la CA local no publica CRL (`--ssl-no-revoke` en `curl`).
+
+`scripts/verificar-https-002.ts` (`test:https:002`), 22 de 22: cabeceras del proxy (no-store, no-referrer, nosniff); 001 (Origin ausente 400 y ajeno 403, 413 con 400 KB, contraseña incorrecta 401, sesión 200 con cookie `__Secure-` HttpOnly Secure SameSite y ruta `/api/v1/sesiones`, perfil con y sin sesión, renovación sin CSRF, alta de cuenta, cierre de sesión 204); 002 (categorías, servicios y prestadores públicos conformes a `C002CategoriasPublicas`, `C002PaginaServicios` y `C002PaginaPrestadores`, filtro no admitido 400, rutas internas sin sesión 401, operador con permiso conforme a `C002CategoriasAdmin`, alta 201 conforme a `C002CategoriaAdmin` con replay idempotente, Origin ajeno 403, sin `Idempotency-Key` 400, propiedad de identidad 400, cuenta sin permiso 403 en lectura y escritura, token de sesión cerrada 401). Los certificados y claves de la CA local están en `.local/002/tls` (ignorado por Git).
+
+Limitación: se verificó con la CA local de validación (no una CA pública) y sin navegador. La interfaz web de la 002 (puerto 5175) no se levantó, ya que su integración corresponde a T072.
+
+### Verificaciones (histórico al cierre de T069; ver «Estado vigente» al final)
+
+`tsc`, `eslint` y `build` correctos. Integración 002 con 2 trabajadores (12 suites): 109/109. Suites que alteran infraestructura (RF39 aislado y Redis, serial): 14/14. Contrato 002: 65/65. Unit + architecture: 217/217. X-08 de la 001: 20/20. Regresión completa de la 001: se reutiliza 222/222 (no cambió código de 001 ni `app.module.ts`). Scripts `test:integration:002` (2 trabajadores, sin las suites que alteran infraestructura) y `test:integration:002:infra` (serial) separan los dos grupos. En una corrida paralela, con las dos suites de infraestructura en el grupo, hubo tiempos de espera agotados por la carga del equipo y por detener y reiniciar Redis. Por eso se separaron, como exige T069 (infraestructura propia o ejecución serial). Todas las bases `ayacucho_002_test_*` huérfanas de corridas interrumpidas se eliminaron (0 restantes).
+
+### Riesgos y limitaciones
+
+- **Caché Redis tras restaurar una base (resolver en T070). Resuelto en T070: ver «Estado vigente» al final.** Si se restaura una base con el mismo espacio Redis y las revisiones coinciden, la copia sirve entradas de otra línea de tiempo (demostrado en T069). La restauración debe rotar el espacio Redis antes de abrir el tráfico.
+- T072 a T074 siguen pendientes.
+- Las pruebas de RF39 y Redis son opt-in (`RF39_AISLADA_URL`, `REDIS_AISLADO_URL`) y usan contenedores propios (`ayacucho-rf39-aislada`, `ayacucho-redis002-aislado`).
+- Los scripts de la 002 deben invocarse con la ruta absoluta con unidad `C:` en mayúscula (por ejemplo `node --import tsx C:/…/scripts/iniciar-validacion-002.ts migrar`). Con la unidad en minúscula, la comprobación estricta del manifiesto del catálogo falla (la validación no se relajó).
+
+### T070 · Respaldo y restauración coordinados del portafolio
+
+Estado: **verificada** (70 de 94 acumuladas en ese momento; la corrección posterior de la puerta está en «Estado vigente»). T071 a T074 no se iniciaron entonces.
+
+Implementación:
+- `src/modulos/prestadores/infraestructura/respaldo/respaldo-portafolio.ts`: lógica del procedimiento, sin Docker ni S3 (puertos `OrigenPostgres`, `DestinoPostgres` y `AlmacenPortafolio`).
+- `src/composicion/respaldo-002.ts`: adaptadores. Instantánea y bloqueo con `pg`, `pg_dump --snapshot` y `psql` dentro del contenedor PostgreSQL con la clave por entorno (`-e PGPASSWORD`, nunca por argumentos), y la puerta de restauración.
+- `src/composicion/puerta-restauracion-002.ts`: la puerta y su efecto en el arranque. `main.ts` (`iniciarValidacion002`) rechaza arrancar sobre una base restaurada sin completar y usa el espacio Redis fijado por una restauración completada.
+- `scripts/respaldar-portafolio-002.ts` y `scripts/restaurar-portafolio-002.ts` (`backup:portafolio:002`, `restore:portafolio:002`).
+
+Coordinación entre PostgreSQL, Garage y Redis:
+1. **Corte.** Se abre una transacción `REPEATABLE READ` con `LOCK TABLE prestadores_fotografias, prestadores_objetos_pendientes IN SHARE MODE` y `lock_timeout`. Esto bloquea INSERT, UPDATE y DELETE sobre ambas tablas: pausa a los escritores de portafolio y a la limpieza de todas las réplicas y espera a las operaciones en curso. Si el drenaje no se confirma, se aborta con `INCOMPLETO` (`DRENAJE_NO_CONFIRMADO`). Después de obtener el bloqueo se exporta la instantánea. Una segunda conexión comprueba que ve el mismo número de referencias, lo que demuestra que la instantánea es posterior al bloqueo. El inventario de fotografías vigentes (clave, tamaño, MIME y SHA-256) y el volcado (`pg_dump --snapshot`) salen de esa misma instantánea. Los objetos referenciados se copian antes de reanudar y se cotejan con tamaño y SHA-256. Los huérfanos no se copian. La transacción se libera siempre (reanuda escritores y limpieza), incluso ante un fallo.
+2. **Manifiesto.** `backupId`, corte UTC, origen lógico (base, bucket, prefijo y espacio Redis), versión mayor de PostgreSQL, aplicación y migraciones, SHA-256 del volcado, inventario y conteos, firmado con HMAC-SHA256. `COMPLETO` solo tras cotejar ambos lados. Cualquier fallo deja `INCOMPLETO` con la causa, y ese conjunto no se puede restaurar.
+3. **Protección.** Volcado y objetos se cifran con AES-256-GCM, con el `backupId` y el nombre del artefacto como datos autenticados: un artefacto de otro conjunto no se descifra. La clave (`RESPALDO_CLAVE`, 32 bytes en base64) y la ruta de respaldos (`RESPALDO_DIRECTORIO`, absoluta y fuera del repositorio) llegan por entorno, nunca por Git. Los archivos se crean con permisos 0600. Los scripts exigen `--confirmo <nombre exacto de la base>`. El respaldo queda fuera del limpiador, porque está en disco y no en el bucket.
+4. **Restauración.** Primero se verifica todo sin tocar destinos: firma, estado `COMPLETO`, mismo `backupId`, versión mayor de PostgreSQL, lista exacta de migraciones, y descifrado y SHA-256 de volcado y objetos. Después: destino validado (`ayacucho_002_restauracion_*` o `ayacucho_002_test_*`, local, distinto del origen y nunca validación, 001 ni producción; bucket o prefijo nuevo, distinto del origen y vacío), `CREATE DATABASE` (falla si existe, no se reutiliza ni sobrescribe), `psql` del volcado, la **puerta** `restauracion_002` creada en `CERRADO`, remapeo de claves al prefijo nuevo, reconstrucción del bucket con los objetos verificados, reconciliación (se descartan las preparaciones inconclusas y se conservan las purgas para que el limpiador las reintente) y cotejo final de cada referencia contra su objeto, tamaño y SHA-256. Solo entonces la puerta pasa a `ABIERTO` con un **espacio Redis nuevo** (`ayacucho:002:restaurada-<id>-<aleatorio>`, distinto del origen y entre restauraciones).
+5. **Redis.** El arranque lee la puerta y fuerza `REDIS_NAMESPACE` al espacio de la restauración en todas las réplicas. Como la revisión de Catálogo restaurada coincide con la del origen, ese espacio nuevo es lo que impide servir entradas de otra línea de tiempo (riesgo demostrado en T069).
+
+Si la restauración falla (texto original; la puerta se crea ahora antes del volcado, ver «Estado vigente»): una verificación previa fallida (firma, pareja, versión, objeto ausente o alterado, INCOMPLETO) no crea ningún destino. Un fallo posterior (restauración del volcado, remapeo, objetos, reconciliación, cotejo o apertura) deja la puerta `CERRADO`, y el arranque se rechaza con «el tráfico permanece cerrado». Ni la base ni el prefijo se reutilizan: el reintento exige un destino limpio y recupera el conjunto válido.
+
+Pruebas (Node 24.15.0): unitarias 18/18 (`respaldo-portafolio.spec.ts`: clave, cifrado, firma, validación del destino, respaldo con puertos falsos, pareja incorrecta, manifiesto alterado, INCOMPLETO, versión, objeto ausente o alterado, destino no vacío, interrupciones en cada etapa y cotejo final). Integración 10/10 (`respaldo-portafolio.spec.ts`, PostgreSQL real con `pg_dump` y Garage real, solo bases `ayacucho_002_test_*` y prefijos nuevos): respaldo COMPLETO cifrado con inventario de la instantánea, pausa real de las escrituras y la limpieza (INSERT, UPDATE y DELETE bloqueados, lectura permitida) y reanudación, drenaje no confirmado con un escritor abierto, objeto alterado o ausente en Garage, restauración completa con claves remapeadas, reconciliación, puerta abierta y espacio Redis nuevo, interrupción con puerta cerrada, arranque rechazado, destino ocupado no reutilizado y recuperación en un destino limpio, y rechazo de la base de validación, de 001 y del prefijo de origen. Las guardas de los scripts se ejecutaron como procesos: sin `--confirmo`, directorio dentro del repositorio, destino igual a la base de validación y destino sin confirmar, todos con salida 1 y sin efectos. Unit + architecture 235/235, `tsc`, `eslint` y `build` correctos, `arranque-completo` 9/9. No se ejecutó ninguna restauración sobre `ayacucho_002_validacion` ni sobre el bucket de portafolio: la base de validación conserva 16 migraciones y no tiene la puerta; el bucket sigue con sus 12 objetos. Las bases descartables se eliminaron (0 restantes).
+
+Limitaciones:
+- El tráfico «cerrado» se impone en el arranque de la aplicación (`iniciarValidacion002`) y no en una API que ya esté en ejecución. Es suficiente para una restauración a un destino nuevo, donde ninguna réplica apunta aún a la base.
+- Las pruebas usan prefijos nuevos `pruebas/<uuid>/portafolio/` en el bucket de validación en vez de un bucket nuevo. La restauración a un bucket nuevo se prepara con `S3_BUCKET_DESTINO` y el prefijo `portafolio/`, y se ensayará con infraestructura descartable en T071.
+- Quedan para T071: el ensayo en un proyecto Docker descartable, la comprobación por la API (foto vigente 200, retiradas y pendientes 404), el rechazo del acceso anónimo al bucket y la prueba con parejas incompatibles sobre ese proyecto.
+- La cifra de eficiencia con volúmenes grandes no se midió (el volcado se mantiene en memoria).
+
+### T071 · Ensayo de restauración coordinada
+
+Estado: **verificada** (71 de 94 acumuladas). T072 a T074 no se iniciaron. Pruebas de puerta y arranque añadidas después: ver «Estado vigente».
+
+Infraestructura descartable e independiente: proyecto Docker `ayacucho-ensayo-restauracion` (`compose.ensayo-restauracion.yaml`) con PostgreSQL 18, Garage v2.5.0 y Redis 8 propios (imágenes fijadas por digest), contenedores, red, volúmenes (`ensayo-postgres-datos`, `ensayo-objetos-meta`, `ensayo-objetos-datos`) y puertos exclusivos (`127.0.0.1:54341`, `3930` y `63851`). Credenciales aleatorias exclusivas del ensayo, generadas por `scripts/preparar-ensayo-restauracion-002.ts` en `tecnologia/.local/ensayo-restauracion` (ignorado por Git, permisos restringidos). El origen del ensayo es una base `ayacucho_002_ensayo_origen_*` con el bucket `ensayo-origen`. El destino es una base `ayacucho_002_restauracion_*` nueva con el bucket `ensayo-destino`. No se tocaron `ayacucho_002_validacion` (16 migraciones, sin la puerta de restauración), ninguna base de 001, ni el bucket `portafolio-002-validacion` (sigue con 12 objetos).
+
+Prueba `restauracion-portafolio.spec.ts` (opt-in con `ENSAYO_RESTAURACION_ENV`), 11/11. El origen se prepara con el API real: una cuenta, un perfil, un trabajo, una foto vigente, una foto retirada (con purga pendiente) y una preparación inconclusa con su objeto sin referencia.
+- **Respaldo.** COMPLETO con 1 referencia vigente y 1 objeto copiado. La retirada, la preparación inconclusa y el objeto huérfano no se copian.
+- **Restauración completa de PostgreSQL y Garage.** Destino nuevo: la puerta pasa de CERRADO a ABIERTO con un espacio Redis nuevo (`ayacucho:002:restaurada-…`). PostgreSQL restaurado tiene 1 referencia con el mismo SHA-256, la purga conservada, la preparación descartada y todas las migraciones. Garage de destino tiene exactamente 1 objeto con el mismo contenido. El origen no cambia.
+- **Aplicación integrada sobre la base restaurada, con dos réplicas** (`iniciarValidacion002`, puertos 3941 y 3942, con `REDIS_NAMESPACE` configurado al espacio del origen): ambas responden `salud`, `categorias`, `servicios` y `prestadores`. Todas las claves de Redis (Redis descartable vaciado antes) empiezan por el espacio de la restauración y ninguna por el del origen: las dos réplicas usan el espacio nuevo que fija la puerta.
+- **HTTP.** Fotografía vigente: 200 con el mismo contenido (SHA-256 idéntico). Retirada, pendiente e inexistente: 404 sin contenido, en las dos réplicas.
+- **Acceso anónimo directo al bucket:** `GET` del objeto y listado del bucket, tanto en el destino como en el origen, responden 403. Una firma con una clave falsa también se rechaza.
+- **Limpieza** sobre la base restaurada (purgas vencidas y reconciliación de huérfanos): sin errores, no borra la fotografía vigente (sigue 200) y consume la purga pendiente.
+- **Tráfico cerrado ante una restauración incompleta.** Una restauración interrumpida tras copiar objetos deja la puerta CERRADA. `iniciarValidacion002` rechaza arrancar («el tráfico permanece cerrado») y no hay ningún puerto escuchando. El destino ocupado (mismo prefijo o misma base) no se reutiliza. En un destino limpio se recupera el conjunto y el servicio sí arranca.
+- **Rechazo de conjuntos incompatibles o alterados, sin crear ninguna base:** versión mayor de PostgreSQL y migraciones distintas, clave de respaldo distinta, manifiesto de otro respaldo, manifiesto con estado, hash del volcado o hash de objeto alterados, volcado y objeto cifrados alterados, objeto ausente, volcado ausente y respaldo INCOMPLETO (origen con un objeto alterado). Tras restaurar los artefactos válidos, un destino limpio abre su puerta.
+- **Protección de claves.** Cada proceso externo (`docker exec … pg_dump` y `psql`) se observa por un punto de sustitución: ningún argumento contiene la clave de respaldo ni las credenciales de PostgreSQL, Garage ni S3, y la clave de PostgreSQL viaja solo por la variable de entorno `PGPASSWORD` (el argumento es únicamente el nombre). Esos valores tampoco aparecen en la salida estándar y de error durante respaldo, restauración, arranque y fallos, ni en los mensajes de error y las trazas. Tampoco están en el manifiesto, en los artefactos cifrados, en el resultado de la restauración, ni en ningún archivo versionado o sin versionar y no ignorado (`git grep --untracked`).
+
+Cambios de código por el ensayo: `cargarConfiguracion002` admite también `ayacucho_002_restauracion_*` (con prueba), `iniciarValidacion002` devuelve un manejador para cerrar el servicio, y `respaldo-002.ts` expone el punto de sustitución de procesos externos (`lanzador`). `test:integration:002` y `test:integration:002:infra` separan la nueva suite con las que alteran infraestructura (ejecución serial).
+
+Verificaciones: `tsc`, `eslint` y `build` correctos. Unit, architecture y contrato (26 suites): 305/305. Integración 002 (sin las suites de infraestructura): todas pasan, algunas solo al repetirse sola por carga del equipo. Suites de infraestructura en serie (RF39 aislado, Redis y ensayo de restauración): pasan. Todas las bases descartables eliminadas (0 en el servidor de validación, en el de RF39 y en el del ensayo) y los buckets del ensayo vacíos.
+
+Limitaciones:
+- El ensayo emplea un Garage descartable con credenciales exclusivas. En producción habría que usar la identidad de lectura y escritura del bucket real.
+- El tráfico «cerrado» se impone en el arranque de la aplicación, no en una API que ya esté en ejecución sobre esa base.
+- El ensayo no cubre el proxy HTTPS ni la interfaz web (T072).
+- Varias corridas aparecieron lentas o con tiempos de espera agotados cuando la CPU del equipo estaba ocupada por otros programas (hasta 5 veces más tiempo). Cada suite pasó al repetirse sola.
+- Con volúmenes grandes de datos el volcado se mantiene en memoria (no se midió).
+
+### Revisión complementaria de T071 (regresión de 001 y seguridad de procesos)
+
+**Diff de `main.ts` respecto a `8aa7425`.** `iniciar()` (el punto de entrada de 001, usado por `scripts/iniciar-validacion.ts`, `npm start` y el `CMD` del Dockerfile) no cambió: mismo cuerpo, mismas llamadas, mismo mensaje. El cambio es aditivo: se añade la función exportada `iniciarValidacion002` y sus importaciones estáticas (`S3Client`, `cargarConfiguracion002`, `aplicacion-002`, `puerta-restauracion-002`, `ClienteRedis002`, `PortafolioS3`). Esas importaciones se evalúan al cargar el módulo, también cuando solo se usa `iniciar()`. Efecto medido en el módulo compilado, con 5 cargas por variante: `app.module` solo, 119 MB de RSS, y `main`, 127 a 128 MB (unos 9 MB más) y unos cientos de ms más, dentro del ruido de la máquina. No ejecutan lógica de arranque al importarse. Las dependencias (`sharp`, `redis`, `@aws-sdk/client-s3`) son de producción y el Dockerfile ya incluye los contratos de 002. Ningún archivo de 001 cambió (`usuarios-acceso`, `compartido`, `app.module.ts`, `contracts/openapi.json`, `scripts/iniciar-validacion.ts`).
+
+**Arranque de 001 por su punto de entrada de producción.** El módulo compilado `main.js` (el mismo que ejecuta el `CMD`) se arrancó con la configuración del entorno aislado de la 001, sobre una base nueva `ayacucho_001_test_*` del contenedor aislado con las 8 migraciones fundacionales (se eliminó al terminar; la base de validación aislada, vacía, no se tocó). Respuesta de salud 200 a los 8 s. Humo HTTP, 18 de 19 correctas:
+- Las 17 operaciones del contrato de 001 están registradas, y las 6 rutas de 002 sondeadas (`/categorias`, `/servicios`, `/prestadores`, `/admin/categorias`, `/servicios/mios`, `/prestadores/perfil`) responden 404: la composición base sigue siendo de 17 operaciones.
+- Salud 200, alta 201, Origin ausente 400, ajeno 403 y sin `Idempotency-Key` 400, cuerpo de 400 KB 413, contraseña incorrecta 401, sesión 200, cookie `__Secure-` HttpOnly Secure SameSite con ruta `/api/v1/sesiones`, perfil con sesión 200 y sin sesión 401, renovación sin credencial 401 y con CSRF incorrecto rechazada, cierre de sesión 204 y el token deja de servir.
+- La única marca fallida fue un error de mi script: consultaba `GET /sesiones/csrf` con Bearer. El contrato exige la cookie de renovación. Con ella: sin credencial 401, con cookie y Origin propio 200 (devuelve `csrfToken`) y con Origin ajeno 403.
+
+**Regresión de 001.** Como `main.ts` es el punto de entrada, aunque no cambie su lógica, se ejecutó la regresión completa en el entorno aislado: 21 suites, 222/222. Unit y architecture, 305/305 (26 suites con contrato 002).
+
+**Seguridad del punto de sustitución (`respaldo-002.ts`).**
+- `lanzador.execFile` es `execFile` de Node (sin shell). Programa fijo `docker`, subcomando fijo `exec -i -e PGPASSWORD <contenedor> <pg_dump|psql> -h 127.0.0.1 -p 5432 -U <usuario> …`. Los únicos programas lanzados son `pg_dump` y `psql`, con constantes en los dos puntos de llamada. Los nombres de contenedor son constantes de los scripts (`ayacucho-002-validacion-postgres-1`) o de las pruebas.
+- Argumentos controlados: el identificador de instantánea debe cumplir `^[0-9A-F]{8}-[0-9A-F]{8}-\d$` (si no, se rechaza antes de lanzar procesos); la base de destino debe cumplir `^ayacucho_002_(restauracion|test)_[a-z0-9_]{4,60}$` (validarDestino) y `^ayacucho_002_[a-z0-9_]+$` antes de `CREATE DATABASE`; el resto de los argumentos son literales.
+- Ninguna entrada HTTP llega a ese código: solo lo importan `scripts/respaldar-portafolio-002.ts`, `scripts/restaurar-portafolio-002.ts` y pruebas. Ningún archivo de `src` lo importa, y es el único archivo de `src` que usa `node:child_process` (comprobado por una prueba). El arranque solo importa `puerta-restauracion-002.ts`, que no lanza procesos.
+- Credenciales: la clave de PostgreSQL viaja solo en `PGPASSWORD` por el entorno del proceso, y el argumento es únicamente el nombre de la variable. Un fallo del proceso informa solo programa y código de salida (`psql terminó con código 2`), sin argumentos, entorno ni salida. El ensayo T071 verificó además que ninguna credencial aparece en procesos, registros, errores, artefactos ni archivos del repositorio.
+- Nueva prueba unitaria `respaldo-002-procesos.spec.ts` (5/5, sin Docker): forma exacta de los procesos, entorno, rechazos previos al lanzamiento, mensajes de error y alcance de importaciones.
+- Observación de endurecimiento (no es un defecto demostrado, sin cambio aplicado): `docker()` confía en que sus llamadores pasen constantes. Si en el futuro se aceptara un nombre de contenedor externo, convendría validarlo (`^[a-z0-9][a-z0-9_.-]*$`) y limitar `programa` a `pg_dump` y `psql` dentro de la función.
+
+**Operación de restauración.** La puerta de restauración protege el arranque de nuevas instancias sobre la base restaurada. No detiene una API que ya esté en funcionamiento. Antes de dirigir el tráfico a una base restaurada hay que detener o aislar todas las réplicas antiguas (las que usan la base y el espacio Redis anteriores) y arrancar las nuevas solo cuando la restauración termine con la puerta ABIERTA. Está documentado en `scripts/restaurar-portafolio-002.ts` y en `quickstart.md`.
+
+## Estado vigente tras la auditoría final de T066–T071
+
+Esta sección sustituye, como referencia vigente, a las cifras y estados de las secciones anteriores de la fase 7, que se conservan como historial de trabajo y reflejan el momento en que se escribieron. Fecha de las verificaciones: 19/11/2026, Node.js 24.15.0 local.
+
+### Hallazgos de la auditoría y su resolución
+
+- **Alto, corregido: una restauración interrumpida durante `psql` podía dejar una base que arrancaba.** El orden era crear la base, restaurar el volcado y después crear la puerta. Si `psql` fallaba a mitad, la base quedaba sin puerta y `iniciarValidacion002` interpretaba «sin puerta» como «no restaurada». Esto hacía incorrecta la frase de T070 («una interrupción deja la puerta CERRADA») para los fallos anteriores a la creación de la puerta. Correcciones:
+  - La puerta se crea CERRADA inmediatamente después de crear la base y antes de restaurar ningún dato. Tras restaurar el volcado se comprueba, con una consulta real, que sigue CERRADA y ligada al mismo respaldo (`PUERTA_ALTERADA` si no).
+  - `iniciarValidacion002` trata como destino de restauración toda base `ayacucho_002_restauracion_*`: si su puerta no existe, no se puede consultar (incluida una base inexistente o inaccesible) o no está ABIERTA, el arranque se rechaza. La ausencia de la puerta nunca autoriza el arranque. Para el resto de las bases el comportamiento no cambia (sin puerta arrancan; una puerta CERRADA las rechaza).
+  - El volcado no puede tocar la puerta: `pg_dump` excluye la tabla `restauracion_002` (`--exclude-table`) y la restauración rechaza un volcado que la mencione (`VOLCADO_CONTIENE_PUERTA`).
+  - Los destinos reales de restauración son únicamente `ayacucho_002_restauracion_*`. Los nombres `ayacucho_002_test_*` solo se admiten si el llamador de pruebas lo pide de forma explícita (`permitirBasesDePrueba`). Los scripts no lo piden.
+- **Evidencia añadida para T067:** la respuesta de salud se valida contra el esquema `Salud` del contrato de la 001, tanto en la aplicación compuesta (`arranque-completo.spec.ts`) como por HTTPS (`verificar-https-002.ts`).
+- **Evidencia añadida para T068:** nueva prueba `fotos-cuenta-composicion.spec.ts` (ver más abajo) con subida real de fotografías de cuenta, lectura propia, rechazos, aislamiento y subidas simultáneas, comparadas con la composición base.
+- **Documentación:** este apartado, las notas de «histórico» en las secciones previas y la actualización de los riesgos que T070 resolvió.
+
+### Pruebas añadidas
+
+- Unitarias (`respaldo-portafolio.spec.ts`, ahora 21): orden (la puerta antes del volcado), fallos al crear la base, tras crearla, tras cerrar la puerta y durante el volcado, volcado que menciona la puerta, puerta eliminada tras el volcado y destinos de prueba solo con indicación explícita.
+- Integración con PostgreSQL real en el proyecto descartable del ensayo (`restauracion-portafolio.spec.ts`, ahora 20), diez pruebas nuevas:
+  - Interrupción inmediatamente después de crear la base.
+  - Puerta CERRADA sin datos.
+  - Fallo real de `psql` tras restaurar parcialmente los datos.
+  - Ausencia de la puerta en una base de restauración sana y migrada.
+  - Puerta no consultable.
+  - Base inexistente o inaccesible.
+  - El volcado de una base ya restaurada no toca la puerta (la nueva restauración tiene la suya).
+  - Restauración completa y arranque con el espacio Redis nuevo.
+  - Bases que no son destinos de restauración que conservan su comportamiento.
+  - Una puerta CERRADA en una base que no es de restauración también la rechaza.
+- `fotos-cuenta-composicion.spec.ts` (nueva, opt-in, proyecto descartable, 1 prueba): la misma secuencia sobre la composición base y la completa da respuestas idénticas (estados, cabeceras y forma). Subida 201 conforme a `FotografiaResultado`, lectura propia 200 conforme a `FotografiaLectura` con el mismo contenido, imagen inválida y formato no admitido rechazados, sin sesión 401, otra cuenta 404, sin sesión 401 al leer y seis subidas simultáneas 201.
+- Prueba de mutación: con el orden antiguo (puerta después del volcado) fallan las pruebas «puerta CERRADA sin datos» y «fallo de psql». Con «ausencia de la puerta = autorización» fallan «interrupción inmediatamente después de crear la base» y «ausencia de la puerta». Con la corrección pasan las dos. Los archivos se restauraron y comparados byte a byte con los originales.
+
+### Resultados vigentes
+
+| Verificación | Resultado vigente |
+|---|---|
+| `typecheck`, `eslint` (`--max-warnings=0`) y `build` | Limpios |
+| Unit + architecture + contrato (27 suites) | 314/314 |
+| Integración 002 con 2 trabajadores, sin las suites de infraestructura (13 suites) | 119/119 |
+| Infraestructura propia, en serie (ensayo de restauración 20, RF39 aislado 9, Redis 5 y fotos de cuenta 1) | 35/35 |
+| HTTPS contra el entorno de validación 002 (`verificar-https-002.ts`, ahora con el esquema `Salud`) | 22/22 |
+| Regresión completa de la 001 | 222/222, última ejecución completa en la revisión complementaria de T071. Desde entonces no cambió código de 001 ni `main.ts` (las modificaciones son del respaldo y la restauración). No se repite. |
+| Bases `ayacucho_002_test_*`, `rf39_*`, `ayacucho_002_*` de los servidores | 0 residuales |
+
+Los resultados de las secciones anteriores que difieren de esta tabla (por ejemplo 217/217, 109/109 o «12 suites») eran correctos al cierre de T069 y quedaron superados por el crecimiento de las suites. La base `ayacucho_002_validacion` conserva 16 migraciones y no tiene tabla de puerta. Tras las verificaciones HTTPS contiene solo datos ficticios: 5 cuentas, 10 categorías (6 de la semilla y 4 `Prueba HTTPS`, inactivas), 1 permiso y 5 auditorías.
+
+### Estado de T066–T071
+
+| Tarea | Estado | Evidencia vigente |
+|---|---|---|
+| T066 | Verificada | 40 operaciones (17 + 23), composición base de 17 intacta, arquitectura sin ciclos. |
+| T067 | Verificada | Migración, almacenamiento y semilla en el entorno de validación, arranque sobre base vacía y copia de la 001, HTTPS 22/22 incluido el esquema `Salud`. |
+| T068 | Verificada | Contrato de las 17 operaciones idéntico, secuencia diferencial 001, X-08 (20/20) y fotografías de cuenta en la composición completa. |
+| T069 | Verificada | Dos réplicas, CA-CAT-10 con Redis detenido, repoblación tardía, 503 con revisión inaccesible y rotación del espacio Redis. |
+| T070 | Verificada | Respaldo y restauración coordinados; la puerta de restauración protege ahora también las interrupciones durante el volcado. |
+| T071 | Verificada | Ensayo en un proyecto descartable, con las pruebas de puerta y arranque sobre PostgreSQL real. |
+
+### Riesgos y limitaciones vigentes
+
+- **Resuelto:** el riesgo de caché Redis tras restaurar una base (T069) quedó resuelto por T070 con la rotación del espacio Redis, y la restauración interrumpida que dejaba una base arrancable quedó resuelta en esta corrección.
+- **Operación.** La puerta protege el arranque de instancias nuevas. No detiene una API que ya esté en funcionamiento: antes de dirigir el tráfico a una base restaurada, detener o aislar las réplicas antiguas.
+- **Entrada de producción.** `npm start` y el `CMD` del Dockerfile siguen arrancando solo la composición base de 17 operaciones. Las 40 operaciones se arrancan con `iniciarValidacion002` (validación, solo `127.0.0.1`). La entrada de producción compuesta y la compatibilidad de origen y sesión corresponden a T072.
+- **Suites opt-in.** Las del ensayo de restauración, las de Redis y RF39 aislados y las de fotos de cuenta exigen sus variables de entorno y se omiten sin ellas. Se ejecutan con `test:integration:002:infra` y deberá invocarlas la CI de T074.
+- **Carga del equipo.** Con la CPU ocupada por otros programas, algunas suites superan los 30 s. Cada una pasó al repetirse sola.
+- Los permisos 0600 de las copias no se aplican en Windows: la protección real es el cifrado y que el directorio esté fuera del repositorio. El volcado se mantiene en memoria.
+- La verificación de salud solo comprueba las tablas de la 001: una base sin migraciones de la 002 no se detecta ahí.
+- `docker()` confía en que sus llamadores pasen constantes (endurecimiento posible, sin defecto demostrado).

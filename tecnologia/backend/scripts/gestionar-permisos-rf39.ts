@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
-import { cargarConfiguracion } from '../src/composicion/configuracion.js';
+import { cargarConfiguracion002 } from '../src/composicion/configuracion-002.js';
 import { leerConfiguracionRf39 } from '../src/composicion/configuracion-rf39.js';
 import { crearProcedimientoRf39 } from '../src/composicion/procedimiento-rf39.js';
 import type { AprobacionFirmada } from '../src/modulos/administracion/aplicacion/gestionar-permisos-rf39.js';
@@ -25,7 +25,7 @@ async function ejecutar(): Promise<void> {
   if (orden === 'verificar-config') { process.stdout.write('Configuración protegida de RF39 verificada.\n'); return; }
   if (orden !== 'constancia' && orden !== 'conceder' && orden !== 'revocar') throw new Error('Subcomando desconocido.');
   const principal = userInfo().username.toLowerCase();
-  const { gestor, cerrar } = await crearProcedimientoRf39(cargarConfiguracion(process.env), configuracionRf39);
+  const { gestor, cerrar } = await crearProcedimientoRf39(cargarConfiguracion002(process.env), configuracionRf39);
   try {
     if (orden === 'constancia') {
       const r = await gestor.emitirConstancia(principal, await entradaEstandar());
