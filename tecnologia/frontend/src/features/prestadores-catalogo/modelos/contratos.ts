@@ -56,3 +56,6 @@ export interface PerfilPublico {
 }
 export type TipoResultado = 'servicios' | 'prestadores';
 export interface FiltrosBusqueda { readonly categoria?: string; readonly especialidad?: string; readonly distrito?: Distrito; readonly disponibilidad?: boolean; readonly pagina: number; readonly tamano: number }
+
+/** Clasificación efectivamente activa de la consulta pública de categorías. Solo identificador, padre y nombre. */
+export interface CategoriaPublica { readonly categoriaId: string; readonly categoriaPadreId: string | null; readonly nombre: string }

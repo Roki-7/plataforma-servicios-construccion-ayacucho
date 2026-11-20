@@ -29,3 +29,6 @@ export interface ApiServicios {
   editar(servicioId: string, version: number, cambios: Partial<EntradaServicio>, clave: string): Promise<ServicioPrivado>;
   cambiarEstado(servicioId: string, version: number, destino: EstadoServicio, clave: string): Promise<ServicioPrivado>;
 }
+
+/** Puerto de la consulta pública de categorías activas (HU25). No requiere sesión. */
+export interface ApiCategorias { listar(): Promise<readonly import('../modelos/contratos.js').CategoriaPublica[]> }

@@ -52,7 +52,7 @@ Una vez implementada la aplicación compuesta y cargados los datos, arrancar la 
 
 ```powershell
 npm.cmd --prefix tecnologia/backend run start:validation:002
-npm.cmd --prefix tecnologia/frontend run dev -- --host 127.0.0.1 --port 5175 --strictPort --mode validation
+npm.cmd --prefix tecnologia/frontend run dev:validation:002
 docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml --profile web up -d proxy
 curl.exe --cacert tecnologia/.local/002/tls/ca.crt https://localhost:8444/api/v1/salud
 curl.exe --cacert tecnologia/.local/002/tls/ca.crt "https://localhost:8444/api/v1/categorias"
@@ -60,6 +60,26 @@ curl.exe --cacert tecnologia/.local/002/tls/ca.crt "https://localhost:8444/api/v
 ```
 
 Se espera HTTP 200, categorías vigentes y una página conforme al contrato. Validar la CA con el navegador de prueba y conservar los controles negativos de confianza. Las pruebas con sesión obtienen el token mediante el inicio de sesión real de la 001.
+
+`dev:validation:002` fija Vite en `127.0.0.1:5175` con `--strictPort` y `--mode validation`. Es el puerto al que apunta el proxy `8444` generado por `dev:prepare:002`. El `dev` genérico escucha en `5173` y el proxy no lo alcanzaría.
+
+### Activar la composición completa en el contenedor del backend
+
+La imagen del backend (`tecnologia/backend/Dockerfile`) arranca por omisión la **composición base de la 001 (17 operaciones)**: su `CMD` es `node dist/src/composicion/main.js` y no se modifica. La composición completa de la 002 (40 operaciones: las 17 de la 001 y las 23 de Prestadores y Catálogo) se activa **solo de forma explícita** con la variable de entorno `COMPOSICION=oferta-002`, sobre la misma imagen y el mismo `CMD`.
+
+| `COMPOSICION` | Resultado |
+|---|---|
+| Sin definir, vacía o `base` | Composición base, 17 operaciones (comportamiento de la 001). |
+| `oferta-002` | Composición completa, 40 operaciones. |
+| Cualquier otro valor (`completa`, `OFERTA-002`, ` base`, `true`…) | El arranque falla con «COMPOSICION no es válida». No hay composición implícita. |
+
+```powershell
+docker run --rm -e COMPOSICION=oferta-002 --env-file <archivo-de-entorno-de-produccion> -p 127.0.0.1:3000:3000 <imagen-del-backend>
+```
+
+Con `oferta-002` la composición completa exige, además de las variables que ya exige la base (`PUBLIC_ORIGIN`, `PUBLIC_URL`, `DATABASE_URL`, claves `HMAC_*` y `AEAD_*`, `SMTP_*`, `S3_*` y `CATALOGO_MANIFIESTO`), las de Redis (`REDIS_URL`, `REDIS_NAMESPACE` y, opcionalmente, `REDIS_TIMEOUT_MS`). Las migraciones de la 002 deben aplicarse antes con `db:migrate:002` (el arranque no migra). Las bases restauradas solo arrancan si su puerta de restauración está abierta. La imagen incluye los dos contratos en `contracts/`.
+
+Esa configuración no está en `compose.yaml` ni en `compose.002.yaml`, que no definen un servicio de backend: el backend corre en el anfitrión durante la validación. Sin `COMPOSICION=oferta-002`, la interfaz web de la 002 contra un backend en contenedor hablaría con las 17 operaciones de la base, de modo que las rutas de Prestadores y Catálogo responderían 404. No usar recursos de producción para ensayar: la validación local sigue usando `start:validation:002` con la base `ayacucho_002_validacion`.
 
 ## Recorridos de aceptación
 

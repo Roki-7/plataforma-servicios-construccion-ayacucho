@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { PRIVACIDAD_VERSION } from '../src/modulos/usuarios-acceso/dominio/cuenta.js';
 import { local002, origen002, puertos002 } from './entorno-002.js';
+import { compararProxy002, leerFuentesProxy002 } from './proxy-002.js';
 
 /**
  * Verificación HTTPS de la aplicación integrada a través del proxy de validación 002 (https://localhost:8444, solo 127.0.0.1).
@@ -45,6 +46,14 @@ const comprobar = (nombre: string, condicion: boolean, detalle = '') => { result
 const cookies = (r: Respuesta) => ([] as string[]).concat((r.headers['set-cookie'] ?? []) as string[]);
 
 if (puertos002.api !== 3002) throw new Error('Configuración 002 inesperada.');
+// El proxy debe enrutar /api/v1/* a la API y el resto a Vite de la 002: se comprueba el archivo generado y el realmente montado en el contenedor.
+try {
+  const proxy = compararProxy002(await leerFuentesProxy002());
+  comprobar(`El Caddyfile generado coincide con la plantilla y los puertos de la 002 (${origen002}, API ${puertos002.api}, web ${puertos002.web})`, proxy.generado.ok, proxy.generado.detalle);
+  comprobar('El Caddyfile montado en el contenedor del proxy coincide con el esperado', proxy.montado.ok, proxy.montado.detalle);
+} catch {
+  comprobar('El Caddyfile generado y el montado en el contenedor del proxy se pueden leer y comparar', false, 'no se pudo leer la plantilla, el archivo generado o el contenedor');
+}
 const salud = await llamar('GET', '/salud', { origen: null });
 comprobar('HTTPS con la CA local responde 200 en /salud y cumple Salud', salud.status === 200 && cumple('Salud', salud.json, 'base') && salud.json.estado === 'disponible');
 comprobar('El proxy fija no-store, no-referrer y nosniff', salud.headers['cache-control'] === 'no-store' && salud.headers['referrer-policy'] === 'no-referrer' && salud.headers['x-content-type-options'] === 'nosniff');

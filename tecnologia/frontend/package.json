@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:validation:002": "vite --host 127.0.0.1 --port 5175 --strictPort --mode validation",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",

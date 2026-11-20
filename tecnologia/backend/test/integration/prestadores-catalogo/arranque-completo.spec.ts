@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from '@jest/globals';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { crearAplicacion } from '../../../src/composicion/app.module.js';
+import { iniciar } from '../../../src/composicion/main.js';
+import { leerConfiguracion002 } from '../../../scripts/entorno-002.js';
 import { crearAplicacionCompleta002 } from '../../../src/composicion/aplicacion-002.js';
 import { cargarConfiguracion002 } from '../../../src/composicion/configuracion-002.js';
 import { aplicarMigraciones002 } from '../../../src/composicion/migraciones-002.js';
@@ -178,4 +181,40 @@ describe('pasos de preparación separados', () => {
     expect(await texto('scripts/seed-prestadores-catalogo.ts')).toContain('exigirBase002');
     expect(await texto('scripts/migrar-002.ts')).toContain('exigirBase002');
   });
+});
+
+describe('punto de entrada: composición solicitada', () => {
+  const claveHmac = Buffer.alloc(32, 3).toString('base64'); const claveAead = Buffer.alloc(32, 4).toString('base64');
+  /** Ejecuta `trabajo` con variables de entorno del proceso y las restaura después. */
+  async function conEntorno<T>(variables: Record<string, string | undefined>, trabajo: () => Promise<T>): Promise<T> {
+    const anteriores = Object.fromEntries(Object.keys(variables).map(k => [k, process.env[k]]));
+    for (const [k, v] of Object.entries(variables)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    try { return await trabajo(); } finally { for (const [k, v] of Object.entries(anteriores)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } }
+  }
+
+  test('COMPOSICION=oferta-002 arranca las 40 operaciones por iniciar(), con el mismo origen y controles, y un valor desconocido se rechaza', async () => {
+    const real = await leerConfiguracion002(); const aislada = await baseAislada002(); await aplicarMigraciones002(aislada.url);
+    const variables = { NODE_ENV: 'test', VALIDATION_MODE: 'true', COMPOSICION: 'oferta-002', PORT: '3981', DATABASE_URL: aislada.url, PUBLIC_ORIGIN: origenWeb002, PUBLIC_URL: origenWeb002,
+      HMAC_KEY_ID: 'e', HMAC_KEYS_JSON: JSON.stringify({ e: claveHmac }), AEAD_KEY_ID: 'f', AEAD_KEYS_JSON: JSON.stringify({ f: claveAead }),
+      S3_ENDPOINT: real['S3_ENDPOINT'], S3_REGION: real['S3_REGION'], S3_BUCKET: real['S3_BUCKET'], S3_ACCESS_KEY_ID: real['S3_ACCESS_KEY_ID'], S3_SECRET_ACCESS_KEY: real['S3_SECRET_ACCESS_KEY'],
+      SMTP_HOST: '127.0.0.1', SMTP_PORT: '9', SMTP_FROM: 'entrada@example.invalid', CATALOGO_MANIFIESTO: real['CATALOGO_MANIFIESTO'],
+      REDIS_URL: real['REDIS_URL'], REDIS_NAMESPACE: `ayacucho:002:entrada-${randomUUID().slice(0, 8)}`, REDIS_TIMEOUT_MS: '300' };
+    try {
+      await conEntorno({ ...variables, COMPOSICION: 'completa' }, async () => { await expect(iniciar()).rejects.toThrow('COMPOSICION no es válida'); });
+      await conEntorno(variables, async () => {
+        const servicio = await iniciar();
+        try {
+          const llamar = (ruta: string, init: RequestInit = {}) => fetch(`http://127.0.0.1:3981/api/v1${ruta}`, init);
+          expect((await llamar('/salud')).status).toBe(200);
+          expect((await llamar('/categorias')).status).toBe(200);
+          for (const ruta of ['/admin/categorias', '/servicios/mios', '/prestadores/perfil']) expect((await llamar(ruta)).status).toBe(401);
+          // Origen y controles de la base: Origin ausente o ajeno y cuerpo grande.
+          const cuerpo = JSON.stringify({ nombreMostrar: 'x' });
+          expect((await llamar('/cuentas', { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': randomUUID() }, body: cuerpo })).status).toBe(400);
+          expect((await llamar('/cuentas', { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': randomUUID(), origin: 'https://ajeno.example.invalid' }, body: cuerpo })).status).toBe(403);
+          expect((await llamar('/cuentas', { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': randomUUID(), origin: origenWeb002 }, body: JSON.stringify({ nombreMostrar: 'x'.repeat(400_000) }) })).status).toBe(413);
+        } finally { await servicio.cerrar(); }
+      });
+    } finally { await aislada.cerrar(); }
+  }, 240000);
 });
