@@ -66,7 +66,25 @@ suite('ensayo de restauración coordinada en infraestructura descartable', () =>
     return { resultado, base, url, prefijo };
   };
   const existeBase = async (base: string) => Number((await sql<{ n: number }>(urlDe('postgres'), 'SELECT count(*)::int AS n FROM pg_database WHERE datname = $1', [base]))[0]!.n) === 1;
-  const contarObjetos = async (bucket: string, prefijo = '') => (await cliente.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefijo }))).KeyCount ?? 0;
+  const prefijoExclusivo = (bucket: string, prefijo: string) => {
+    const permitido = prefijo === 'portafolio/' || /^pruebas\/[0-9a-f-]{36}\/portafolio\/$/.test(prefijo);
+    if (![bucketOrigen, bucketDestino].includes(bucket) || !permitido) throw new Error('Limpieza cancelada: solo se admiten los buckets y prefijos exclusivos del ensayo.');
+  };
+  const listarClaves = async (bucket: string, prefijo: string): Promise<string[]> => {
+    const claves: string[] = []; let token: string | undefined;
+    do {
+      const pagina = await cliente.send(new ListObjectsV2Command({ Bucket: bucket, ...(prefijo ? { Prefix: prefijo } : {}), ...(token ? { ContinuationToken: token } : {}) }));
+      for (const o of pagina.Contents ?? []) if (o.Key) claves.push(o.Key);
+      token = pagina.IsTruncated ? pagina.NextContinuationToken : undefined;
+    } while (token);
+    return claves;
+  };
+  const contarObjetos = async (bucket: string, prefijo = '') => (await listarClaves(bucket, prefijo)).length;
+  /** Elimina solo objetos bajo un prefijo exclusivo del ensayo (nunca el bucket ni prefijos ajenos), recorriendo todas las páginas. */
+  const vaciarPrefijo = async (bucket: string, prefijo: string) => {
+    prefijoExclusivo(bucket, prefijo);
+    for (const clave of await listarClaves(bucket, prefijo)) await cliente.send(new DeleteObjectCommand({ Bucket: bucket, Key: clave }));
+  };
 
   beforeAll(async () => {
     cfg = Object.fromEntries((await readFile(archivoEnv!, 'utf8')).split(/\r?\n/).filter(Boolean).map(l => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^'|'$/g, '')]; }));
@@ -81,6 +99,13 @@ suite('ensayo de restauración coordinada en infraestructura descartable', () =>
     // Identidad y buckets propios del ensayo en el Garage descartable (idempotente).
     try { garage('key', 'info', cfg['ENSAYO_S3_ACCESS_KEY_ID']!); } catch { garage('key', 'import', '--yes', '-n', 'ensayo', cfg['ENSAYO_S3_ACCESS_KEY_ID']!, cfg['ENSAYO_S3_SECRET_ACCESS_KEY']!); }
     for (const b of [bucketOrigen, bucketDestino]) { try { garage('bucket', 'info', b); } catch { garage('bucket', 'create', b); } garage('bucket', 'allow', '--read', '--write', '--key', cfg['ENSAYO_S3_ACCESS_KEY_ID']!, b); }
+    // Estado inicial determinista: se vacían los prefijos exclusivos del ensayo (residuos de ejecuciones previas o interrumpidas).
+    for (const b of [bucketOrigen, bucketDestino]) {
+      await vaciarPrefijo(b, 'portafolio/');
+      // Residuos de ensayos previos bajo pruebas/<uuid>/portafolio/: solo claves con esa forma exacta.
+      const prefijosResiduales = new Set((await listarClaves(b, 'pruebas/')).map(k => /^(pruebas\/[0-9a-f-]{36}\/portafolio\/)/.exec(k)?.[1]).filter((x): x is string => !!x));
+      for (const prefijo of prefijosResiduales) await vaciarPrefijo(b, prefijo);
+    }
     nombreOrigen = `ayacucho_002_ensayo_origen_${uuid().replaceAll('-', '')}`; urlOrigen = urlDe(nombreOrigen); basesCreadas.push(nombreOrigen);
     await sql(urlDe('postgres'), `CREATE DATABASE "${nombreOrigen}"`);
     await aplicarMigraciones002(urlOrigen); migraciones = await migracionesEsperadas002();
@@ -113,10 +138,9 @@ suite('ensayo de restauración coordinada en infraestructura descartable', () =>
   afterAll(async () => {
     try {
       for (const base of basesCreadas) await sql(urlDe('postgres'), `DROP DATABASE IF EXISTS "${base}" WITH (FORCE)`).catch(() => undefined);
-      for (const { bucket, prefijo } of [{ bucket: bucketOrigen, prefijo: '' }, ...prefijos]) {
-        const r = await cliente.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefijo || undefined }));
-        for (const o of r.Contents ?? []) await cliente.send(new DeleteObjectCommand({ Bucket: bucket, Key: o.Key! }));
-      }
+      const objetivos = new Map<string, { bucket: string; prefijo: string }>();
+      for (const t of [{ bucket: bucketOrigen, prefijo: 'portafolio/' }, { bucket: bucketDestino, prefijo: 'portafolio/' }, ...prefijos]) objetivos.set(`${t.bucket}|${t.prefijo}`, t);
+      for (const { bucket, prefijo } of objetivos.values()) await vaciarPrefijo(bucket, prefijo);
       await rm(directorio, { recursive: true, force: true });
     } finally { cliente?.destroy(); }
   }, 120000);
@@ -127,7 +151,7 @@ suite('ensayo de restauración coordinada en infraestructura descartable', () =>
       manifiesto = await respaldar();
       expect(manifiesto).toMatchObject({ estado: 'COMPLETO', conteos: { fotografiasVigentes: 1, objetosCopiados: 1, preparacionesInconclusas: 1, purgasPendientes: 1 } });
       expect(manifiesto.objetos.map(o => o.clave)).toEqual([datos.claveVigente]);
-      expect(await contarObjetos(bucketOrigen)).toBeGreaterThanOrEqual(2);
+      expect(await contarObjetos(bucketOrigen, 'portafolio/')).toBeGreaterThanOrEqual(2);
     }, 180000);
 
     test('restaura PostgreSQL y Garage en una base y un bucket nuevos: puerta abierta, espacio Redis nuevo y estado coherente', async () => {
@@ -141,7 +165,7 @@ suite('ensayo de restauración coordinada en infraestructura descartable', () =>
       expect((await sql<{ tipo: string }>(restaurada.url, 'SELECT tipo FROM prestadores_objetos_pendientes')).map(p => p.tipo)).toEqual(['PURGA']);
       expect(Number((await sql<{ n: number }>(restaurada.url, 'SELECT count(*)::int AS n FROM migrations'))[0]!.n)).toBe(migraciones.length);
       // Garage de destino: solo la foto vigente, con el mismo contenido. El origen no cambia.
-      expect(await contarObjetos(bucketDestino)).toBe(1);
+      expect(await contarObjetos(bucketDestino, 'portafolio/')).toBe(1);
       expect(sha256(await new PortafolioS3(cliente, bucketDestino, 'portafolio/').leer(datos.claveVigente))).toBe(datos.bytesVigente);
       expect(sha256(await almacenOrigen.leer(datos.claveVigente))).toBe(datos.bytesVigente);
       expect(Number((await sql<{ n: number }>(urlOrigen, 'SELECT count(*)::int AS n FROM prestadores_fotografias'))[0]!.n)).toBe(1);
