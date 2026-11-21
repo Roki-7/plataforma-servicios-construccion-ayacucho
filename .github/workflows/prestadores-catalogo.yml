@@ -1,0 +1,261 @@
+name: 002 Prestadores y catálogo
+
+# CI propia de la funcionalidad 002. No reemplaza ni modifica .github/workflows/usuarios-acceso.yml.
+# Tres trabajos, cada uno en su propio ejecutor efímero (nunca comparten anfitrión, Compose, puertos ni evidencias):
+#   calidad         lint, typecheck, build y pruebas unitarias del frontend.
+#   validar-002     proyectos Compose propios de 002 (validación, ensayo de restauración, Redis y PostgreSQL aislados).
+#   regresion-001   compatibilidad de 001 en su propia infraestructura efímera, con evidencia separada bajo 002.
+# Toda la evidencia de 002 va a tecnologia/.local/evidencia/002/ci. Ningún paso depende de archivos locales ignorados por Git:
+# la configuración y los secretos se generan en cada ejecución (aleatorios y enmascarados).
+
+on:
+  pull_request:
+    paths: ['tecnologia/**', 'specs/002-prestadores-y-catalogo/**', '.github/workflows/prestadores-catalogo.yml']
+  push:
+    branches: [main, 002-prestadores-y-catalogo]
+    paths: ['tecnologia/**', 'specs/002-prestadores-y-catalogo/**', '.github/workflows/prestadores-catalogo.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prestadores-catalogo-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EVIDENCIA_002: ${{ github.workspace }}/tecnologia/.local/evidencia/002/ci
+
+jobs:
+  calidad:
+    name: Calidad (lint, typecheck, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - name: Instalar, comprobar y compilar con los lockfiles
+        shell: bash
+        run: |
+          for app in backend frontend; do
+            npm --prefix "tecnologia/$app" ci
+            npm --prefix "tecnologia/$app" run lint
+            npm --prefix "tecnologia/$app" run typecheck
+            npm --prefix "tecnologia/$app" run build
+          done
+      - name: Pruebas unitarias del frontend
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCIA_002/frontend"
+          npm --prefix tecnologia/frontend run test:unit -- --reporter=default --reporter=junit --outputFile.junit="$EVIDENCIA_002/frontend/frontend-unit-junit.xml"
+      - name: Conservar evidencia de calidad
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prestadores-catalogo-002-calidad-${{ github.sha }}-${{ github.run_attempt }}
+          path: tecnologia/.local/evidencia/002/ci/frontend/**/*.xml
+          if-no-files-found: warn
+          include-hidden-files: true
+
+  validar-002:
+    name: Validación 002 (PostgreSQL real, contratos, arquitectura, infraestructura)
+    needs: calidad
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      COMPOSE_002: -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml
+      COMPOSE_ENSAYO: -p ayacucho-ensayo-restauracion --env-file tecnologia/.local/ensayo-restauracion/compose.env -f tecnologia/compose.ensayo-restauracion.yaml
+      AISLADOS: ${{ runner.temp }}/aislados
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - name: Instalar el backend con el lockfile
+        run: npm --prefix tecnologia/backend ci
+
+      # --- Infraestructura propia de 002 (proyecto ayacucho-002-validacion; puertos 54330, 63800, 1026, 3910) ---
+      - name: Preparar la configuración 002 y levantar su infraestructura
+        shell: bash
+        run: |
+          npm --prefix tecnologia/backend run dev:prepare:002 -- --validation
+          docker compose $COMPOSE_002 up -d --wait postgres redis correo objetos
+          npm --prefix tecnologia/backend run start:validation:002 -- --verificar-config
+          npm --prefix tecnologia/backend run db:migrate:002
+          npm --prefix tecnologia/backend run storage:init:002
+          npm --prefix tecnologia/backend run test:seed:002
+      - name: Registrar el contenido de la semilla de 002 antes de las pruebas
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCIA_002/semilla"
+          psql002() { docker exec -i ayacucho-002-validacion-postgres-1 psql -X -U ayacucho_validacion_002 -d ayacucho_002_validacion -v ON_ERROR_STOP=1 -tA "$@"; }
+          psql002 -F '|' -c "select id, nombre, nombre_normalizado, nivel, categoria_padre_id, activa from public.catalogo_clasificaciones order by id" > "$EVIDENCIA_002/semilla/clasificaciones-antes.txt"
+          psql002 < tecnologia/scripts/huella-bd-002.sql > "$EVIDENCIA_002/semilla/huella-antes.txt"
+          # La semilla determinista debe ser exactamente la de semilla-002.ts: seis clasificaciones (identificadores 9001 a 9006), ni una más ni una menos.
+          total=$(psql002 -c "SELECT count(*) FROM public.catalogo_clasificaciones")
+          [[ "$total" =~ ^[0-9]+$ ]] || { echo "No se pudo contar las clasificaciones de la semilla (respuesta: '$total')"; exit 1; }
+          [ "$total" -eq 6 ] || { echo "La semilla debe contener exactamente 6 clasificaciones y hay $total"; cat "$EVIDENCIA_002/semilla/clasificaciones-antes.txt"; exit 1; }
+          for n in 9001 9002 9003 9004 9005 9006; do
+            grep -q "^00000000-0000-4000-8000-00000000$n|" "$EVIDENCIA_002/semilla/clasificaciones-antes.txt" || { echo "Falta la clasificación de semilla $n"; exit 1; }
+          done
+          cat "$EVIDENCIA_002/semilla/clasificaciones-antes.txt"
+          # Marcador: solo si la evidencia inicial quedó completa se ejecuta la comparación posterior.
+          echo listo > "$EVIDENCIA_002/semilla/evidencia-inicial-completa.txt"
+
+      # --- Infraestructura descartable del ensayo de restauración y de las suites aisladas (credenciales aleatorias, enmascaradas) ---
+      - name: Preparar el ensayo de restauración y las infraestructuras aisladas
+        shell: bash
+        run: |
+          (cd tecnologia/backend && npx tsx scripts/preparar-ensayo-restauracion-002.ts)
+          while IFS= read -r linea; do v="${linea#*=}"; v="${v//\'/}"; [ -n "$v" ] && echo "::add-mask::$v"; done < tecnologia/.local/ensayo-restauracion/ensayo.env
+          docker compose $COMPOSE_ENSAYO up -d --wait
+
+          mkdir -p "$AISLADOS"
+          rf39_pw=$(openssl rand -hex 18); echo "::add-mask::$rf39_pw"
+          echo "RF39_AISLADA_URL=postgresql://rf39_prueba:${rf39_pw}@127.0.0.1:54340/postgres" >> "$GITHUB_ENV"
+          echo "REDIS_AISLADO_URL=redis://127.0.0.1:63850" >> "$GITHUB_ENV"
+          cat > "$AISLADOS/redis.yaml" <<'YAML'
+          name: ayacucho-redis002-aislado
+          services:
+            redis:
+              image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+              command: ["redis-server", "--save", "", "--appendonly", "no"]
+              ports: ["127.0.0.1:63850:6379"]
+              healthcheck:
+                test: ["CMD", "redis-cli", "ping"]
+                interval: 3s
+                timeout: 3s
+                retries: 20
+          YAML
+          cat > "$AISLADOS/rf39.yaml" <<'YAML'
+          name: ayacucho-rf39-aislada
+          services:
+            postgres:
+              image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+              environment:
+                POSTGRES_USER: rf39_prueba
+                POSTGRES_PASSWORD: ${RF39_PG_PASSWORD:?definir}
+                POSTGRES_DB: ayacucho_rf39_aislada
+              ports: ["127.0.0.1:54340:5432"]
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U rf39_prueba -d ayacucho_rf39_aislada"]
+                interval: 3s
+                timeout: 3s
+                retries: 30
+          YAML
+          docker compose -f "$AISLADOS/redis.yaml" up -d --wait
+          RF39_PG_PASSWORD="$rf39_pw" docker compose -f "$AISLADOS/rf39.yaml" up -d --wait
+          echo "ENSAYO_RESTAURACION_ENV=${GITHUB_WORKSPACE}/tecnologia/.local/ensayo-restauracion/ensayo.env" >> "$GITHUB_ENV"
+
+      # --- Pruebas (cada grupo escribe su JUnit en una carpeta propia de 002) ---
+      - name: Pruebas unitarias
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/unitarias" npm --prefix tecnologia/backend run test:unit
+      - name: Pruebas de arquitectura
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/arquitectura" npm --prefix tecnologia/backend run test:architecture
+      # Los contratos de 001 (incluido X-08) exigen la infraestructura de 001 y se ejecutan en el trabajo regresion-001.
+      - name: Pruebas de contratos de 002
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/contratos" npm --prefix tecnologia/backend run test:contract -- --testPathPatterns prestadores-catalogo
+      - name: Integración 002 con PostgreSQL real
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/integracion" npm --prefix tecnologia/backend run test:integration:002
+      - name: Integración 002 que altera infraestructura (serial, recursos propios)
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/integracion-infra" npm --prefix tecnologia/backend run test:integration:002:infra
+      # Se ejecuta aunque fallen las pruebas (siempre que la evidencia inicial esté completa) y nunca convierte un fallo anterior en éxito:
+      # el trabajo ya figura como fallido por el paso que falló, y este paso añade su propio resultado.
+      - name: Verificar que la base principal de 002 y su semilla no cambiaron
+        if: ${{ always() && hashFiles('tecnologia/.local/evidencia/002/ci/semilla/evidencia-inicial-completa.txt') != '' }}
+        shell: bash
+        run: |
+          psql002() { docker exec -i ayacucho-002-validacion-postgres-1 psql -X -U ayacucho_validacion_002 -d ayacucho_002_validacion -v ON_ERROR_STOP=1 -tA "$@"; }
+          psql002 -F '|' -c "select id, nombre, nombre_normalizado, nivel, categoria_padre_id, activa from public.catalogo_clasificaciones order by id" > "$EVIDENCIA_002/semilla/clasificaciones-despues.txt"
+          psql002 < tecnologia/scripts/huella-bd-002.sql > "$EVIDENCIA_002/semilla/huella-despues.txt"
+          diff "$EVIDENCIA_002/semilla/clasificaciones-antes.txt" "$EVIDENCIA_002/semilla/clasificaciones-despues.txt"
+          diff "$EVIDENCIA_002/semilla/huella-antes.txt" "$EVIDENCIA_002/semilla/huella-despues.txt"
+          echo "Contenido de las clasificaciones y huella de todas las tablas de 002 sin cambios."
+      - name: Verificar que no quedan bases temporales
+        if: always()
+        shell: bash
+        run: |
+          # Cualquier fallo de Docker o de PostgreSQL hace fallar el paso: la falta de respuesta nunca se interpreta como «cero bases».
+          contar() { docker exec "$1" psql -X -v ON_ERROR_STOP=1 -U "$2" -d postgres -tA -c "select datname from pg_database where datname ~ '$3' order by 1"; }
+          mkdir -p "$EVIDENCIA_002/semilla"
+          a=$(contar ayacucho-002-validacion-postgres-1 ayacucho_validacion_002 '^ayacucho_002_test_[0-9a-f]{32}$') || { echo "No se pudo consultar PostgreSQL de la validación 002"; exit 1; }
+          b=$(contar ayacucho-ensayo-restauracion-postgres-1 ensayo_restauracion '^ayacucho_002_(restauracion|ensayo_origen)_[0-9a-f]{32}$') || { echo "No se pudo consultar PostgreSQL del ensayo de restauración"; exit 1; }
+          { echo "$a"; echo "$b"; } | sed '/^$/d' > "$EVIDENCIA_002/semilla/bases-residuales.txt"
+          residuales=$(wc -l < "$EVIDENCIA_002/semilla/bases-residuales.txt")
+          cat "$EVIDENCIA_002/semilla/bases-residuales.txt"
+          [ "$residuales" -eq 0 ] || { echo "Quedan $residuales bases temporales sin eliminar"; exit 1; }
+          echo "Sin bases temporales residuales."
+
+      - name: Estado de los contenedores
+        if: always()
+        shell: bash
+        run: docker ps -a --format '{{.Names}} {{.Status}}' > "$EVIDENCIA_002/contenedores.txt" || true
+      - name: Conservar evidencia de 002
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prestadores-catalogo-002-validacion-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            tecnologia/.local/evidencia/002/ci/**/*.xml
+            tecnologia/.local/evidencia/002/ci/**/*.txt
+          if-no-files-found: warn
+          include-hidden-files: true
+      - name: Liberar la infraestructura propia
+        if: always()
+        shell: bash
+        run: |
+          docker compose $COMPOSE_ENSAYO down -v || true
+          docker compose -f "$AISLADOS/redis.yaml" down -v || true
+          RF39_PG_PASSWORD=x docker compose -f "$AISLADOS/rf39.yaml" down -v || true
+          docker compose $COMPOSE_002 down -v || true
+
+  regresion-001:
+    name: Regresión de compatibilidad con 001
+    needs: calidad
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - name: Instalar el backend con el lockfile
+        run: npm --prefix tecnologia/backend ci
+      # Ejecutor efímero propio: la infraestructura de 001 se crea aquí y se descarta, sin tocar la del flujo de 001.
+      - name: Preparar la infraestructura de 001 de esta ejecución
+        shell: bash
+        run: |
+          npm --prefix tecnologia/backend run dev:prepare -- --validation
+          docker compose -f tecnologia/compose.yaml up -d --wait postgres redis correo objetos
+          npm --prefix tecnologia/backend run db:migrate
+          npm --prefix tecnologia/backend run storage:init
+          npm --prefix tecnologia/backend run security:catalog:prepare -- --fixture
+          npm --prefix tecnologia/backend run test:seed
+      - name: Pruebas de 001 (unitarias, contratos, integración)
+        shell: bash
+        env:
+          NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/tecnologia/.local/tls/ca.crt
+        run: |
+          patron='usuarios-acceso|fundacion'
+          EVIDENCIA_JEST="$EVIDENCIA_002/regresion-001/unitarias" npm --prefix tecnologia/backend run test:unit -- --testPathPatterns "$patron"
+          EVIDENCIA_JEST="$EVIDENCIA_002/regresion-001/contratos" npm --prefix tecnologia/backend run test:contract -- --testPathPatterns "$patron"
+          EVIDENCIA_JEST="$EVIDENCIA_002/regresion-001/integracion" npm --prefix tecnologia/backend run test:integration -- --runInBand --testPathPatterns "$patron"
+      - name: Conservar evidencia de la regresión 001
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prestadores-catalogo-002-regresion-001-${{ github.sha }}-${{ github.run_attempt }}
+          path: tecnologia/.local/evidencia/002/ci/regresion-001/**/*.xml
+          if-no-files-found: warn
+          include-hidden-files: true
+      - name: Liberar la infraestructura
+        if: always()
+        run: docker compose -f tecnologia/compose.yaml --profile web down -v || true

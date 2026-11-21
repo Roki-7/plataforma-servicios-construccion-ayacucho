@@ -32,7 +32,9 @@ beforeAll(async () => {
   cache = new CacheObservada(new ClienteRedis002({ REDIS_URL: env['REDIS_URL'], REDIS_NAMESPACE: `ayacucho:002:prueba-${randomUUID().slice(0, 8)}`, REDIS_TIMEOUT_MS: '300' }));
   e = await montarHu05({ cache: { almacen: cache, entorno: 'validacion' } });
 }, 180000);
-afterAll(async () => { try { await e?.cerrar(); await baseline?.cerrar(); } finally { cache?.cerrar(); } });
+// Cada cierre elimina una base (DROP DATABASE), que fuerza y espera un checkpoint de PostgreSQL. Con latencias de fsync altas (medidas: 23 s + 8 s en este hook) los dos cierres superan
+// el máximo global de 30 s; el margen es solo para este hook, sin cambiar el máximo global ni la configuración de PostgreSQL.
+afterAll(async () => { try { await e?.cerrar(); await baseline?.cerrar(); } finally { cache?.cerrar(); } }, 120000);
 
 const ids = (r: { body: { elementos: Record<string, string>[] } }, campo = 'servicioId') => r.body.elementos.map(x => x[campo]!);
 const titular = () => e.datos.titular.token;

@@ -106,6 +106,10 @@ suite('ensayo de restauración coordinada en infraestructura descartable', () =>
       const prefijosResiduales = new Set((await listarClaves(b, 'pruebas/')).map(k => /^(pruebas\/[0-9a-f-]{36}\/portafolio\/)/.exec(k)?.[1]).filter((x): x is string => !!x));
       for (const prefijo of prefijosResiduales) await vaciarPrefijo(b, prefijo);
     }
+    // Una ejecución interrumpida o con PostgreSQL caído no ejecuta afterAll: sus bases quedan huérfanas. Solo en el PostgreSQL exclusivo del ensayo (puerto y proyecto
+    // comprobados arriba) se eliminan las bases con la forma exacta de las que crea esta suite; nada más (ni ayacucho_002_validacion ni ayacucho_002_test_*).
+    const huerfanas = await sql<{ datname: string }>(urlDe('postgres'), "SELECT datname FROM pg_database WHERE datname ~ '^ayacucho_002_(restauracion|ensayo_origen)_[0-9a-f]{32}$'");
+    for (const { datname } of huerfanas) await sql(urlDe('postgres'), `DROP DATABASE IF EXISTS "${datname}" WITH (FORCE)`);
     nombreOrigen = `ayacucho_002_ensayo_origen_${uuid().replaceAll('-', '')}`; urlOrigen = urlDe(nombreOrigen); basesCreadas.push(nombreOrigen);
     await sql(urlDe('postgres'), `CREATE DATABASE "${nombreOrigen}"`);
     await aplicarMigraciones002(urlOrigen); migraciones = await migracionesEsperadas002();
