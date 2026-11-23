@@ -54,10 +54,11 @@ describe('T076 · reporte 002: criterios y evidencias por proyecto', () => {
     expect(existsSync(join(c, 'hu03/webkit-360/trace.zip'))).toBe(false); expect(existsSync(join(c, 'hu03/escape.json'))).toBe(false); expect(existsSync(join(c, 'escape.json'))).toBe(false);
   });
 
-  test('T077 · los hechos de HU04 (`evidencia-ca-ser-*`) se conservan en `hu04/<proyecto>/` y los de HU03 siguen en `hu03/<proyecto>/`', () => {
-    const c = ejecutar([{ proyecto: 'firefox-768', titulo: 'CA-SER-03', criterios: ['CA-SER-03'], estado: 'passed', adjuntos: [evidencia('evidencia-ca-ser-03.json', { visitante: 401 }), evidencia('evidencia-ca-pre-01.json', { perfil: 1 })] }]);
+  test('T077 y T078 · los hechos de HU04 (`evidencia-ca-ser-*`) y HU05 (`evidencia-ca-bus-*`) se conservan en `hu04/` y `hu05/<proyecto>/` y los de HU03 siguen en `hu03/<proyecto>/`', () => {
+    const c = ejecutar([{ proyecto: 'firefox-768', titulo: 'CA-SER-03', criterios: ['CA-SER-03'], estado: 'passed', adjuntos: [evidencia('evidencia-ca-ser-03.json', { visitante: 401 }), evidencia('evidencia-ca-pre-01.json', { perfil: 1 }), evidencia('evidencia-ca-bus-01-02.json', { filtros: 4 })] }]);
     expect(leer(c, 'hu04/firefox-768/evidencia-ca-ser-03.json').visitante).toBe(401); expect(existsSync(join(c, 'hu03/firefox-768/evidencia-ca-ser-03.json'))).toBe(false);
     expect(leer(c, 'hu03/firefox-768/evidencia-ca-pre-01.json').perfil).toBe(1); expect(existsSync(join(c, 'hu04/firefox-768/evidencia-ca-pre-01.json'))).toBe(false);
+    expect(leer(c, 'hu05/firefox-768/evidencia-ca-bus-01-02.json').filtros).toBe(4); expect(existsSync(join(c, 'hu03/firefox-768/evidencia-ca-bus-01-02.json'))).toBe(false);
   });
 
   test('sin criterios declarados no se genera el archivo de trazabilidad y el resumen por proyecto conserva dispositivo y ancho', () => {

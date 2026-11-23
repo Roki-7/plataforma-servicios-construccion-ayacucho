@@ -12,6 +12,9 @@ interface PruebaDeCriterio { proyecto: string; titulo: string; estado: string }
  * criterios de aceptación que declara (anotaciones `criterio`) en `trazabilidad-criterios-002.json`; y conserva los hechos que las pruebas adjuntan como
  * `evidencia-<nombre>.json` en `hu03/<proyecto>/`. Solo escribe identidades y hechos verificables; el texto pasa por la misma redacción de secretos que usa la 001.
  */
+/** Carpeta de evidencia por historia de usuario según el criterio que demuestra el adjunto. */
+const carpetaDeEvidencia = (nombre: string): string => (nombre.startsWith('evidencia-ca-ser-') ? 'hu04' : nombre.startsWith('evidencia-ca-bus-') ? 'hu05' : 'hu03');
+
 export default class Reporte002 implements Reporter {
   private readonly proyectos = new Map<string, ResumenProyecto>();
   private readonly criterios = new Map<string, PruebaDeCriterio[]>();
@@ -34,9 +37,9 @@ export default class Reporte002 implements Reporter {
       lista.push({ proyecto, titulo: prueba.title, estado: resultado.status }); this.criterios.set(anotacion.description!, lista);
     }
     // Hechos verificables que las pruebas adjuntan (estados HTTP, huellas, identificadores): uno por proyecto y nombre.
-    // Cada historia de usuario conserva sus hechos en su carpeta: `evidencia-ca-pre-*` en `hu03` y `evidencia-ca-ser-*` en `hu04`.
+    // Cada historia de usuario conserva sus hechos en su carpeta: `evidencia-ca-pre-*` en `hu03`, `evidencia-ca-ser-*` en `hu04` y `evidencia-ca-bus-*` en `hu05`.
     for (const a of resultado.attachments.filter((x) => /^evidencia-[a-z0-9-]+\.json$/.test(x.name) && x.body)) {
-      const carpeta = resolve(this.opciones.evidencia, a.name.startsWith('evidencia-ca-ser-') ? 'hu04' : 'hu03', proyecto);
+      const carpeta = resolve(this.opciones.evidencia, carpetaDeEvidencia(a.name), proyecto);
       mkdirSync(carpeta, { recursive: true });
       writeFileSync(resolve(carpeta, a.name), redactarReporte(a.body!.toString('utf8')), 'utf8');
     }

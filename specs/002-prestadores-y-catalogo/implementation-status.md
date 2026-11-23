@@ -830,3 +830,40 @@ Estado: **verificada** (77 de 94 acumuladas). Los nueve criterios CA-SER-01 a CA
 - El selector de categorías de la web se carga una vez por carga de página: tras desactivar una categoría, se actualiza al recargar (la prueba lo comprueba tras una nueva carga).
 - La tabla de trazabilidad de `tasks.md` asigna además CA-SER-03 a T079, CA-SER-08 a T078 y CA-SER-04/06 a T064; esta tarea aporta cobertura E2E adicional, pero no cierra T078 ni T079, que siguen sin iniciarse.
 - Siguen abiertos los pendientes técnicos anteriores (conteos de Actions n.º 3, margen de 120 s de `busqueda-publica.spec.ts`, lentitud ocasional del disco, causa inferida de RF39, informes locales de 001, `verificar-https-002.ts`). Como en T075, no se ejecuta en CI.
+
+## T078 · Recorridos de HU05: búsqueda y consulta pública de la oferta (verificada)
+
+Estado: **verificada** (78 de 94 acumuladas). Los criterios CA-BUS-01 a CA-BUS-05, CA-BUS-07 (caso de ambas fuentes ausentes) y CA-BUS-08, junto con la parte pública de CA-SER-08 y CA-CAT-02, se ejecutan en Chromium, Firefox y WebKit a 360, 768 y 1366 px (9 proyectos) sobre HTTPS con la CA 002 y una base, un bucket y un espacio Redis descartables por corrida (T075). No se modificó ningún archivo de 001, ni el workflow de CI, ni el código de la aplicación.
+
+### Implementación
+
+- `tecnologia/frontend/test/e2e/prestadores-catalogo/busqueda.spec.ts`: cuatro pruebas por proyecto (36 en la matriz; 180 con las de T075 a T077). Reutiliza `soporte.ts` y el ejecutor de T075 sin cambios. Cada prueba crea su propia oferta ficticia (categorías, prestadores y servicios con sufijos únicos, preparados por la API con el operador de la base descartable `E2E_OPERADOR_002`), de modo que los resultados esperados son exactos aunque la base acumule datos de otros proyectos. El visitante (contexto de navegador sin sesión) y una cuenta autenticada usan la **interfaz web real**.
+- `tecnologia/frontend/test/soporte/reporte-002.ts`: los hechos `evidencia-ca-bus-*` se conservan en `hu05/<proyecto>/` (`hu03/` y `hu04/` siguen igual); la prueba unitaria de `reporte-002.test.ts` cubre las tres carpetas.
+
+### Cobertura por criterio
+
+| Criterio | Nivel y recorrido verificado |
+|---|---|
+| CA-BUS-01 | E2E web (visitante): categoría raíz (incluye la subcategoría), subcategoría, zona de atención, disponibilidad declarada y los tres filtros a la vez devuelven exactamente los servicios esperados; lo mismo para prestadores. Una cuenta autenticada obtiene los mismos resultados en el navegador y por la API. Paginación: 22 servicios; por API con página de 7 (7, 7, 7, 1) la unión es exacta, sin repetidos, con total constante y página repetida idéntica; fuera de rango devuelve 200 vacío con el total. En la web (cuenta autenticada) la página 1 muestra 20, la 2 muestra 2, la unión es exacta y «Anterior» recupera el mismo orden. |
+| CA-BUS-02 | Una zona sin prestadores muestra «No hay coincidencias para esos criterios. Ajuste los filtros e intente de nuevo.» sin error; «Quitar filtros» restablece los criterios y se puede volver a buscar. |
+| CA-BUS-03 | El detalle del servicio y el perfil público muestran el servicio, la experiencia, las zonas, los trabajos anteriores y la disponibilidad como declaración («no constituye una reserva ni una confirmación»). |
+| CA-BUS-04 | La búsqueda base sigue disponible y no ofrece filtro ni texto de calificaciones; el parámetro `calificacion` se rechaza con 400 `DATOS_INVALIDOS` como cualquier parámetro desconocido; el perfil muestra «Calificaciones aún no disponibles» y no aparecen «Sin valoraciones», puntuaciones ni estrellas. |
+| CA-BUS-05 | El perfil muestra «Verificaciones aún no disponibles», los datos aportados siguen en la sección «Información declarada por el prestador» y no hay insignias ni estados de verificación. |
+| CA-BUS-07 | Solo el caso real de 002 (ambas fuentes ausentes: los dos avisos exactos, en ese orden y sin otros). Los otros tres casos de disponibilidad requieren dobles de las fuentes y se verifican en backend (`unit/filtros-y-avisos.spec.ts`, T044, e `integration/privacidad-publica.spec.ts`, T052), no en el navegador. |
+| CA-BUS-08 | Las respuestas públicas (perfil, detalle, resumen de búsqueda, servicios del perfil) tienen una lista cerrada de campos y no contienen el correo, su parte local, el identificador de cuenta ni cadenas como documento, dirección, teléfono, token o credenciales; las vistas web tampoco. Las rutas de documentos o archivos privados y una fotografía inexistente devuelven 404 `RECURSO_NO_DISPONIBLE` sin confirmar nada. 002 no tiene aún un recurso de documentos privados: se comprueba que no hay ruta pública que lo entregue. |
+| CA-SER-08 / CA-CAT-02 (parte pública) | Un servicio pausado y otro retirado desaparecen de la búsqueda web y API, del perfil público («Este prestador no tiene servicios visibles por ahora.») y del enlace directo («El contenido solicitado no está disponible.», 404 idéntico al de uno inexistente). Al desactivar la subcategoría, la oferta queda oculta (búsqueda vacía con su mensaje, detalle 404, perfil sin servicios) mientras el servicio de su titular sigue PUBLICADO en la misma versión y el prestador sigue público; al reactivar la categoría vuelven los publicados y no el pausado ni el retirado. |
+
+### Verificación
+
+- **Matriz completa:** 36 de 36 pruebas aprobadas en los 9 proyectos (10,7 min), en una sola corrida. `trazabilidad-criterios-002.json` registra los nueve criterios declarados aprobados en 9 de 9 proyectos y la evidencia suma 36 archivos en `hu05/<proyecto>/` (4 por proyecto).
+- **Historial de la puesta a punto (se conserva por transparencia):** la primera ejecución en Chromium 1366 falló en 2 de 4 pruebas por un fallo de mi propia prueba: tras iniciar sesión esperaba el enlace «Buscar servicios», que también existe sin sesión, y pulsaba antes de que terminara el inicio de sesión. Ahora espera «Mi cuenta», que solo existe con sesión. No hubo defectos de HU05 ni se relajó ninguna aserción.
+- **Aislamiento:** al terminar no quedan bases `ayacucho_002_test_*`, claves Redis `ayacucho:002:e2e-*`, bloqueo ni procesos en 3002 y 5175; la huella de las 27 tablas de `ayacucho_002_validacion`, su bucket, su espacio Redis y los mensajes previos de Mailpit quedaron idénticos (`validacionLocalSinCambios: true`). No se tocó 001 ni se eliminó ningún volumen.
+- **Calidad (Node 24.15.0):** frontend `typecheck`, `lint` y `build` sin errores; 121 de 121 pruebas unitarias; `playwright test -c playwright.002.config.ts --list` da 180 pruebas. Sin cambios de backend. `git diff --check` sin errores.
+- Comando: `npm --prefix tecnologia/frontend run test:e2e:002 -- --especificaciones=busqueda.spec.ts` (Docker con el proyecto 002 en marcha, puertos 3002 y 5175 libres y Node 24).
+
+### Limitaciones y pendientes
+
+- CA-BUS-06 (caché de lectura vacía o con fallo) y los tres casos restantes de CA-BUS-07 no son inducibles desde el navegador sin alterar la infraestructura compartida; siguen cubiertos en backend (T053, T064, T044) y no se reejecutaron aquí.
+- CA-BUS-08 se verifica sobre los datos privados que 002 realmente almacena (correo e identificador de cuenta); no hay en 002 un recurso de documentos privados que probar.
+- El orden de los resultados se comprueba como estabilidad entre páginas y repeticiones, no contra un orden de negocio concreto.
+- Siguen abiertos los pendientes técnicos anteriores (conteos de Actions n.º 3, margen de 120 s de `busqueda-publica.spec.ts`, lentitud ocasional del disco, causa inferida de RF39, informes locales de 001, `verificar-https-002.ts`). Como en T075, no se ejecuta en CI. T079 no se ha iniciado.
