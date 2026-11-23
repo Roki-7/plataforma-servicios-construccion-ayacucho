@@ -154,6 +154,12 @@ jobs:
           echo "ENSAYO_RESTAURACION_ENV=${GITHUB_WORKSPACE}/tecnologia/.local/ensayo-restauracion/ensayo.env" >> "$GITHUB_ENV"
 
       # --- Pruebas (cada grupo escribe su JUnit en una carpeta propia de 002) ---
+      # Las pruebas de fundación (unitarias) leen la configuración local de 001 (tecnologia/.local/backend.env y el catálogo fixture) mediante cargarLocal().
+      # Solo se generan archivos de configuración de este ejecutor efímero: no se inicia ninguna infraestructura de 001 ni se relajan las validaciones.
+      - name: Preparar la configuración local de 001 que exigen las pruebas de fundación
+        run: |
+          npm --prefix tecnologia/backend run dev:prepare -- --validation
+          npm --prefix tecnologia/backend run security:catalog:prepare -- --fixture
       - name: Pruebas unitarias
         run: EVIDENCIA_JEST="$EVIDENCIA_002/unitarias" npm --prefix tecnologia/backend run test:unit
       - name: Pruebas de arquitectura
