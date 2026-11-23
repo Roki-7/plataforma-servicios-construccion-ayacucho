@@ -382,9 +382,9 @@ Verificación final (Node 24.15.0 local):
 Limitación de las pruebas paralelas: con más de 2 trabajadores las suites de integración 002 pueden superar los 30 s de `afterAll` en esta máquina. Es contención de CPU y no un defecto, pero conviene usar `test:integration:002`.
 
 
-## Avance de la fase 7 (integración del monolito y regresión, en curso)
+## Avance de la fase 7 (integración del monolito y regresión, completa)
 
-Estado: **fase 7 incompleta**. Verificadas T066 a T073 (73 de 94 acumuladas). T074 está EN CURSO: el workflow está escrito, pero no tiene una ejecución verificada en GitHub Actions (ver «T074 · CI propia de 002»).
+Estado: **fase 7 completa**. Verificadas T066 a T074 (74 de 94 acumuladas). T074 se verificó con la ejecución n.º 3 de GitHub Actions, aprobada en los tres trabajos (ver «T074 · CI propia de 002»).
 
 | Tarea | Estado | Evidencia |
 |---|---|---|
@@ -396,7 +396,7 @@ Estado: **fase 7 incompleta**. Verificadas T066 a T073 (73 de 94 acumuladas). T0
 | T071 | Verificada | Ver «T071» más abajo: ensayo en un proyecto Docker descartable. |
 | T072 | Verificada | Ver «T072» al final del documento. |
 | T073 | Verificada | Ver «T073» al final del documento: límites de integración con 003, 004, 007, 008, 011 y 012. |
-| T074 | EN CURSO (workflow escrito; sin ejecución en GitHub Actions) | CI propia de 002. Ver «T074 · CI propia de 002 (en curso)». |
+| T074 | Verificada | CI propia de 002: ejecución n.º 3 de GitHub Actions (commit `9b57fbf`) aprobada en `calidad`, `validar-002` y `regresion-001`. Ver «T074 · CI propia de 002 (verificada)». |
 
 ### Operaciones sobre el entorno de validación 002 (autorizadas)
 
@@ -423,13 +423,13 @@ Limitación: se verificó con la CA local de validación (no una CA pública) y 
 ### Riesgos y limitaciones
 
 - **Caché Redis tras restaurar una base (resolver en T070). Resuelto en T070: ver «Estado vigente» al final.** Si se restaura una base con el mismo espacio Redis y las revisiones coinciden, la copia sirve entradas de otra línea de tiempo (demostrado en T069). La restauración debe rotar el espacio Redis antes de abrir el tráfico.
-- Al cierre de ese avance, T072 y T073 estaban pendientes (se verificaron después) y T074 está ahora EN CURSO, sin ejecución verificada en GitHub Actions.
+- Al cierre de ese avance, T072 y T073 estaban pendientes (se verificaron después) y T074 se verificó después con la ejecución n.º 3 de GitHub Actions.
 - Las pruebas de RF39 y Redis son opt-in (`RF39_AISLADA_URL`, `REDIS_AISLADO_URL`) y usan contenedores propios (`ayacucho-rf39-aislada`, `ayacucho-redis002-aislado`).
 - Los scripts de la 002 deben invocarse con la ruta absoluta con unidad `C:` en mayúscula (por ejemplo `node --import tsx C:/…/scripts/iniciar-validacion-002.ts migrar`). Con la unidad en minúscula, la comprobación estricta del manifiesto del catálogo falla (la validación no se relajó).
 
 ### T070 · Respaldo y restauración coordinados del portafolio
 
-Estado: **verificada** (70 de 94 acumuladas en ese momento; la corrección posterior de la puerta está en «Estado vigente»). En ese momento T072 y T073 estaban pendientes (se verificaron después) y T074 estaba por empezar; hoy T074 está EN CURSO.
+Estado: **verificada** (70 de 94 acumuladas en ese momento; la corrección posterior de la puerta está en «Estado vigente»). En ese momento T072 y T073 estaban pendientes (se verificaron después) y T074 estaba por empezar; se verificó después con la ejecución n.º 3 de GitHub Actions.
 
 Implementación:
 - `src/modulos/prestadores/infraestructura/respaldo/respaldo-portafolio.ts`: lógica del procedimiento, sin Docker ni S3 (puertos `OrigenPostgres`, `DestinoPostgres` y `AlmacenPortafolio`).
@@ -456,7 +456,7 @@ Limitaciones:
 
 ### T071 · Ensayo de restauración coordinada
 
-Estado: **verificada** (71 de 94 acumuladas). T072 y T073 se verificaron después y T074 está hoy EN CURSO, sin ejecución verificada en GitHub Actions. Pruebas de puerta y arranque añadidas después: ver «Estado vigente».
+Estado: **verificada** (71 de 94 acumuladas). T072, T073 y T074 se verificaron después (T074 con la ejecución n.º 3 de GitHub Actions). Pruebas de puerta y arranque añadidas después: ver «Estado vigente».
 
 Infraestructura descartable e independiente: proyecto Docker `ayacucho-ensayo-restauracion` (`compose.ensayo-restauracion.yaml`) con PostgreSQL 18, Garage v2.5.0 y Redis 8 propios (imágenes fijadas por digest), contenedores, red, volúmenes (`ensayo-postgres-datos`, `ensayo-objetos-meta`, `ensayo-objetos-datos`) y puertos exclusivos (`127.0.0.1:54341`, `3930` y `63851`). Credenciales aleatorias exclusivas del ensayo, generadas por `scripts/preparar-ensayo-restauracion-002.ts` en `tecnologia/.local/ensayo-restauracion` (ignorado por Git, permisos restringidos). El origen del ensayo es una base `ayacucho_002_ensayo_origen_*` con el bucket `ensayo-origen`. El destino es una base `ayacucho_002_restauracion_*` nueva con el bucket `ensayo-destino`. No se tocaron `ayacucho_002_validacion` (16 migraciones, sin la puerta de restauración), ninguna base de 001, ni el bucket `portafolio-002-validacion` (sigue con 12 objetos).
 
@@ -565,7 +565,7 @@ Los resultados de las secciones anteriores que difieren de esta tabla (por ejemp
 - **Resuelto:** el riesgo de caché Redis tras restaurar una base (T069) quedó resuelto por T070 con la rotación del espacio Redis, y la restauración interrumpida que dejaba una base arrancable quedó resuelta en esta corrección.
 - **Operación.** La puerta protege el arranque de instancias nuevas. No detiene una API que ya esté en funcionamiento: antes de dirigir el tráfico a una base restaurada, detener o aislar las réplicas antiguas.
 - **Entrada de producción.** Por omisión `npm start` y el `CMD` del Dockerfile arrancan la composición base de 17 operaciones. Las 40 operaciones se activan de forma explícita con `COMPOSICION=oferta-002` (ver T072).
-- **Suites opt-in.** Las del ensayo de restauración, las de Redis y RF39 aislados y las de fotos de cuenta exigen sus variables de entorno y se omiten sin ellas. Se ejecutan con `test:integration:002:infra` y las invoca el workflow de T074 (EN CURSO, aún sin ejecución verificada en GitHub Actions).
+- **Suites opt-in.** Las del ensayo de restauración, las de Redis y RF39 aislados y las de fotos de cuenta exigen sus variables de entorno y se omiten sin ellas. Se ejecutan con `test:integration:002:infra` y las invoca el workflow de T074 (aprobado en la ejecución n.º 3 de GitHub Actions).
 - **Carga del equipo.** Con la CPU ocupada por otros programas, algunas suites superan los 30 s. Cada una pasó al repetirse sola.
 - Los permisos 0600 de las copias no se aplican en Windows: la protección real es el cifrado y que el directorio esté fuera del repositorio. El volcado se mantiene en memoria.
 - La verificación de salud solo comprueba las tablas de la 001: una base sin migraciones de la 002 no se detecta ahí.
@@ -573,7 +573,7 @@ Los resultados de las secciones anteriores que difieren de esta tabla (por ejemp
 
 ### T072 · Interfaz compuesta: navegación, origen y sesión
 
-Estado: **verificada** (72 de 94 acumuladas). T073 se verificó después y T074 está hoy EN CURSO, sin ejecución verificada en GitHub Actions.
+Estado: **verificada** (72 de 94 acumuladas). T073 y T074 se verificaron después (T074 con la ejecución n.º 3 de GitHub Actions).
 
 - **Backend (`composicion/main.ts`).** `iniciar()` despacha según `COMPOSICION`: vacía o `base` arranca las 17 operaciones; `oferta-002` arranca las 40 con el mismo origen público y los mismos controles; cualquier otro valor se rechaza con «COMPOSICION no es válida» (no hay composición implícita). `iniciarValidacion002` se conserva como alias.
 - **Frontend (`composicion/App.tsx`).** Rutas `/buscar` (pública, sin sesión), `/prestador/perfil` y `/prestador/servicios` (requieren sesión y perfil de prestador; sin él se ofrece habilitarlo). Tras iniciar sesión se vuelve a la ruta profesional solicitada, y si no, a `/cuenta`. Las consultas públicas van anónimas (`credentials: 'omit'`, sin Authorization); las privadas usan el Bearer en memoria de la sesión existente. Las categorías públicas (`GET /categorias`) alimentan el filtro de búsqueda, las especialidades del perfil y la categoría del servicio, con etiquetas «Raíz › Subcategoría», error recuperable y reintento.
@@ -593,7 +593,7 @@ Estado: **verificada** (72 de 94 acumuladas). T073 se verificó después y T074 
 
 ### T073 · Límites de integración con 003, 004, 007, 008, 011 y 012
 
-Estado: **verificada** (73 de 94 acumuladas). T074 está hoy EN CURSO, sin ejecución verificada en GitHub Actions.
+Estado: **verificada** (73 de 94 acumuladas). T074 se verificó después con la ejecución n.º 3 de GitHub Actions (74 de 94 acumuladas).
 
 `test/integration/prestadores-catalogo/integraciones-futuras.spec.ts` (20 pruebas, sobre bases descartables `ayacucho_002_test_*`, arnés `montarHu25` y el evaluador real `ElegibilidadServicio`; sin código de producción nuevo ni modificado):
 
@@ -609,9 +609,27 @@ Estado: **verificada** (73 de 94 acumuladas). T074 está hoy EN CURSO, sin ejecu
 - **Limpieza ante fallos.** Las pruebas que retienen una transacción o desactivan una categoría usan `conLimpieza`: la limpieza corre siempre (cierra la transacción retenida y devuelve su conexión, deja asentar la petición en vuelo y reactiva la categoría de forma idempotente según su estado real), y si la prueba falla se relanza el error original; un fallo de la limpieza solo se informa por stderr. Verificado con un fallo inyectado en una copia temporal (ya eliminada): con la limpieza real solo falla la prueba inyectada y se conserva su error, y con la restauración neutralizada se detecta la contaminación de la prueba siguiente.
 - **Limitaciones.** No se repitió la regresión de la 001 (222/222): no se tocó código de producción ni de 001.
 
-## T074 · CI propia de 002 (en curso)
+## T074 · CI propia de 002 (verificada)
 
-Estado: **EN CURSO. No está completada.** El workflow `.github/workflows/prestadores-catalogo.yml` está escrito, pero **no se ha ejecutado en GitHub Actions**; la tarea solo se cerrará con una ejecución satisfactoria allí. `.github/workflows/usuarios-acceso.yml` no se modificó.
+Estado: **verificada** (74 de 94 acumuladas). El workflow `.github/workflows/prestadores-catalogo.yml` terminó con éxito en GitHub Actions (ejecución n.º 3, commit `9b57fbf`). `.github/workflows/usuarios-acceso.yml` no se modificó.
+
+### Evidencia de GitHub Actions
+
+Datos obtenidos de la API pública de GitHub (conclusiones de trabajos y pasos y lista de artefactos):
+
+- Ejecución n.º 3 (id 45228447717), rama `002-prestadores-y-catalogo`, commit `9b57fbf`: **completada con éxito**, de las 17:30:41 a las 17:33:57 UTC (3 min 16 s).
+- `calidad`: aprobado (9 de 9 pasos, 53 s). `validar-002`: aprobado (21 de 21 pasos, unos 2 min 18 s), incluidos unitarias, arquitectura, contratos de 002, integración 002 con PostgreSQL real, integración que altera infraestructura, verificación de la base principal y de la semilla, y verificación de que no quedan bases temporales. `regresion-001`: aprobado (11 de 11 pasos, unos 1 min 30 s).
+- Tres artefactos vigentes con nombre `prestadores-catalogo-002-<calidad|validacion|regresion-001>-<sha>-<intento>` (4 805 B, 26 230 B y 11 560 B).
+- Las ejecuciones n.º 1 (`408f11a`) y n.º 2 (`06adca1`) fallaron por los dos errores descritos más abajo.
+
+Cobertura de los criterios de cierre de T074: lint, typecheck y build (`calidad`); unitarias, contratos y arquitectura, e integración con PostgreSQL real (`validar-002`); regresión 001 con infraestructura propia (`regresion-001`); suites que alteran infraestructura en serie y con proyectos descartables propios, con verificación de la base y de la semilla antes y después (`validar-002`); evidencias de 002 separadas, en artefactos propios; `usuarios-acceso.yml` intacto; informes JUnit en carpetas 002 por grupo.
+
+Alcance de la evidencia: se comprobaron las conclusiones de pasos y artefactos, pero no se descargaron los registros ni los XML (la descarga exige autenticación). Por tanto, el número de pruebas por grupo en CI no se ha contrastado con las cifras locales (248, 65, 140 y 35) ni se ha confirmado que las cuatro suites de infraestructura se ejecutaron sin omitirse; una suite omitida también terminaría en éxito.
+
+### Errores corregidos tras las primeras ejecuciones
+
+1. **Contexto `runner` no permitido (ejecución n.º 1, `408f11a`).** GitHub rechazó el workflow: «Line 72, Col 17: Unrecognized named-value: 'runner'». La expresión `${{ runner.temp }}` estaba en el `env:` del trabajo `validar-002`, donde solo se admiten los contextos `github`, `needs`, `strategy`, `matrix`, `vars`, `secrets` e `inputs`; ningún trabajo llegó a iniciarse. Corrección (`06adca1`): el directorio se calcula en cada paso con la variable de entorno `$RUNNER_TEMP`, y las variables `COMPOSE_*` pasaron a arrays de bash en los pasos. Validado con `actionlint` 1.7.12 y `shellcheck` 0.11.0.
+2. **Configuración local de 001 ausente (ejecución n.º 2, `06adca1`).** `validar-002` falló en las unitarias (246 de 248): dos pruebas de `test/unit/fundacion.spec.ts` («Catálogo verifica integridad, consulta completa y rechaza fixture en producción» y «Configuración impide fixture productivo y claves AEAD/HMAC compartidas») terminaron con «Falta configuración: PUBLIC_ORIGIN.». Causa: usan `cargarLocal()`, que lee `tecnologia/.local/backend.env` y el catálogo fixture de 001, y el trabajo solo preparaba `.local/002/backend.env`. Corrección (`9b57fbf`): un paso previo a las unitarias ejecuta `dev:prepare -- --validation` y `security:catalog:prepare -- --fixture`, que solo generan archivos de configuración en el ejecutor efímero, sin iniciar infraestructura de 001 ni relajar validaciones. Reproducido y verificado en un clon limpio (246/248 antes y 248/248 después).
 
 ### Configuración
 
@@ -630,7 +648,7 @@ Ubuntu 24.04, Node.js 24.15.0 y las acciones `actions/checkout`, `actions/setup-
 
 YAML válido y `bash -n` correcto en los 19 bloques `run`; lint, typecheck y build del backend; lint y typecheck del frontend; frontend unitarias 100/100 (12 archivos); backend unitarias 248/248; arquitectura 4/4; contratos de 002 65/65; integración 002 140/140 (14 suites); `test:integration:002:infra` 35/35 con las cuatro suites activas; huella de las 27 tablas de la base de validación 002 idéntica antes y después de la integración.
 
-Sobre la regresión 001 se comprobó, en un clon limpio con Node.js 24 y sin levantar contenedores, que `dev:prepare -- --validation` genera `tecnologia/.env`, `.local/backend.env` y el material TLS (idempotente en la segunda ejecución), que `docker compose config` resuelve los servicios (también con `--profile web`, usado en la limpieza del ejecutor efímero de CI, no en entornos locales) y que los comandos coinciden con `tecnologia/scripts/validar-001-ci.sh`. **No** se ejecutó `compose up`, `db:migrate`, `storage:init`, la semilla ni las pruebas de 001 en un ejecutor limpio.
+Sobre la regresión 001 se comprobó, en un clon limpio con Node.js 24 y sin levantar contenedores, que `dev:prepare -- --validation` genera `tecnologia/.env`, `.local/backend.env` y el material TLS (idempotente en la segunda ejecución), que `docker compose config` resuelve los servicios (también con `--profile web`, usado en la limpieza del ejecutor efímero de CI, no en entornos locales) y que los comandos coinciden con `tecnologia/scripts/validar-001-ci.sh`. Los pasos `compose up`, `db:migrate`, `storage:init`, la semilla y las pruebas de 001 no se habían ejecutado en local en un ejecutor limpio; se ejecutaron después en GitHub Actions (ejecución n.º 3).
 
 ### Hallazgos, causas y soluciones
 
@@ -670,12 +688,12 @@ Sobre la regresión 001 se comprobó, en un clon limpio con Node.js 24 y sin lev
 
 ### Regresión 001: selección de pruebas
 
-El patrón `usuarios-acceso|fundacion` (comprobado con `jest --listTests`) selecciona 8 suites unitarias (el comando `test:unit` completo tiene 20), 10 de contrato y 11 de integración. X-08 está incluido en `contract/usuarios-acceso/openapi.spec.ts` (inventario de 17 rutas, 17 casos por operación, enum de rechazos y exceso de foto) y en `contract/usuarios-acceso/sesiones.spec.ts` (CA-SES-06 X-08). `test/unit/cobertura.spec.ts` y `test/unit/diagnostico.spec.ts` se ejecutan con el comando `test:unit` completo, pero no con el patrón del trabajo `regresion-001`: corren en `validar-002`. La regresión 001 **no está validada**: el trabajo no se ha ejecutado en Actions.
+El patrón `usuarios-acceso|fundacion` (comprobado con `jest --listTests`) selecciona 8 suites unitarias (el comando `test:unit` completo tiene 20), 10 de contrato y 11 de integración. X-08 está incluido en `contract/usuarios-acceso/openapi.spec.ts` (inventario de 17 rutas, 17 casos por operación, enum de rechazos y exceso de foto) y en `contract/usuarios-acceso/sesiones.spec.ts` (CA-SES-06 X-08). `test/unit/cobertura.spec.ts` y `test/unit/diagnostico.spec.ts` se ejecutan con el comando `test:unit` completo, pero no con el patrón del trabajo `regresion-001`: corren en `validar-002`. El trabajo `regresion-001` fue aprobado en la ejecución n.º 3 de GitHub Actions (11 de 11 pasos); el número de pruebas ejecutadas por grupo no se ha contrastado en los registros.
 
-### Pendientes
+### Pendientes (no forman parte del cierre de T074)
 
-- Ejecución real del workflow en GitHub Actions y, en particular, del trabajo `regresion-001` (no se ha ejecutado, ni local ni en Actions).
-- Confirmar que el margen de 120 s elimina el fallo de `busqueda-publica.spec.ts`: no está demostrado estadísticamente, y se observó una operación aislada de 23,2 s en otra suite (`fundamentos-postgres`), por lo que otras suites podrían acercarse al máximo. Una mitigación general (menos `DROP DATABASE` por suite o PostgreSQL efímero de CI sin `fsync`) queda pendiente de decisión.
+- Contrastar en los XML y registros de la ejecución n.º 3 el número de pruebas por grupo y que las cuatro suites de infraestructura no se omitieron (requiere descargar los artefactos con autenticación).
+- Estabilidad en CI: solo hay una ejecución aprobada. El margen de 120 s del `afterAll` de `busqueda-publica.spec.ts` no está demostrado estadísticamente, y se observó una operación aislada de 23,2 s en otra suite (`fundamentos-postgres`). Una mitigación general (menos `DROP DATABASE` por suite o PostgreSQL efímero de CI sin `fsync`) queda pendiente de decisión.
 - Causa del fallo de `procedimiento-rf39-aislado.spec.ts` (inferida, sin mensaje de error).
-- Regeneración de los tres informes locales de 001 y decisión sobre los valores por defecto de `jest.config.mjs` y `vitest.config.ts`.
+- Regeneración de los tres informes locales de 001 perdidos y decisión sobre los valores por defecto de `jest.config.mjs` y `vitest.config.ts`.
 - Decisión sobre `verificar-https-002.ts` (acumula datos en la base de validación; no se modificó sin autorización).
