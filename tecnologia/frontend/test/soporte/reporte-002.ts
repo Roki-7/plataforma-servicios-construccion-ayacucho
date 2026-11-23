@@ -34,8 +34,9 @@ export default class Reporte002 implements Reporter {
       lista.push({ proyecto, titulo: prueba.title, estado: resultado.status }); this.criterios.set(anotacion.description!, lista);
     }
     // Hechos verificables que las pruebas adjuntan (estados HTTP, huellas, identificadores): uno por proyecto y nombre.
-    const carpeta = resolve(this.opciones.evidencia, 'hu03', proyecto);
+    // Cada historia de usuario conserva sus hechos en su carpeta: `evidencia-ca-pre-*` en `hu03` y `evidencia-ca-ser-*` en `hu04`.
     for (const a of resultado.attachments.filter((x) => /^evidencia-[a-z0-9-]+\.json$/.test(x.name) && x.body)) {
+      const carpeta = resolve(this.opciones.evidencia, a.name.startsWith('evidencia-ca-ser-') ? 'hu04' : 'hu03', proyecto);
       mkdirSync(carpeta, { recursive: true });
       writeFileSync(resolve(carpeta, a.name), redactarReporte(a.body!.toString('utf8')), 'utf8');
     }
