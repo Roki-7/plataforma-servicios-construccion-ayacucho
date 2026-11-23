@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type APIRequestContext, type TestInfo } from '@playwright/test';
 import { entornoSeguro, validarRecursosEfimeros, type Identidad002 } from '../../../scripts/independencia-002.mjs';
 
 /** Datos del dispositivo y del entorno de una ejecución. Solo contiene identidades (nombres y puertos): nunca credenciales. */
@@ -49,3 +50,30 @@ export const test = base.extend<{ registroDispositivo: RegistroDispositivo }>({
   }, { auto: true }],
 });
 export { expect };
+
+/** Origen público de la 002: las escrituras HTTP deben enviarlo en `Origin`. */
+export const origenWeb = 'https://localhost:8444';
+
+export interface CuentaE2E { readonly correo: string; readonly contrasena: string; readonly token: string; readonly cuentaId: string }
+
+/** Cabeceras de una escritura autenticada o anónima, con clave de idempotencia nueva salvo que se aporte una. */
+export const cabecerasEscritura = (token?: string, clave: string = randomUUID()) => ({ origin: origenWeb, 'idempotency-key': clave, ...(token ? { authorization: `Bearer ${token}` } : {}) });
+
+/** Registra por la API real una cuenta ficticia nueva (correo único `e2e-002-<uuid>@example.invalid`) e inicia sesión. */
+export async function crearCuenta(request: APIRequestContext, perfil: 'cliente' | 'prestador', nombre = 'Cuenta ficticia E2E'): Promise<CuentaE2E> {
+  const correo = `e2e-002-${randomUUID()}@example.invalid`; const contrasena = `${randomUUID()} ficticia`;
+  const alta = await request.post('/api/v1/cuentas', { headers: cabecerasEscritura(), data: { nombreMostrar: nombre, correo, contrasena, confirmacionContrasena: contrasena, perfiles: [perfil], politicaPrivacidadAceptada: true, politicaPrivacidadVersion: '001-v1' } });
+  expect(alta.status(), 'registro de la cuenta ficticia').toBe(201);
+  const cuentaId = ((await alta.json()) as { cuentaId: string }).cuentaId;
+  const sesion = await request.post('/api/v1/sesiones', { headers: { origin: origenWeb }, data: { correo, contrasena } });
+  expect(sesion.status(), 'inicio de sesión de la cuenta ficticia').toBe(200);
+  return { correo, contrasena, cuentaId, token: ((await sesion.json()) as { tokenAcceso: string }).tokenAcceso };
+}
+
+/** Vincula la prueba con los criterios de aceptación que demuestra; el reporte 002 los agrega por navegador y resolución. */
+export const criterios = (testInfo: TestInfo, ...ids: string[]): void => { for (const id of ids) testInfo.annotations.push({ type: 'criterio', description: id }); };
+
+/** Adjunta un hecho verificable (estados, huellas, identificadores) que el reporte conserva en `hu03/<proyecto>/`. Nunca debe contener credenciales. */
+export async function registrarEvidencia(testInfo: TestInfo, nombre: string, datos: object): Promise<void> {
+  await testInfo.attach(`evidencia-${nombre}.json`, { body: JSON.stringify(datos, null, 2), contentType: 'application/json' });
+}

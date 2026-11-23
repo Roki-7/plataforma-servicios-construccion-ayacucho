@@ -5,7 +5,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID, X509Certificate } from 'node:crypto';
 import { openSync, readFileSync, rmSync } from 'node:fs';
-import { access, mkdir, open, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, open, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { hostname, tmpdir } from 'node:os';
 import { connect } from 'node:tls';
@@ -119,6 +119,7 @@ const huerfanos = [];
 for (const previo of entornos.filter((e) => !String(e.estado).startsWith('retirado') && /^[0-9a-f]{32}$/.test(e.id ?? ''))) {
   if (previo.pids?.api && esNuestro(previo.pids.api, /e2e-efimero-002/)) matar(previo.pids.api);
   if (previo.pids?.web && esNuestro(previo.pids.web, /vite/)) matar(previo.pids.web);
+  if (previo.pids?.agente && esNuestro(previo.pids.agente, /agente-retencion-e2e-002/)) matar(previo.pids.agente);
   const r = tsx('retirar', previo.id, `--operador=${resolve(evidencia, 'operador-efimero.json')}`);
   assert.equal(r.status, 0, `No se pudo retirar el entorno descartable huérfano ${previo.id.slice(0, 8)}: ${(r.stderr ?? '').trim().slice(0, 200)}`);
   huerfanos.push(previo.id); previo.estado = 'retirado (huérfano de una ejecución interrumpida)';
@@ -161,6 +162,13 @@ const consultaConteos = "select table_name || '|' || (xpath('/row/c/text()', que
 const consultaAuditoria = "select coalesce(json_agg(t order by t.ocurrio_en), '[]'::json) from (select ocurrio_en, accion, recurso_tipo, recurso_id, motivo, responsable from public.administracion_auditoria) t";
 
 const lotes = especificaciones.length ? especificaciones : [''];
+// Las evidencias por historia (hu03, hu04…) de una serie anterior no se mezclan con las de esta.
+for (const nombre of await readdir(evidencia)) if (/^hu\d{2}$/.test(nombre)) await rm(resolve(evidencia, nombre), { recursive: true, force: true });
+// Corpus de imágenes ficticias (T076) y carpeta de señales del agente de retención: ambos viven en la evidencia y se retiran al terminar.
+const carpetaImagenes = resolve(evidencia, 'imagenes'); const carpetaSenales = resolve(evidencia, 'senales');
+if (especificaciones.length === 0 || especificaciones.some((e) => e.includes('perfil-y-portafolio'))) {
+  salida(spawnSync(process.execPath, ['--import', 'tsx', 'scripts/generar-imagenes-e2e-002.ts', `--salida=${carpetaImagenes}`], { cwd: backend, encoding: 'utf8' }), 'No se pudo generar el corpus de imágenes ficticias');
+}
 const corridas = []; const iniciales = []; let codigoFinal = 0;
 let serviciosActivos = [];
 for (const senal of ['SIGINT', 'SIGTERM']) process.once(senal, () => { for (const h of serviciosActivos) detener(h); process.stderr.write('Interrumpido: los recursos descartables registrados se retirarán en la próxima ejecución.\n'); process.exit(130); });
@@ -171,7 +179,7 @@ for (const [i, especificacion] of lotes.entries()) {
   const validos = validarRecursosEfimeros(recursos); assert.ok(validos.ok, validos.problemas.join(' '));
   const operador = resolve(evidencia, 'operador-efimero.json');
   const entrada = { corrida: i + 1, id, ...recursos, estado: 'creando' }; entornos.push(entrada); await registrar(entornos);
-  let api; let web; const inicio = new Date().toISOString(); let resultado = { codigo: 1 }; let fallo;
+  let api; let web; let agente; const inicio = new Date().toISOString(); let resultado = { codigo: 1 }; let fallo;
   const registroApi = resolve(tmpdir(), `ayacucho-002-e2e-${id}-api.log`); const registroWeb = resolve(tmpdir(), `ayacucho-002-e2e-${id}-web.log`);
   const mensajesAntes = await idsMailpit();
   try {
@@ -185,7 +193,12 @@ for (const [i, especificacion] of lotes.entries()) {
     serviciosActivos = [api, web];
     entrada.pids = { api: api.pid, web: web.pid }; await registrar(entornos);
     await esperar(`http://127.0.0.1:${identidad002Esperada.puertoApi}/api/v1/salud`); await esperar(`http://127.0.0.1:${identidad002Esperada.puertoWeb}/`);
-    entrada.estado = 'en uso'; entrada.pids = { api: api.pid, web: web.pid }; await registrar(entornos);
+    // Agente que, a petición de la prueba, retiene la confirmación de una fotografía (CA-PRE-06) en la base descartable de ESTA corrida.
+    await rm(carpetaSenales, { recursive: true, force: true }); await mkdir(carpetaSenales, { recursive: true });
+    const registroAgente = resolve(tmpdir(), `ayacucho-002-e2e-${id}-agente.log`);
+    agente = spawn(process.execPath, ['--import', 'tsx', 'scripts/agente-retencion-e2e-002.ts', id, `--senales=${carpetaSenales}`], { cwd: backend, stdio: ['ignore', openSync(registroAgente, 'w'), openSync(registroAgente, 'a')] });
+    serviciosActivos = [api, web, agente];
+    entrada.estado = 'en uso'; entrada.pids = { api: api.pid, web: web.pid, agente: agente.pid }; await registrar(entornos);
 
     await writeFile(resolve(evidencia, 'preparacion-002.json'), JSON.stringify({
       ejecucion: id, fecha: new Date().toISOString(), independencia: { ok: true, identidad002, referencia001: independencia.referencia001 },
@@ -197,7 +210,7 @@ for (const [i, especificacion] of lotes.entries()) {
       ['--mount', `type=bind,source=${resolve(frontend, 'scripts')},target=/app/frontend/scripts,readonly`], ['--mount', `type=bind,source=${resolve(frontend, 'test')},target=/app/frontend/test,readonly`],
       ['--mount', `type=bind,source=${resolve(frontend, 'playwright.002.config.ts')},target=/app/frontend/playwright.002.config.ts,readonly`],
     ].flat();
-    const entorno = ['E2E_PREPARACION_002=/app/.local/evidencia/002/e2e-linux/preparacion-002.json', `E2E_EJECUCION_002=${id}`, 'E2E_EVIDENCIA=/app/.local/evidencia/002/e2e-linux', `E2E_OPERADOR_002=${operadorEnContenedor}`, 'E2E_TLS_NEGATIVAS=true', 'MAILPIT_API=http://correo:8025'].flatMap((e) => ['-e', e]);
+    const entorno = ['E2E_PREPARACION_002=/app/.local/evidencia/002/e2e-linux/preparacion-002.json', `E2E_EJECUCION_002=${id}`, 'E2E_EVIDENCIA=/app/.local/evidencia/002/e2e-linux', `E2E_OPERADOR_002=${operadorEnContenedor}`, 'E2E_TLS_NEGATIVAS=true', 'MAILPIT_API=http://correo:8025', 'E2E_IMAGENES_002=/app/.local/evidencia/002/e2e-linux/imagenes', 'E2E_SENALES_002=/app/.local/evidencia/002/e2e-linux/senales'].flatMap((e) => ['-e', e]);
     const r = docker(['run', '--rm', '--init', '--name', `ayacucho-002-e2e-${id.slice(0, 8)}`, '--label', `ayacucho.e2e002=${id}`, '--network', red, '--shm-size=1g', ...montajes, ...entorno,
       '--entrypoint', '/bin/bash', imagen, '/app/frontend/scripts/confianza-e2e-002.sh', ...(especificacion ? [especificacion] : []), ...resto], { stdio: 'inherit' });
     resultado = { codigo: r.status ?? 1 };
@@ -208,8 +221,9 @@ for (const [i, especificacion] of lotes.entries()) {
     resultado.cambios = diferenciaDeConteos(conteosIniciales, conteosFinales); resultado.auditoria = auditoria.length;
   } catch (error) { fallo = error instanceof Error ? error.message : String(error); resultado = { codigo: 1 }; }
   finally {
-    detener(api); detener(web);
+    detener(api); detener(web); detener(agente);
     await new Promise((r) => setTimeout(r, 1500));
+    await rm(carpetaSenales, { recursive: true, force: true });
     // Mensajes de correo generados por ESTA corrida; los anteriores no se tocan.
     const nuevos = elementosNuevos(mensajesAntes, await idsMailpit());
     if (nuevos.length) await fetch(mailpit, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ IDs: nuevos }) });
@@ -228,6 +242,8 @@ for (const [i, especificacion] of lotes.entries()) {
   }
   if (!corridas.at(-1).retirado) break;
 }
+
+await rm(carpetaImagenes, { recursive: true, force: true });
 
 // --- 3) Cada corrida empezó desde el mismo estado inicial ---
 const igualesIniciales = iniciales.every((c) => Object.keys(diferenciaDeConteos(iniciales[0], c)).length === 0);

@@ -5,13 +5,16 @@ import { redactarReporte } from './reportes-seguros.js';
 
 interface Dispositivo { proyecto: string; navegador: string; versionNavegador: string; dispositivo: string; anchoViewport: number; altoViewport: number; plataformaEjecutor: string; node: string; origen: string; ejecucion: string; entorno: Record<string, string | number> }
 interface ResumenProyecto { proyecto: string; navegador: string; versionNavegador: string; dispositivo: string; anchoViewport: number; altoViewport: number; pruebas: number; aprobadas: number; fallidas: number; omitidas: number }
+interface PruebaDeCriterio { proyecto: string; titulo: string; estado: string }
 
 /**
- * Reporte 002: agrega por proyecto (navegador y ancho) el dispositivo, la versión y el entorno que cada prueba adjuntó en `dispositivo.json`.
- * Solo escribe identidades (nombres y puertos); el texto pasa por la misma redacción de secretos que usa la 001.
+ * Reporte 002: agrega por proyecto (navegador y ancho) el dispositivo, la versión y el entorno que cada prueba adjuntó en `dispositivo.json`; vincula cada prueba con los
+ * criterios de aceptación que declara (anotaciones `criterio`) en `trazabilidad-criterios-002.json`; y conserva los hechos que las pruebas adjuntan como
+ * `evidencia-<nombre>.json` en `hu03/<proyecto>/`. Solo escribe identidades y hechos verificables; el texto pasa por la misma redacción de secretos que usa la 001.
  */
 export default class Reporte002 implements Reporter {
   private readonly proyectos = new Map<string, ResumenProyecto>();
+  private readonly criterios = new Map<string, PruebaDeCriterio[]>();
   private dispositivo: Dispositivo | undefined;
   private readonly inicio = new Date();
   constructor(private readonly opciones: { evidencia: string }) {}
@@ -25,6 +28,17 @@ export default class Reporte002 implements Reporter {
     resumen.pruebas += 1;
     if (resultado.status === 'passed') resumen.aprobadas += 1; else if (resultado.status === 'skipped') resumen.omitidas += 1; else resumen.fallidas += 1;
     this.proyectos.set(proyecto, resumen);
+
+    for (const anotacion of prueba.annotations.filter((a) => a.type === 'criterio' && a.description)) {
+      const lista = this.criterios.get(anotacion.description!) ?? [];
+      lista.push({ proyecto, titulo: prueba.title, estado: resultado.status }); this.criterios.set(anotacion.description!, lista);
+    }
+    // Hechos verificables que las pruebas adjuntan (estados HTTP, huellas, identificadores): uno por proyecto y nombre.
+    const carpeta = resolve(this.opciones.evidencia, 'hu03', proyecto);
+    for (const a of resultado.attachments.filter((x) => /^evidencia-[a-z0-9-]+\.json$/.test(x.name) && x.body)) {
+      mkdirSync(carpeta, { recursive: true });
+      writeFileSync(resolve(carpeta, a.name), redactarReporte(a.body!.toString('utf8')), 'utf8');
+    }
   }
   onEnd(resultado: FullResult): void {
     mkdirSync(this.opciones.evidencia, { recursive: true });
@@ -34,5 +48,13 @@ export default class Reporte002 implements Reporter {
       entorno: this.dispositivo?.entorno ?? null, proyectos: [...this.proyectos.values()].sort((a, b) => a.proyecto.localeCompare(b.proyecto)),
     }, null, 2);
     writeFileSync(resolve(this.opciones.evidencia, 'ejecucion-002.json'), redactarReporte(texto), 'utf8');
+    if (this.criterios.size === 0) return;
+    const traza = Object.fromEntries([...this.criterios.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([id, pruebas]) => {
+      const porProyecto: Record<string, string[]> = {};
+      for (const p of pruebas) (porProyecto[p.proyecto] ??= []).push(p.estado);
+      const proyectos = Object.fromEntries(Object.entries(porProyecto).sort(([a], [b]) => a.localeCompare(b)).map(([p, estados]) => [p, estados.every((e) => e === 'passed') ? 'passed' : 'failed']));
+      return [id, { aprobado: Object.values(proyectos).every((e) => e === 'passed'), proyectos, pruebas: pruebas.map((p) => ({ proyecto: p.proyecto, prueba: p.titulo, estado: p.estado })) }];
+    }));
+    writeFileSync(resolve(this.opciones.evidencia, 'trazabilidad-criterios-002.json'), redactarReporte(JSON.stringify({ funcionalidad: '002', ejecucion: this.dispositivo?.ejecucion ?? null, criterios: traza }, null, 2)), 'utf8');
   }
 }

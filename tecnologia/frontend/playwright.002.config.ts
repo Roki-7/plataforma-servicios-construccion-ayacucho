@@ -29,6 +29,8 @@ export default defineConfig({
   globalSetup: './test/e2e/prestadores-catalogo/global-setup.ts',
   // La infraestructura 002 es compartida y las series T076 a T079 dependen del estado: una sola trabajadora y sin reintentos.
   fullyParallel: false, workers: 1, retries: 0, timeout: 60000,
+  // El host compartido puede tardar en renderizar o responder: las aserciones esperan hasta 20 s (no se relaja ninguna comprobación, solo el tiempo de espera).
+  expect: { timeout: 20_000 },
   forbidOnly: Boolean(process.env['CI']),
   outputDir: resolve(evidencia, 'playwright-results'),
   reporter: [
