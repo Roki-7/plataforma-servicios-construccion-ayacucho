@@ -66,10 +66,6 @@ jobs:
     needs: calidad
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    env:
-      COMPOSE_002: -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml
-      COMPOSE_ENSAYO: -p ayacucho-ensayo-restauracion --env-file tecnologia/.local/ensayo-restauracion/compose.env -f tecnologia/compose.ensayo-restauracion.yaml
-      AISLADOS: ${{ runner.temp }}/aislados
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -84,8 +80,9 @@ jobs:
       - name: Preparar la configuración 002 y levantar su infraestructura
         shell: bash
         run: |
+          compose002=(docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml)
           npm --prefix tecnologia/backend run dev:prepare:002 -- --validation
-          docker compose $COMPOSE_002 up -d --wait postgres redis correo objetos
+          "${compose002[@]}" up -d --wait postgres redis correo objetos
           npm --prefix tecnologia/backend run start:validation:002 -- --verificar-config
           npm --prefix tecnologia/backend run db:migrate:002
           npm --prefix tecnologia/backend run storage:init:002
@@ -112,10 +109,13 @@ jobs:
       - name: Preparar el ensayo de restauración y las infraestructuras aisladas
         shell: bash
         run: |
+          composeEnsayo=(docker compose -p ayacucho-ensayo-restauracion --env-file tecnologia/.local/ensayo-restauracion/compose.env -f tecnologia/compose.ensayo-restauracion.yaml)
           (cd tecnologia/backend && npx tsx scripts/preparar-ensayo-restauracion-002.ts)
           while IFS= read -r linea; do v="${linea#*=}"; v="${v//\'/}"; [ -n "$v" ] && echo "::add-mask::$v"; done < tecnologia/.local/ensayo-restauracion/ensayo.env
-          docker compose $COMPOSE_ENSAYO up -d --wait
+          "${composeEnsayo[@]}" up -d --wait
 
+          # El contexto «runner» no está disponible en env: del trabajo; RUNNER_TEMP sí es una variable de entorno de todos los pasos.
+          AISLADOS="$RUNNER_TEMP/aislados"
           mkdir -p "$AISLADOS"
           rf39_pw=$(openssl rand -hex 18); echo "::add-mask::$rf39_pw"
           echo "RF39_AISLADA_URL=postgresql://rf39_prueba:${rf39_pw}@127.0.0.1:54340/postgres" >> "$GITHUB_ENV"
@@ -210,10 +210,13 @@ jobs:
         if: always()
         shell: bash
         run: |
-          docker compose $COMPOSE_ENSAYO down -v || true
+          compose002=(docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml)
+          composeEnsayo=(docker compose -p ayacucho-ensayo-restauracion --env-file tecnologia/.local/ensayo-restauracion/compose.env -f tecnologia/compose.ensayo-restauracion.yaml)
+          AISLADOS="$RUNNER_TEMP/aislados"
+          "${composeEnsayo[@]}" down -v || true
           docker compose -f "$AISLADOS/redis.yaml" down -v || true
           RF39_PG_PASSWORD=x docker compose -f "$AISLADOS/rf39.yaml" down -v || true
-          docker compose $COMPOSE_002 down -v || true
+          "${compose002[@]}" down -v || true
 
   regresion-001:
     name: Regresión de compatibilidad con 001
