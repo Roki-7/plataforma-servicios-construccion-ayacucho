@@ -23,6 +23,7 @@ const api = (extra: Partial<ApiPrestadores> = {}) => ({
   obtenerFotografiaPublica: vi.fn(async () => ({ tipoMime: 'image/webp' as const, contenidoBase64: 'AAAA' })), ...extra,
 }) as unknown as ApiPrestadores & { [K in keyof ApiPrestadores]: ReturnType<typeof vi.fn> };
 const archivo = (nombre: string, tipo: string, bytes = 100) => new File([new Uint8Array(bytes)], nombre, { type: tipo });
+const abrir = (grupo: string) => fireEvent.click(within(screen.getByRole('group', { name: grupo })).getByRole('button', { name: /Seleccionar|seleccionad/ }));
 const subir = (etiqueta: string | RegExp, f: File) => fireEvent.change(screen.getByLabelText(etiqueta), { target: { files: [f] } });
 const montar = (a: ReturnType<typeof api>, trabajos: TrabajoPrivado[], versionPerfil = 2) => {
   const servicio = new PortafolioWeb(a, () => 'clave-de-prueba-fija');
@@ -151,6 +152,9 @@ test('CA-PRE-01 el perfil existente muestra sus datos y versión y se guarda con
   render(<PerfilProfesional servicio={new PortafolioWeb(a, () => 'clave-de-prueba-fija')} />);
   expect(await screen.findByDisplayValue('Maestro ficticio')).toBeInTheDocument();
   expect(screen.getByText('Versión del perfil: 2')).toBeInTheDocument();
+  // Zonas: el resumen muestra la selección guardada y el desplegable ofrece cada zona con su casilla.
+  expect(within(screen.getByRole('list', { name: 'Zonas de atención seleccionadas' })).getByText('Ayacucho')).toBeInTheDocument();
+  abrir('Zonas de atención');
   expect(screen.getByLabelText('Ayacucho')).toBeChecked();
   expect(screen.getByLabelText('Carmen Alto')).not.toBeChecked();
   fireEvent.click(screen.getByLabelText('Carmen Alto'));
@@ -184,8 +188,8 @@ test('el alta sin perfil exige datos mínimos y no envía hasta ser válidos', a
   expect(a.guardarPerfil).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Nombre público'), { target: { value: 'Nuevo' } });
   fireEvent.change(screen.getByLabelText('Experiencia'), { target: { value: 'Años de obra' } });
-  fireEvent.click(screen.getByLabelText('Ayacucho'));
-  fireEvent.click(within(screen.getByRole('group', { name: 'Especialidades' })).getByLabelText('Albañilería'));
+  abrir('Zonas de atención'); fireEvent.click(screen.getByLabelText('Ayacucho'));
+  abrir('Especialidades'); fireEvent.click(within(screen.getByRole('group', { name: 'Especialidades' })).getByLabelText('Albañilería'));
   fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil' }));
   await waitFor(() => expect(a.guardarPerfil).toHaveBeenCalledWith(0, expect.objectContaining({ nombrePublico: 'Nuevo', tipo: 'TECNICO', distritos: ['ayacucho'], especialidadesIds: [uuid(500)] }), 'clave-de-prueba-fija'));
 });

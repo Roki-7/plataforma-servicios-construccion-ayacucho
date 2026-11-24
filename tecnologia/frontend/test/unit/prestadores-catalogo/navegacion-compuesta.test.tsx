@@ -114,7 +114,10 @@ test('el perfil profesional ofrece las categorías activas como especialidades y
     return undefined;
   } });
   const grupo = await screen.findByRole('group', { name: 'Especialidades' });
-  expect(within(grupo).getAllByRole('checkbox').map(c => c.parentElement?.textContent)).toEqual(['Construcción', 'Construcción › Albañilería', 'Acabados']);
+  // El selector es desplegable: se abre y sus opciones se agrupan por categoría (la raíz con subcategorías aparece como «toda la categoría»).
+  fireEvent.click(within(grupo).getByRole('button', { name: /Seleccionar especialidades/ }));
+  expect(within(grupo).getAllByRole('checkbox').map(c => c.parentElement?.textContent)).toEqual(['Construcción (toda la categoría)', 'Albañilería', 'Acabados']);
+  expect(within(grupo).getByRole('group', { name: 'Construcción' })).toBeInTheDocument();
   const consulta = llamadas.find(l => l.ruta === '/prestadores/perfil')!; expect(consulta.autorizacion).toBe(`Bearer ${token}`);
 });
 

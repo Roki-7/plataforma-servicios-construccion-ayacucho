@@ -3,6 +3,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test';
 import { cabecerasEscritura, criterios, crearCuenta, expect, origenWeb, registrarEvidencia, test, type CuentaE2E } from './soporte.js';
+import { irA } from '../../soporte/menu-principal.js';
 
 /**
  * T076 · Recorridos de HU03 (perfil profesional y portafolio) en Chromium, Firefox y WebKit a 360, 768 y 1366 px, sobre HTTPS con la CA 002 y una base descartable por corrida.
@@ -71,7 +72,7 @@ async function iniciarSesionEnFormulario(page: Page, cuenta: CuentaE2E): Promise
 }
 async function abrirPerfilProfesional(page: Page, cuenta: CuentaE2E): Promise<void> {
   await page.goto('/acceso'); await iniciarSesionEnFormulario(page, cuenta);
-  await page.getByRole('link', { name: 'Mi perfil profesional' }).click();
+  await irA(page, 'Mi perfil profesional');
   await expect(page.getByRole('heading', { name: 'Mi perfil profesional' })).toBeVisible();
 }
 /** Recarga la página: si la sesión en memoria se pierde, vuelve a iniciar sesión por el formulario y regresa a la misma ruta profesional. */
@@ -96,6 +97,18 @@ async function subirUi(page: Page, titulo: string, archivo: string): Promise<voi
 const subirYEsperarUi = (page: Page, testInfo: TestInfo, titulo: string, archivo: string): Promise<void> => escribirUi(page, testInfo, () => subirUi(page, titulo, archivo), 'Fotografía agregada.');
 /** La infraestructura compartida del host puede detenerse decenas de segundos al sincronizar el disco: las confirmaciones de escritura esperan hasta un minuto. */
 const esperaEscritura = 60_000;
+/** Selectores múltiples desplegables del perfil: se abren con su botón, se elige entre las casillas y se cierran con «Listo». */
+const selectorDe = (page: Page, nombre: string): Locator => page.getByRole('group', { name: nombre, exact: true });
+async function abrirSelector(page: Page, nombre: string): Promise<Locator> {
+  const grupo = selectorDe(page, nombre); const boton = grupo.getByRole('button', { name: /Seleccionar|seleccionad/ });
+  if ((await boton.getAttribute('aria-expanded')) !== 'true') await boton.click();
+  return grupo;
+}
+async function elegirEnSelector(page: Page, nombre: string, opciones: string[]): Promise<void> {
+  const grupo = await abrirSelector(page, nombre);
+  for (const o of opciones) await grupo.getByRole('checkbox', { name: o, exact: true }).check();
+  await grupo.getByRole('button', { name: 'Listo' }).click();
+}
 const conteoFotos = (page: Page, titulo: string, n: number): Promise<void> => expect(trabajoUi(page, titulo).getByText(`${n} de 4 fotografías`)).toBeVisible({ timeout: esperaEscritura });
 const estadoUi = (page: Page, texto: string): Locator => page.getByRole('status').filter({ hasText: texto });
 const esperarEstado = (page: Page, texto: string): Promise<void> => expect(estadoUi(page, texto)).toBeVisible({ timeout: esperaEscritura });
@@ -141,8 +154,7 @@ test.describe('HU03 · perfil profesional y portafolio del titular', () => {
     // CA-PRE-01: alta del perfil por la interfaz.
     await page.getByLabel('Nombre público').fill('Maestro Quispe ficticio'); await page.getByLabel('Tipo de prestador').selectOption('PROFESIONAL');
     await page.getByLabel('Experiencia').fill('Doce años de experiencia ficticia en albañilería y acabados.');
-    await page.getByRole('checkbox', { name: 'Albañilería' }).check();
-    await page.getByRole('checkbox', { name: 'Ayacucho', exact: true }).check(); await page.getByRole('checkbox', { name: 'Carmen Alto' }).check();
+    await elegirEnSelector(page, 'Especialidades', ['Albañilería']); await elegirEnSelector(page, 'Zonas de atención', ['Ayacucho', 'Carmen Alto']);
     await page.getByRole('checkbox', { name: 'Disponible para nuevos trabajos' }).uncheck();
     await page.getByRole('button', { name: 'Guardar perfil' }).click(); await esperarEstado(page, 'Perfil guardado.');
     await agregarTrabajoUi(page, testInfo, 'Fachada de ficticia calle 28 de Julio');
@@ -150,16 +162,19 @@ test.describe('HU03 · perfil profesional y portafolio del titular', () => {
     await recargarPerfil(page, cuenta);
     await expect(page.getByLabel('Nombre público')).toHaveValue('Maestro Quispe ficticio'); await expect(page.getByLabel('Tipo de prestador')).toHaveValue('PROFESIONAL');
     await expect(page.getByLabel('Experiencia')).toHaveValue('Doce años de experiencia ficticia en albañilería y acabados.');
-    await expect(page.getByRole('checkbox', { name: 'Albañilería' })).toBeChecked();
-    await expect(page.getByRole('checkbox', { name: 'Ayacucho', exact: true })).toBeChecked(); await expect(page.getByRole('checkbox', { name: 'Carmen Alto' })).toBeChecked();
-    await expect(page.getByRole('checkbox', { name: 'San Juan Bautista' })).not.toBeChecked();
+    // Los selectores desplegables resumen lo guardado con etiquetas; al abrirlos, las casillas reflejan lo mismo.
+    const especialidadesGuardadas = page.getByRole('list', { name: 'Especialidades seleccionadas' }); const zonasGuardadas = page.getByRole('list', { name: 'Zonas de atención seleccionadas' });
+    await expect(especialidadesGuardadas.getByText('Albañilería')).toBeVisible(); await expect(zonasGuardadas.getByRole('listitem')).toHaveText(['Ayacucho', 'Carmen Alto']);
+    const zonasAbiertas = await abrirSelector(page, 'Zonas de atención');
+    await expect(zonasAbiertas.getByRole('checkbox', { name: 'Ayacucho', exact: true })).toBeChecked(); await expect(zonasAbiertas.getByRole('checkbox', { name: 'Carmen Alto' })).toBeChecked();
+    await expect(zonasAbiertas.getByRole('checkbox', { name: 'San Juan Bautista' })).not.toBeChecked(); await zonasAbiertas.getByRole('button', { name: 'Listo' }).click();
     await expect(page.getByRole('checkbox', { name: 'Disponible para nuevos trabajos' })).not.toBeChecked();
     await expect(trabajoUi(page, 'Fachada de ficticia calle 28 de Julio')).toBeVisible();
     const guardado = await obtenerPerfil(request, cuenta.token);
     expect(guardado).toMatchObject({ nombrePublico: 'Maestro Quispe ficticio', tipo: 'PROFESIONAL', distritos: zonasValidas, disponibilidadDeclarada: false });
     expect(guardado.trabajos.map((t) => t.titulo)).toEqual(['Fachada de ficticia calle 28 de Julio']);
     // La interfaz exige al menos una zona antes de enviar nada.
-    await page.getByRole('checkbox', { name: 'Ayacucho', exact: true }).uncheck(); await page.getByRole('checkbox', { name: 'Carmen Alto' }).uncheck();
+    await page.getByRole('button', { name: 'Quitar Ayacucho' }).click(); await page.getByRole('button', { name: 'Quitar Carmen Alto' }).click();
     await page.getByRole('button', { name: 'Guardar perfil' }).click(); await expect(page.getByRole('alert').filter({ hasText: 'Seleccione entre uno y cinco distritos.' })).toBeVisible();
     expect((await obtenerPerfil(request, cuenta.token)).version).toBe(guardado.version);
 
@@ -170,7 +185,7 @@ test.describe('HU03 · perfil profesional y portafolio del titular', () => {
     expect(invalida.status()).toBe(400); expect(error.codigo).toBe('DATOS_INVALIDOS'); expect(error.detalles).toEqual([{ campo: 'distritos[1]', motivo: 'Valor no admitido.' }]);
     const conservado = await obtenerPerfil(request, cuenta.token);
     expect(conservado).toMatchObject({ version: guardado.version, distritos: zonasValidas, nombrePublico: 'Maestro Quispe ficticio' });
-    await recargarPerfil(page, cuenta); await expect(page.getByRole('checkbox', { name: 'Carmen Alto' })).toBeChecked();
+    await recargarPerfil(page, cuenta); await expect(page.getByRole('list', { name: 'Zonas de atención seleccionadas' }).getByText('Carmen Alto')).toBeVisible();
     await evidencia(testInfo, 'ca-pre-01-02', { perfilVersion: guardado.version, distritosGuardados: conservado.distritos, rechazoZona: { http: invalida.status(), codigo: error.codigo, detalles: error.detalles }, versionTrasRechazo: conservado.version });
   });
 

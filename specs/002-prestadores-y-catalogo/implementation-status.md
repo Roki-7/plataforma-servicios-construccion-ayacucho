@@ -922,3 +922,124 @@ Las primeras ejecuciones fallaron por supuestos míos, no por defectos de seguri
 - 002 no tiene aún un recurso de documentos privados en 002: las rutas de documentos y archivos privados devuelven 404 y no existe ruta que los entregue.
 - CA-CAT-10 con Redis caído y la restauración se mantienen en T069/T071.
 - Siguen abiertos los pendientes técnicos anteriores (conteos de Actions n.º 3, margen de 120 s de `busqueda-publica.spec.ts`, lentitud ocasional del disco, causa inferida de RF39, informes locales de 001, `verificar-https-002.ts`). Como en T075, no se ejecuta en CI. T080 no se ha iniciado.
+
+## T080 · Accesibilidad, adaptabilidad y usabilidad (EQ-07/PR07): parte automatizada ejecutada, **PENDIENTE** de los recorridos manuales
+
+Estado: **pendiente** (79 de 94; `tasks.md` mantiene `[ ]`). El cierre de T080 exige, además de las comprobaciones automatizadas, «recorridos manuales en celular y computadora reales» y la documentación de PR07 con ellos. Esa parte **no se ha podido ejecutar** (no hay dispositivos físicos disponibles para esta sesión) y una emulación de navegador no la sustituye, por lo que T080 no se marca como verificada. Lo automatizado se ejecutó completo y queda aprobado.
+
+### Implementación
+
+- `tecnologia/frontend/test/e2e/prestadores-catalogo/accesibilidad-responsive.spec.ts`: seis pruebas por proyecto (54 en la matriz de 9 proyectos; 261 con las de T075 a T079). Recorre, en cada navegador y ancho, las vistas de 002: búsqueda con resultados, búsqueda sin coincidencias, detalle de servicio, servicio no disponible, perfil público (visitante) y perfil profesional, «Mis servicios» y «Mis servicios» con edición y confirmación de retiro (titular con sesión).
+- `tecnologia/frontend/test/e2e/prestadores-catalogo/analisis-accesibilidad.ts`: mediciones que se ejecutan en la página con el DOM y los estilos calculados reales de cada navegador (sin dependencia nueva; `axe-core` no está instalado ni se añadió).
+- `tecnologia/frontend/src/features/prestadores-catalogo/presentacion/errores-campo.ts` (+ `errores-campo.test.ts`, 2 pruebas) y cambios en `PerfilProfesional.tsx`, `Portafolio.tsx` y `ServiciosPropios.tsx`: **corrección de un defecto de 002** (ver más abajo).
+- `tecnologia/frontend/scripts/ejecutar-e2e-002.mjs` y `test/soporte/reporte-002.ts` (+ prueba): la evidencia `evidencia-eq-07-*` se conserva en `eq07/<proyecto>/` y el ejecutor la retira al inicio de la serie siguiente igual que las `hu*`.
+
+### Qué mide cada prueba (por proyecto y vista)
+
+| Prueba | Criterio comprobado | Resultado |
+|---|---|---|
+| Diseño adaptable | Sin desplazamiento horizontal general; ningún elemento fuera de la ventana; ningún control superpuesto; todo objetivo táctil ≥ 24×24 px (WCAG 2.5.8; el mínimo observado es 40 px); sin texto recortado | Aprobada en 9/9 |
+| Nombres y estructura | Todo control visible tiene nombre accesible (aria-label, etiqueta, contenido o alt); `lang`; un `main`, un `h1` y navegación; encabezados sin saltos; imágenes con `alt` | Aprobada en 9/9 |
+| Contraste | Todo texto visible ≥ 4,5:1 (≥ 3:1 si es grande); bordes de campos ≥ 3:1; sin animaciones en curso al medir. El peor texto medido es 7,67:1 (mensaje de error) y ninguna medición omitió fondos complejos | Aprobada en 9/9 |
+| Teclado | Todo control visible y habilitado recibe el foco con Tab, en el orden del documento, sin trampas ni `tabindex` positivo, siempre dentro de la ventana y con un indicador de foco visible de al menos 3:1 | Aprobada en 9/9 |
+| Flujos solo con teclado | Buscar con filtros (flechas y Enter), iniciar sesión y publicar un servicio, sin ratón; el resultado se contrasta con la API | Aprobada en 9/9 |
+| Errores y avisos | Cada error de validación es un `alert` visible con `id` y su campo declara `aria-invalid` y `aria-describedby` hacia él (título de servicio, nombre público) | Aprobada en 9/9 tras la corrección |
+
+### Defecto de 002 detectado y corregido
+
+Los errores de validación de los formularios de 002 (`role="alert"`) no estaban asociados a su campo: el campo no declaraba `aria-invalid` ni `aria-describedby`, por lo que un lector de pantalla no anunciaba el error al enfocarlo. La prueba lo detectó en Chromium 360. Se corrigió con el ayudante `errores-campo.ts` (id del texto, `aria-invalid` y `aria-describedby` en el campo; solo `aria-describedby` en los grupos) en el perfil profesional, el trabajo anterior, la publicación y la edición de servicios. No se tocó ninguna pantalla de 001 ni la hoja de estilos compartida, y no se relajó ninguna comprobación. Humo posterior en Chromium 1366: `servicios.spec.ts` 4/4 y `perfil-y-portafolio.spec.ts` 7/7.
+
+### Verificación
+
+- **Matriz completa:** 54 de 54 aprobadas en los 9 proyectos (17,2 min). `trazabilidad-criterios-002.json` registra EQ-07 y PR07 aprobados en 9 de 9 proyectos y la evidencia suma 54 archivos en `eq07/<proyecto>/` (ancho, vistas, controles, objetivo mínimo, textos comprobados, peor contraste y paradas de Tab por vista).
+- **Historial de la puesta a punto (se conserva por transparencia):** hasta llegar a la serie verde hubo cuatro series completas con fallos que no eran defectos de 002 y se corrigieron en la medición sin relajar ningún umbral: (1) tras pulsar un enlace, Tab continuaba desde ese enlace y los marcó «no alcanzables» (ahora el recorrido parte de un marcador no tabulable al inicio del documento); (2) en WebKit el desplazamiento hasta un campo enfocado tarda más que la medición (intermitente: se conceden hasta 3 s y se comprobó en 4 repeticiones aisladas); (3) la transición de color de 150 ms de los enlaces de navegación daba un contraste transitorio de 2,92:1 en Chromium 1366 (ahora se mide en reposo, sin animaciones); (4) un cuelgue puntual de WebKit 1366 al cerrar el contexto (300 s) y una carga de `/buscar` que no terminó en WebKit 360, ambos intermitentes y no repetidos. Una ejecución se interrumpió por dejar mi shell dentro de la carpeta de evidencia, que impidió su retirada; no afectó a los datos.
+- **Aislamiento:** al terminar no quedan bases de prueba, buckets `e2e-*`, claves Redis `ayacucho:002:e2e-*`, bloqueo ni procesos en 3002 y 5175; la huella de las 27 tablas de `ayacucho_002_validacion`, su bucket, su espacio Redis y Mailpit quedaron idénticos (`validacionLocalSinCambios: true`). No se tocó 001 ni se eliminó ningún volumen.
+- **Calidad (Node 24.15.0):** frontend `typecheck`, `lint` y `build` sin errores; 123 de 123 pruebas unitarias; `playwright test --list` da 261 pruebas. `git diff --check` sin errores.
+- Comando: `npm --prefix tecnologia/frontend run test:e2e:002 -- --especificaciones=accesibilidad-responsive.spec.ts` (Docker con el proyecto 002 en marcha, puertos 3002 y 5175 libres y Node 24).
+
+### Observaciones sobre 001 (no modificado)
+
+Las pantallas de acceso y registro pertenecen a 001 y no se midieron como parte de T080. Una medición preliminar mostró en ellas dos hallazgos para la 001: el botón «mostrar contraseña» se superpone por diseño al campo (el campo reserva espacio con relleno) y el enlace «Olvidé mi contraseña» mide menos de 24 px de alto. No se corrigieron por la restricción de no modificar 001.
+
+### Lo que falta para cerrar T080 (obligatorio, no ejecutado)
+
+1. **Recorridos manuales en un celular real y en una computadora real**, registrando versión del navegador, ancho y plataforma (EQ-07 y `plan.md`): búsqueda con filtros, detalle y perfil público, y para el titular el perfil profesional, la alta de servicios y su ciclo. Cada uno con su resultado y las incidencias.
+2. **Revisión manual de legibilidad, uso del teclado y mensajes de estado** en esos dispositivos (`plan.md`, PR07) y su registro en este documento.
+3. Opcional y recomendable: una pasada con un lector de pantalla real (NVDA, VoiceOver o TalkBack) sobre los formularios corregidos; las comprobaciones automatizadas verifican los atributos ARIA, no cómo los anuncia cada lector.
+4. Con eso registrado, marcar T080 y dejar PR07 documentado.
+
+### Limitaciones de lo ejecutado
+
+- Los navegadores son los de Playwright (Chromium, Firefox y WebKit de Linux) con viewports de 360, 768 y 1366 px: son emulación de tamaño, no dispositivos reales ni sus motores móviles; el contacto táctil, los teclados virtuales y el zoom del sistema no se probaron.
+- El contraste mide el texto y los bordes de campos con colores sólidos; no analiza imágenes ni el contraste de estados de pasar el ratón o deshabilitados (exentos por WCAG).
+- No se cubrió el zoom de texto al 200 % ni el modo de contraste forzado.
+- Siguen abiertos los pendientes técnicos anteriores (conteos de Actions n.º 3, margen de 120 s de `busqueda-publica.spec.ts`, lentitud ocasional del disco y de WebKit, causa inferida de RF39, informes locales de 001, `verificar-https-002.ts`). Como en T075, no se ejecuta en CI. T081 no se ha iniciado.
+
+### T080 · Rediseño visual de 002, selectores desplegables y navegación lateral (segunda ronda; T080 sigue PENDIENTE)
+
+Tras la revisión manual se rediseñaron las vistas de 002 y el menú principal. T080 **continúa pendiente**: faltan los recorridos manuales en dispositivos reales y una nueva serie E2E completa con la interfaz nueva (ver «No verificado»).
+
+**Causas reales de los defectos de estilo** (hoja compartida `composicion/estilos.css`, no modificada): `label{display:grid}` junto con `input{width:100%;min-height:48px}` estiraba casillas y radios lejos de su texto; `form button[type=button]` dejaba los botones transparentes y los botones sin contenedor se apilaban sin separación; `.superficie` limitaba todo a 40 rem con el marco de un formulario de cuenta.
+
+**Qué cambió**
+- `presentacion/estilos-002.css` (nuevo): sistema visual de 002 con todas las reglas bajo `.superficie .p002`: tarjetas, rejillas adaptables, botones (acento, primario, contorno, peligro, deshabilitado y cargando), campos con foco y error, casillas y radios alineados, insignias de estado, mensajes de éxito y error. No afecta a 001.
+- `BuscarOferta`, `DetallePrestador`, `PerfilProfesional`, `Portafolio`, `ServiciosPropios`: marcado con las clases del sistema; los botones de tarjetas muestran «Ver detalle», «Editar», «Pausar»… y conservan el nombre accesible completo con `aria-label`. Textos, validaciones, API y orden de tabulación se conservan.
+- **Selectores desplegables** (`SelectorMultiple.tsx`): especialidades (agrupadas por categoría y subcategoría, la raíz con subcategorías como «toda la categoría») y zonas de atención. Selección múltiple, buscador sin tildes ni mayúsculas, lista con desplazamiento vertical, casillas nativas alineadas, resumen «N seleccionadas», etiquetas con «Quitar», «Quitar todas» y «Listo». Teclado: ↑ ↓ Inicio Fin entre opciones, Escape cierra y devuelve el foco. No cambia datos ni contratos (devuelve la lista de identificadores). Escala a muchas categorías (probado con 60 opciones). No se ampliaron las categorías reales.
+- **Navegación lateral** (`composicion/BarraLateral.tsx` + `barra-lateral.css`): desde 768 px barra fija a la izquierda con la identidad, iconos lineales, opción activa resaltada, «Cerrar sesión» al pie y contenido amplio a la derecha; en celular, barra superior con botón «Menú» que abre un panel lateral (se cierra con el botón, Escape, tocando fuera o al elegir una opción) y enlace «Saltar al contenido». Visitantes y cuentas usan la misma disposición con sus opciones.
+
+**Archivos compartidos con 001 modificados (documentados a propósito):** `src/composicion/App.tsx` (solo el bloque de presentación: cabecera y navegación se sustituyen por `BarraLateral`, el contenido va en `<main>`; rutas, sesión, permisos y cierre de sesión no cambian y siguen usando `EstadoSesion` de 001 sin tocarlo) y los nuevos `BarraLateral.tsx` y `barra-lateral.css` (clases `app-*`, sin reglas globales). `estilos.css` no se modificó.
+
+**Pruebas de 001 adaptadas (solo el acceso al menú en celular, sin cambiar su lógica):** `test/e2e/usuarios-acceso/{contrasena,permisos,recuperacion-perfil,seguridad-navegador,sesiones,registro}.spec.ts` usan `conMenu`/`irA` de `test/soporte/menu-principal.ts`, que abren el menú solo si está plegado. **No se ejecutaron**: requieren el entorno 001 y su evidencia, que no se debe tocar; hay que correrlas con su ejecutor habitual.
+
+**Verificado**
+- `typecheck`, `lint` y `build` sin errores; 130 de 130 pruebas unitarias (7 nuevas: selector múltiple y barra lateral; se adaptaron 3 que abrían las casillas); `playwright --list` da 279 pruebas.
+- Revisión visual y auditoría automática en Microsoft Edge a 360, 768 y 1366 px contra la validación en marcha (carpeta `tecnologia/.local/evidencia/002/t080-mejora-visual/despues/`, con `auditoria.json` por ancho): sin desplazamiento horizontal, sin textos con contraste insuficiente, sin controles sin nombre y objetivos ≥ 24 px en todas las vistas de 002 y en «Mi cuenta» y «Mis perfiles» de 001 bajo el nuevo menú. Los solapamientos que reporta la auditoría son los previstos: el panel del menú móvil, los paneles desplegables abiertos y el botón de ver contraseña de 001.
+- Esa revisión creó en la base de validación tres cuentas ficticias `captura-*@example.invalid` con su perfil, servicios y un trabajo; no se eliminó nada.
+
+**No verificado (pendiente)**
+- Las suites E2E de 002 adaptadas al menú y a los selectores (`perfil-y-portafolio`, `servicios`, `busqueda`, `entorno`, `accesibilidad-responsive`, `diseno-visual`) **no se han reejecutado**: la API y Vite de la validación están en marcha en los puertos 3002 y 5175 y el ejecutor exige tenerlos libres. Hay que detenerlas y ejecutar la serie.
+- No se capturó el estado «antes» del rediseño; se conserva el diagnóstico de causas y el «después».
+- Recorridos manuales en celular y computadora reales (T080).
+- Pendiente separado de 001: botón de contraseña superpuesto al campo y enlace «Olvidé mi contraseña» con menos de 24 px de alto.
+
+### T080 · Ajustes de la búsqueda tras la revisión visual (tercera ronda; T080 sigue PENDIENTE)
+
+- **Nombres repetidos en «Prestadores» (investigado, no es duplicación).** Consulta de solo lectura a `ayacucho_002_validacion`: 6 perfiles con 6 identificadores y 6 cuentas distintos, 6 filas en la proyección de búsqueda (todas con su perfil) y 0 filas huérfanas. «Carlos Quispe Huamán» (`601455ec` y `6225ea0e`) y «Rosa Mendoza Ccente» (`5a225ea8` y `91aa3325`) son cuentas distintas creadas en dos ejecuciones de mi script de capturas (04:38 y 04:41 del 24-nov); «Maestro de obra ficticio T072» (`6f7f739d` y `d84e24ba`) son dos cuentas de pruebas anteriores (20-nov). Son datos de prueba legítimos: no se eliminó ni se fusionó nada y la búsqueda no deduplica por nombre (correcto, dos prestadores reales pueden llamarse igual).
+- **Tarjetas de servicio:** muestran «Categoría» y, si existe, «Subcategoría» (a partir de `categoriaId` y de las categorías públicas ya cargadas) y «Zona: X» solo cuando hay un filtro de zona activo (el servicio ya cumple ese filtro). Limitación: el servicio público no trae las zonas de su prestador, así que sin filtro no se puede mostrar la zona sin otra petición por tarjeta o un cambio de API; queda como mejora separada.
+- **Tarjetas de prestador:** muestran sus especialidades concretas («Raíz › Subcategoría») cuando el identificador se puede nombrar con las categorías públicas; las que no (inactivas) se omiten.
+- Sin otros cambios de diseño. Pruebas: `tarjetas-resultados.test.tsx` (3 nuevas) y 133 de 133 unitarias; `typecheck`, `lint` y `build` sin errores. Capturas de solo lectura en `t080-mejora-visual/despues-tarjetas/{360,768,1366}`.
+- **Pruebas E2E focalizadas: pendientes.** Los puertos 3002 y 5175 siguen ocupados por la API y Vite de la validación en marcha (PID 23764 y 29336) y el ejecutor exige tenerlos libres; no se han detenido sin autorización de la persona usuaria.
+
+### T080 · Ronda de verificaciones E2E tras el rediseño (T080 sigue PENDIENTE)
+
+Puertos 3002 y 5175 liberados por la persona usuaria; las series se ejecutaron una tras otra con la evidencia de cada una copiada a `tecnologia/.local/evidencia/002/t080-ronda3/<serie>` antes de que la siguiente retirara `hu*`/`eq*`.
+
+**Resultados 002 (Node 24.15.0, HTTPS con la CA 002, base/bucket/Redis descartables)**
+
+| Serie | Proyectos | Resultado |
+|---|---|---|
+| `accesibilidad-responsive.spec.ts` (6 pruebas por proyecto) | los 9 | **54 de 54** (30 min). EQ-07 y PR07 aprobados en 9 de 9; base de validación idéntica (`validacionLocalSinCambios: true`) |
+| `perfil-y-portafolio.spec.ts` (selectores desplegables, tarjetas del portafolio) | chromium-360, chromium-1366, webkit-360, firefox-768 | 7 de 7 en cada uno |
+| `servicios.spec.ts` (botones de tarjeta, menú) | chromium-360 y 1366 | 4 de 4 en cada uno |
+| `busqueda.spec.ts` (tarjetas, filtros, paginación) | chromium-360 y 1366 | 4 de 4 en cada uno |
+| `entorno.spec.ts` (menú principal, navegación) | chromium-360 y 1366 | 4 de 4 en cada uno |
+
+Comprueban: menú lateral desde 768 px y panel «Menú» en celular, selectores múltiples (elegir, buscar, quitar, recargar y conservar lo guardado), tarjetas de servicios y prestadores, flujos solo con teclado y todas las vistas (desbordamiento, nombres, contraste, foco y orden de tabulación).
+
+**Defectos encontrados y corregidos en esta ronda (todos de pruebas o de su medición, ninguno de la aplicación)**
+- Tras iniciar sesión en celular el panel se cierra al cambiar de ruta y podía cerrarse entre abrirlo y pulsar: `irA` reintenta (`test/soporte/menu-principal.ts`).
+- La barra superior adherida en celular se contaba como solape con el contenido que se desplaza por debajo, y la barra lateral adherida como «retroceso de foco»: la medición ignora los elementos fijos o adheridos y admite el cambio de columna (rejillas, campos en dos columnas). La prueba de teclado de celular alternaba el menú en lugar de abrirlo.
+- Una carga de `/buscar` devolvió el 503 del proxy antes de que el contenedor alcanzara a Vite: `ejecutar-e2e-002.mjs` ahora espera además a que `/` y `/api/v1/salud` respondan **a través del proxy 8444** antes de lanzar las pruebas.
+- Dos arranques fallaron por infraestructura (`timeout expired` al crear la base descartable y un `exit 127` del lanzador) y pasaron al repetirlos.
+
+**Regresión de 001 (entorno habitual: contenedores, API 3000, Vite 5173 y proxy 8443 de la validación 001; evidencia en carpetas nuevas `t080-regresion-001*`; la de 001 no se tocó)**
+- Con las pruebas ya adaptadas al menú, `registro`, `sesiones`, `contrasena`, `permisos`, `recuperacion-perfil` y `seguridad-navegador` de `usuarios-acceso`: **8 de 8 en Chromium 360 y 8 de 8 en Chromium 1366**.
+- La primera pasada usó las pruebas antiguas copiadas en la imagen `ayacucho-001-e2e:fundacion` (la imagen no se reconstruyó): en 1366 pasaron 7 de 8 (la barra lateral mantiene visibles «Cerrar sesión» y el resto del menú) y en 360 fallaron como era previsible por el menú plegado; después se montaron las pruebas actuales sobre la imagen. Se añadió `cerrarMenu` para no dejar el panel abierto sobre el contenido.
+- Esas ejecuciones registraron cuentas ficticias nuevas en la base de validación 001 (de 1588 a 1635 usuarios); no se modificó ni eliminó nada existente. Se detuvieron la API, Vite y los contenedores de 001 que se arrancaron.
+- **Salvedad:** se ejecutaron Chromium 360 y 1366 y las seis suites que cambiaron; no se corrió la matriz completa de 001 (Firefox, WebKit y 768 px, ni el resto de sus suites).
+
+**Incidencia propia:** `vitest` escribe por defecto su informe en `tecnologia/.local/evidencia/001/frontend-junit.xml`; varias de mis ejecuciones de pruebas unitarias lo sobrescribieron sin pasar la ruta alternativa que ya conocía. Es un informe regenerable (133 pruebas, 0 fallos, fecha 24-nov), pero la versión anterior se perdió. El último ciclo de calidad usó una ruta temporal.
+
+**Calidad:** `typecheck`, `lint` y 133 de 133 unitarias sin errores; `playwright --list` da 279 pruebas.
+
+**Sigue pendiente para cerrar T080:** recorridos manuales en celular y computadora reales (plantilla en `evidencia/002/manual-t080/`), y, si se desea cobertura de 001 completa tras el cambio del menú, su matriz habitual completa.

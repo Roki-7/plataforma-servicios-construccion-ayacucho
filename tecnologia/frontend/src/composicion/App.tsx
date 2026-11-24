@@ -17,6 +17,7 @@ import { busquedaWeb, categoriasWeb, portafolioWeb, serviciosWeb } from './prest
 import { mensajeDeError } from '../features/prestadores-catalogo/aplicacion/portafolio.js';
 import type { OpcionCategoria } from '../features/prestadores-catalogo/aplicacion/categorias.js';
 import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
+import { BarraLateral, type EnlaceMenu } from './BarraLateral.js';
 import './estilos.css';
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
@@ -71,31 +72,25 @@ export function App() {
     contenido = <Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} />;
   }
 
-  return <main>
-    <header>
-      <h1>Plataforma Ayacucho</h1>
-      <nav aria-label="Navegación principal">
-        <a href="/buscar" aria-current={ruta === '/buscar' ? 'page' : undefined} onClick={navegar}>Buscar servicios</a>
-        {estado.autenticada ? <>
-          <a href="/cuenta" aria-current={ruta === '/cuenta' ? 'page' : undefined} onClick={navegar}>Mi cuenta</a>
-          <a href="/habilitar-perfil" aria-current={ruta === '/habilitar-perfil' ? 'page' : undefined} onClick={navegar}>Mis perfiles</a>
-          <a href="/prestador/perfil" aria-current={ruta === '/prestador/perfil' ? 'page' : undefined} onClick={navegar}>Mi perfil profesional</a>
-          <a href="/prestador/servicios" aria-current={ruta === '/prestador/servicios' ? 'page' : undefined} onClick={navegar}>Mis servicios</a>
-          <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
-            try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
-            catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
-          }} />
-        </> : <>
-          <a href="/registro" aria-current={ruta === '/' || ruta === '/registro' ? 'page' : undefined} onClick={navegar}>Crear cuenta</a>
-          <a href="/acceso" aria-current={ruta === '/acceso' ? 'page' : undefined} onClick={navegar}>Acceder</a>
-        </>}
-      </nav>
-    </header>
+  const enlaces: EnlaceMenu[] = estado.autenticada
+    ? [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/cuenta', texto: 'Mi cuenta', icono: 'cuenta', actual: ruta === '/cuenta' },
+      { href: '/habilitar-perfil', texto: 'Mis perfiles', icono: 'perfiles', actual: ruta === '/habilitar-perfil' }, { href: '/prestador/perfil', texto: 'Mi perfil profesional', icono: 'profesional', actual: ruta === '/prestador/perfil' },
+      { href: '/prestador/servicios', texto: 'Mis servicios', icono: 'servicios', actual: ruta === '/prestador/servicios' }]
+    : [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/registro', texto: 'Crear cuenta', icono: 'registro', actual: ruta === '/' || ruta === '/registro' },
+      { href: '/acceso', texto: 'Acceder', icono: 'acceso', actual: ruta === '/acceso' }];
+  return <div className="app">
+    <a className="app-saltar" href="#contenido">Saltar al contenido</a>
+    <BarraLateral ruta={ruta} enlaces={enlaces} alNavegar={navegar} cierre={estado.autenticada ? <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
+      try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
+      catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
+    }} /> : undefined} />
+    <main id="contenido" className="app-contenido" tabIndex={-1}>
     <div className="superficie">
       {mensaje && <p className="aviso" role="status">{mensaje}</p>}
       {contenido}
     </div>
-  </main>;
+    </main>
+  </div>;
 }
 
 /** Rutas privadas de los flujos de Prestadores y Catálogo. Tras iniciar sesión desde una de ellas se vuelve a la misma pantalla. */

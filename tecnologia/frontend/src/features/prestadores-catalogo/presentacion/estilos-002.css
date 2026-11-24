@@ -1,0 +1,312 @@
+/*
+ * Sistema visual de las vistas de la funcionalidad 002 (búsqueda, detalle, perfil público, perfil profesional, portafolio y servicios del titular).
+ *
+ * Alcance: todas las reglas cuelgan de `.superficie .p002` (la raíz de cada vista de 002). Nada de aquí afecta a las pantallas de 001 ni a la hoja compartida
+ * `composicion/estilos.css`. La especificidad es deliberadamente mayor que la de las reglas globales de elementos (`label`, `input`, `button`, `form`…), que son
+ * las que producían los defectos que este archivo corrige:
+ *   - `label { display: grid }` + `input { width: 100%; min-height: 48px }` estiraban las casillas y los radios a todo el ancho, lejos de su texto;
+ *   - `form button[type='button']` los dejaba transparentes y `button` sin contenedor se apilaba sin separación en los listados;
+ *   - `.superficie` limita el contenido a 40 rem y añade un marco propio de formulario de cuenta, que estrecha los resultados y las tarjetas.
+ */
+
+/* ── Contenedor: las vistas de 002 usan el ancho disponible y apoyan las tarjetas sobre el fondo de la página ── */
+.superficie:has(.p002) {
+  max-width: 68rem;
+  padding: clamp(.25rem, 1.5vw, 1rem) 0 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ── Tokens ── */
+.superficie .p002 {
+  --p-texto: #17262d;
+  --p-suave: #4a5b63;
+  --p-primario: #124e60;
+  --p-primario-osc: #0c3a49;
+  --p-primario-suave: #e4eff2;
+  --p-acento: #a8502e;
+  --p-acento-osc: #8a3f23;
+  --p-peligro: #a11f25;
+  --p-peligro-osc: #7f171c;
+  --p-peligro-suave: #fdecec;
+  --p-exito: #14532d;
+  --p-exito-suave: #e3f3ea;
+  --p-borde: #d6cfc3;
+  --p-campo: #6b828b;
+  --p-sombra: 0 1px 2px rgb(18 78 96 / 8%), 0 8px 24px rgb(18 78 96 / 8%);
+  --p-sombra-fuerte: 0 2px 4px rgb(18 78 96 / 10%), 0 14px 32px rgb(18 78 96 / 14%);
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  color: var(--p-texto);
+}
+.superficie .p002.p002-perfil-editable { max-width: 56rem; }
+.superficie .p002.p002-detalle { max-width: 48rem; margin-inline: auto; }
+/* El portafolio es una sección dentro del perfil: se anula el filete de «sección dentro de sección» de la hoja compartida. */
+.superficie .p002.p002-portafolio { margin-top: .5rem; padding-top: 0; border-top: 0; }
+
+/* ── Tipografía y encabezados ── */
+.superficie .p002 h2 { margin: 0; color: var(--p-primario); font-size: clamp(1.6rem, 3.6vw, 2.1rem); line-height: 1.15; letter-spacing: -.015em; }
+.superficie .p002 h3 { margin: 0; color: var(--p-primario-osc); font-size: 1.15rem; line-height: 1.25; overflow-wrap: anywhere; }
+.superficie .p002 h4 { margin: 0; color: var(--p-primario-osc); font-size: 1.05rem; line-height: 1.25; overflow-wrap: anywhere; }
+.superficie .p002 p { margin: 0; }
+.superficie .p002 .p002-ayuda { color: var(--p-suave); font-size: .95rem; line-height: 1.5; }
+.superficie .p002 .p002-dato { color: var(--p-suave); font-size: .95rem; }
+.superficie .p002 .p002-descripcion { line-height: 1.55; overflow-wrap: anywhere; }
+.superficie .p002 .p002-encabezado { display: grid; gap: .35rem; padding: .15rem 0 .15rem 1rem; border-left: 5px solid var(--p-acento); }
+.superficie .p002 .p002-total { color: var(--p-primario); font-weight: 700; }
+.superficie .p002 .p002-cargando { color: var(--p-suave); }
+
+/* ── Tarjetas y rejillas ── */
+.superficie .p002 .p002-rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.superficie .p002 .p002-rejilla.p002-rejilla-ancha { grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); }
+.superficie .p002 .p002-rejilla > li { display: flex; min-width: 0; }
+.superficie .p002 .p002-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+  width: 100%;
+  min-width: 0;
+  padding: 1.15rem 1.25rem 1.25rem;
+  border: 1px solid var(--p-borde);
+  border-top: 4px solid var(--p-primario);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: var(--p-sombra);
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.superficie .p002 .p002-tarjeta:hover { box-shadow: var(--p-sombra-fuerte); }
+.superficie .p002 .p002-tarjeta .p002-acciones { margin-top: auto; padding-top: .35rem; }
+.superficie .p002 .p002-servicio-publicado { border-top-color: #2f7d4f; }
+.superficie .p002 .p002-servicio-pausado { border-top-color: #b7791f; }
+.superficie .p002 .p002-servicio-retirado { border-top-color: #7b858a; background: #faf9f7; }
+.superficie .p002 .p002-panel { display: grid; gap: .85rem; padding: 1.25rem 1.4rem 1.4rem; border: 1px solid var(--p-borde); border-radius: 1rem; background: #fff; box-shadow: var(--p-sombra); }
+.superficie .p002 .p002-panel > h3 { padding-bottom: .55rem; border-bottom: 2px solid #f8e9e1; }
+.superficie .p002 .p002-detalle { display: grid; gap: 1rem; padding: clamp(1.25rem, 4vw, 2rem); border: 1px solid var(--p-borde); border-top: 5px solid var(--p-acento); border-radius: 1rem; background: #fff; box-shadow: var(--p-sombra); }
+.superficie .p002 .p002-portada { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: clamp(1.1rem, 3vw, 1.75rem); border-bottom: 4px solid var(--p-acento); border-radius: 1rem; background: var(--p-primario); }
+.superficie .p002 .p002-portada h2 { color: #fff; }
+.superficie .p002 .p002-fuentes { display: flex; flex-wrap: wrap; gap: .6rem; }
+.superficie .p002 .p002-fuente { margin: 0; padding: .5rem .9rem; border: 1px dashed #8a7f6e; border-radius: .7rem; background: #f1ece4; color: #3b3a36; font-size: .92rem; font-weight: 600; }
+.superficie .p002 .p002-vacio { display: grid; justify-items: center; gap: .85rem; padding: 1.75rem 1.25rem; border: 2px dashed #8fa3ab; border-radius: 1rem; background: #fff; text-align: center; }
+.superficie .p002 .p002-vacio-suave { padding: .8rem 1rem; border: 1px solid var(--p-borde); border-radius: .7rem; background: #faf8f4; color: var(--p-suave); }
+
+/* ── Insignias y estados ── */
+.superficie .p002 .p002-insignia, .superficie .p002 .p002-estado { display: inline-flex; align-self: flex-start; width: fit-content; padding: .25rem .75rem; border: 1px solid #b9d3db; border-radius: 999px; background: var(--p-primario-suave); color: var(--p-primario-osc); font-size: .88rem; font-weight: 700; line-height: 1.3; }
+.superficie .p002 .p002-insignia-si, .superficie .p002 .p002-estado-publicado { border-color: #a8d5b8; background: var(--p-exito-suave); color: var(--p-exito); }
+.superficie .p002 .p002-insignia-no, .superficie .p002 .p002-estado-pausado { border-color: #ecd49a; background: #fdf1d8; color: #6b4600; }
+.superficie .p002 .p002-estado-retirado { border-color: #c9ced1; background: #ececec; color: #3d4448; }
+.superficie .p002 .p002-portada .p002-insignia { border-color: transparent; background: #fff; }
+.superficie .p002 .p002-disponibilidad { padding-left: .75rem; border-left: 4px solid #ecd49a; }
+.superficie .p002 .p002-disponibilidad-si { border-left-color: #6fb98a; }
+
+/* ── Formularios ── */
+.superficie .p002 form { display: grid; gap: 1.1rem; min-width: 0; }
+.superficie .p002 .p002-formulario { padding: clamp(1rem, 3vw, 1.6rem); border: 1px solid var(--p-borde); border-radius: 1rem; background: #fff; box-shadow: var(--p-sombra); }
+.superficie .p002 .p002-formulario-anidado { padding: 1rem 0 0; border: 0; border-top: 1px solid var(--p-borde); border-radius: 0; background: transparent; box-shadow: none; }
+.superficie .p002 .p002-filtros { gap: 1.1rem; }
+.superficie .p002 .p002-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 1rem; align-items: end; }
+.superficie .p002 .p002-campos.p002-campos-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
+.superficie .p002 .p002-grupo-campo { display: grid; gap: .35rem; min-width: 0; }
+.superficie .p002 .p002-campo { display: grid; gap: .4rem; color: var(--p-texto); font-size: .95rem; font-weight: 700; }
+.superficie .p002 .p002-accion-filtro { display: flex; align-items: end; }
+.superficie .p002 input:not([type='checkbox']):not([type='radio']):not([type='file']), .superficie .p002 select, .superficie .p002 textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: .65rem .85rem;
+  border: 1.5px solid var(--p-campo);
+  border-radius: .65rem;
+  background: #fff;
+  color: var(--p-texto);
+  font: inherit;
+  font-weight: 400;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.superficie .p002 textarea { min-height: 7.5rem; line-height: 1.5; resize: vertical; }
+.superficie .p002 input:hover:not(:disabled), .superficie .p002 select:hover:not(:disabled), .superficie .p002 textarea:hover:not(:disabled) { border-color: var(--p-primario); }
+.superficie .p002 input:focus-visible, .superficie .p002 select:focus-visible, .superficie .p002 textarea:focus-visible, .superficie .p002 .boton:focus-visible {
+  border-color: var(--p-primario);
+  outline: 3px solid var(--p-acento);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+/* Casillas y radios: el anillo de foco rodea la etiqueta completa (regla aparte: los navegadores sin :has() conservan el anillo nativo de la casilla) */
+.superficie .p002 .p002-chip:has(input:focus-visible), .superficie .p002 .p002-segmento:has(input:focus-visible) { outline: 3px solid var(--p-acento); outline-offset: 2px; }
+.superficie .p002 input:disabled, .superficie .p002 select:disabled, .superficie .p002 textarea:disabled { border-color: #cfc8bc; background: #eee9e1; color: #55626a; cursor: not-allowed; }
+.superficie .p002 [aria-invalid='true'] { border-color: var(--p-peligro); background: #fff8f8; }
+.superficie .p002 .error { margin: 0; padding-left: .6rem; border-left: 3px solid var(--p-peligro); color: var(--p-peligro); font-size: .92rem; font-weight: 600; }
+.superficie .p002 .p002-grupo-campo > .error { margin-top: .1rem; }
+
+/* Casillas y radios: alineados junto a su texto, nunca estirados */
+.superficie .p002 input[type='checkbox'], .superficie .p002 input[type='radio'] { flex: none; width: 1.3rem; height: 1.3rem; min-height: 0; margin: 0; padding: 0; accent-color: var(--p-primario); cursor: pointer; }
+.superficie .p002 .p002-opciones { display: grid; gap: .6rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.superficie .p002 .p002-opciones legend, .superficie .p002 .p002-segmentos legend { padding: 0; color: var(--p-primario-osc); font-size: .95rem; font-weight: 700; }
+.superficie .p002 .p002-opciones legend { margin-bottom: .5rem; }
+.superficie .p002 .p002-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14.5rem), 1fr)); gap: .6rem; }
+.superficie .p002 .p002-chip, .superficie .p002 .p002-segmento {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: 44px;
+  padding: .5rem .9rem;
+  border: 1.5px solid #8fa3ab;
+  border-radius: .7rem;
+  background: #fff;
+  color: var(--p-texto);
+  font-size: .95rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.superficie .p002 .p002-chip:hover, .superficie .p002 .p002-segmento:hover { border-color: var(--p-primario); background: #f4f9fa; }
+.superficie .p002 .p002-chip:has(input:checked), .superficie .p002 .p002-segmento:has(input:checked) { border-color: var(--p-primario); background: var(--p-primario-suave); color: var(--p-primario-osc); }
+.superficie .p002 .p002-chip:has(input:disabled) { background: #eee9e1; color: #55626a; cursor: not-allowed; }
+.superficie .p002 .p002-chip-destacado { width: fit-content; max-width: 100%; }
+.superficie .p002 .p002-segmentos { display: block; margin: 0; padding: 0; border: 0; }
+.superficie .p002 .p002-segmentos legend { float: left; width: 100%; margin-bottom: .5rem; }
+.superficie .p002 .p002-segmento { display: inline-flex; margin: 0 .5rem .25rem 0; }
+.superficie .p002 .p002-segmento:first-of-type { clear: both; }
+.superficie .p002 .p002-disponibilidad-campo { display: grid; gap: .5rem; }
+.superficie .p002 .p002-acciones, .superficie .p002 .p002-acciones-formulario { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.superficie .p002 .p002-acciones-formulario { padding-top: .35rem; }
+.superficie .p002 .p002-archivo { display: grid; gap: .35rem; color: var(--p-texto); font-size: .9rem; font-weight: 700; }
+.superficie .p002 input[type='file'] { width: 100%; min-height: 0; padding: .4rem; border: 1.5px dashed var(--p-campo); border-radius: .6rem; background: #fff; color: var(--p-suave); font: inherit; font-size: .9rem; font-weight: 400; }
+.superficie .p002 input[type='file']::file-selector-button { margin-right: .7rem; padding: .35rem .8rem; border: 1.5px solid var(--p-primario); border-radius: .5rem; background: #fff; color: var(--p-primario); font: inherit; font-weight: 700; cursor: pointer; }
+.superficie .p002 input[type='file']:disabled::file-selector-button { border-color: #cfc8bc; color: #55626a; cursor: not-allowed; }
+
+/* ── Botones: un solo sistema (relleno, contorno, peligro) con estados claros ── */
+.superficie .p002 .boton.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: .55rem 1.15rem;
+  border: 2px solid transparent;
+  border-radius: .7rem;
+  font: inherit;
+  font-size: .98rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.superficie .p002 .boton.boton-compacto { min-height: 40px; padding: .35rem .85rem; font-size: .9rem; }
+.superficie .p002 .boton.boton-primario { border-color: var(--p-primario); background: var(--p-primario); color: #fff; }
+.superficie .p002 .boton.boton-primario:hover:not(:disabled) { border-color: var(--p-primario-osc); background: var(--p-primario-osc); box-shadow: 0 4px 12px rgb(18 78 96 / 28%); }
+.superficie .p002 .boton.boton-acento { min-height: 50px; padding-inline: 1.7rem; border-color: var(--p-acento); background: var(--p-acento); color: #fff; font-size: 1.03rem; }
+.superficie .p002 .boton.boton-acento:hover:not(:disabled) { border-color: var(--p-acento-osc); background: var(--p-acento-osc); box-shadow: 0 4px 12px rgb(168 80 46 / 32%); }
+.superficie .p002 .boton.boton-secundario { border-color: var(--p-primario); background: #fff; color: var(--p-primario); }
+.superficie .p002 .boton.boton-secundario:hover:not(:disabled) { background: var(--p-primario-suave); color: var(--p-primario-osc); box-shadow: none; }
+.superficie .p002 .boton.boton-peligro { border-color: var(--p-peligro); background: #fff; color: var(--p-peligro); }
+.superficie .p002 .boton.boton-peligro:hover:not(:disabled) { background: var(--p-peligro-suave); color: var(--p-peligro-osc); box-shadow: none; }
+.superficie .p002 .boton.boton-peligro-solido { border-color: var(--p-peligro); background: var(--p-peligro); color: #fff; }
+.superficie .p002 .boton.boton-peligro-solido:hover:not(:disabled) { border-color: var(--p-peligro-osc); background: var(--p-peligro-osc); box-shadow: 0 4px 12px rgb(161 31 37 / 30%); }
+.superficie .p002 .boton.boton:active:not(:disabled) { transform: translateY(1px); }
+.superficie .p002 .boton.boton:disabled { border-color: #cfc8bc; background: #eee9e1; color: #55626a; opacity: 1; cursor: not-allowed; box-shadow: none; }
+/* Cargando: el botón de envío del formulario ocupado muestra un indicador además de quedar deshabilitado */
+.superficie .p002 form[aria-busy='true'] .boton[type='submit']:disabled::after { width: 1em; height: 1em; border: 2px solid currentcolor; border-right-color: transparent; border-radius: 50%; content: ''; animation: p002-giro .8s linear infinite; }
+@keyframes p002-giro { to { transform: rotate(360deg); } }
+
+/* ── Mensajes de éxito y error, y confirmación de retiro ── */
+.superficie .p002 .p002-mensaje { margin: 0; padding: .8rem 1rem; border: 1px solid; border-left-width: 5px; border-radius: .7rem; font-size: .95rem; font-weight: 600; }
+.superficie .p002 .p002-mensaje-error { border-color: var(--p-peligro); background: var(--p-peligro-suave); color: #5f1317; }
+.superficie .p002 .p002-mensaje-exito { border-color: #2f7d4f; background: var(--p-exito-suave); color: var(--p-exito); }
+.superficie .p002 .p002-confirmacion { display: grid; gap: .6rem; width: 100%; padding: .85rem 1rem; border: 1.5px solid var(--p-peligro); border-radius: .7rem; background: var(--p-peligro-suave); }
+.superficie .p002 .p002-confirmacion p { color: #5f1317; font-weight: 600; }
+
+/* ── Imágenes, fotografías y paginación ── */
+.superficie .p002 .p002-fotos { display: grid; gap: .8rem; margin: 0; padding: 0; list-style: none; }
+.superficie .p002 .p002-fotos > li { display: grid; gap: .55rem; padding: .75rem .85rem; border: 1px solid var(--p-borde); border-radius: .7rem; background: #faf8f4; }
+.superficie .p002 .p002-foto-titulo { font-weight: 700; }
+.superficie .p002 .p002-fotos img { display: block; max-width: 100%; height: auto; border-radius: .6rem; }
+.superficie .p002 .p002-paginacion { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .75rem 1.25rem; padding-top: .5rem; color: var(--p-suave); font-weight: 600; }
+
+/* ── Adaptación a pantallas estrechas ── */
+@media (max-width: 480px) {
+  .superficie .p002 .p002-tarjeta { padding: 1rem; }
+  .superficie .p002 .p002-acciones .boton, .superficie .p002 .p002-acciones-formulario .boton, .superficie .p002 .p002-accion-filtro .boton { flex: 1 1 100%; }
+  .superficie .p002 .p002-accion-filtro { display: grid; }
+  .superficie .p002 .p002-chips { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .superficie .p002 .boton::after { animation: none !important; }
+  .superficie .p002 .p002-tarjeta { transition: none; }
+}
+
+/* ── Selector múltiple desplegable (especialidades, zonas de atención) ── */
+.superficie .p002 .p002-selectores { align-items: start; }
+.superficie .p002 .p002-selector { position: relative; display: grid; gap: .55rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.superficie .p002 .p002-selector legend { margin-bottom: .45rem; }
+.superficie .p002 .p002-selector-boton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  width: 100%;
+  min-height: 48px;
+  padding: .6rem .85rem;
+  border: 1.5px solid var(--p-campo);
+  border-radius: .65rem;
+  background: #fff;
+  color: var(--p-texto);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease;
+}
+.superficie .p002 .p002-selector-boton:hover:not(:disabled) { border-color: var(--p-primario); background: #fff; box-shadow: none; color: var(--p-texto); }
+.superficie .p002 .p002-selector-boton[aria-expanded='true'] { border-color: var(--p-primario); box-shadow: 0 0 0 3px var(--p-primario-suave); }
+.superficie .p002 .p002-selector-boton:focus-visible { outline: 3px solid var(--p-acento); outline-offset: 2px; }
+.superficie .p002 .p002-selector-boton:disabled { border-color: #cfc8bc; background: #eee9e1; color: #55626a; cursor: not-allowed; }
+.superficie .p002 .p002-selector-flecha { flex: none; color: var(--p-primario); transition: transform .15s ease; }
+.superficie .p002 .p002-selector-boton[aria-expanded='true'] .p002-selector-flecha { transform: rotate(180deg); }
+.superficie .p002 .p002-selector-panel {
+  position: absolute;
+  top: calc(100% - .2rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: .6rem;
+  padding: .75rem;
+  border: 1px solid var(--p-borde);
+  border-radius: .9rem;
+  background: #fff;
+  box-shadow: var(--p-sombra-fuerte);
+}
+.superficie .p002 .p002-selector-panel > .p002-ayuda { font-size: .88rem; }
+.superficie .p002 .p002-selector-lista { display: grid; gap: .5rem; max-height: min(18rem, 50vh); overflow-y: auto; overscroll-behavior: contain; padding-right: .25rem; }
+.superficie .p002 .p002-selector-grupo { display: grid; gap: .1rem; }
+.superficie .p002 .p002-selector-grupo + .p002-selector-grupo { padding-top: .45rem; border-top: 1px solid #ece6db; }
+.superficie .p002 .p002-selector-titulo { padding: .3rem .5rem; color: var(--p-primario-osc); font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.superficie .p002 .p002-opcion { display: flex; align-items: center; gap: .7rem; min-height: 42px; padding: .4rem .55rem; border-radius: .55rem; color: var(--p-texto); font-size: .95rem; font-weight: 500; line-height: 1.3; cursor: pointer; }
+.superficie .p002 .p002-selector-grupo > .p002-opcion { margin-left: .35rem; }
+.superficie .p002 .p002-opcion:hover { background: var(--p-primario-suave); }
+.superficie .p002 .p002-opcion:has(input:checked) { background: #eef6f8; color: var(--p-primario-osc); font-weight: 700; }
+.superficie .p002 .p002-opcion:has(input:focus-visible) { outline: 3px solid var(--p-acento); outline-offset: -2px; }
+.superficie .p002 .p002-selector-pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; padding-top: .55rem; border-top: 1px solid #ece6db; }
+.superficie .p002 .p002-seleccion { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0; padding: 0; list-style: none; }
+.superficie .p002 .p002-etiqueta { display: inline-flex; align-items: center; gap: .15rem; max-width: 100%; padding: .2rem .25rem .2rem .75rem; border: 1px solid #b9d3db; border-radius: 999px; background: var(--p-primario-suave); color: var(--p-primario-osc); font-size: .88rem; font-weight: 700; }
+.superficie .p002 .p002-etiqueta span { overflow-wrap: anywhere; }
+.superficie .p002 .p002-etiqueta button { display: inline-grid; flex: none; place-items: center; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--p-primario-osc); cursor: pointer; }
+.superficie .p002 .p002-etiqueta button:hover:not(:disabled) { background: #fff; box-shadow: none; color: var(--p-peligro); }
+.superficie .p002 .p002-etiqueta button:focus-visible { outline: 3px solid var(--p-acento); outline-offset: 1px; }
+.superficie .p002 input[type='search'] { appearance: none; }
+@media (max-width: 480px) {
+  .superficie .p002 .p002-selector-pie .boton { flex: 1 1 auto; }
+}
+
+/* ── Clasificación y especialidades en las tarjetas de resultados ── */
+.superficie .p002 .p002-clasificacion { display: flex; flex-wrap: wrap; gap: .25rem 1rem; color: var(--p-suave); font-size: .92rem; }
+.superficie .p002 .p002-clasificacion strong { color: var(--p-primario-osc); font-weight: 700; }
+.superficie .p002 .p002-especialidades { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.superficie .p002 .p002-etiqueta-lectura { padding: .2rem .7rem; border: 1px solid #b9d3db; border-radius: 999px; background: var(--p-primario-suave); color: var(--p-primario-osc); font-size: .85rem; font-weight: 700; line-height: 1.3; }

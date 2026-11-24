@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '../../soporte/validacion.js';
 import { redactarReporte } from '../../soporte/reportes-seguros.js';
+import { cerrarMenu, conMenu, irA } from '../../soporte/menu-principal.js';
 
 test('X-06 credenciales en memoria, cookie exacta y enlace retirado del historial y del referer', async ({page, context, correoApi, browserName, browser}, info) => {
   info.annotations.push({type: 'navegador', description: browserName + ' ' + browser.version()});
@@ -20,7 +21,7 @@ test('X-06 credenciales en memoria, cookie exacta y enlace retirado del historia
   expect(setCookie.includes('Domain=')).toBe(false);
   const cookie = (await context.cookies()).find(c => c.name === '__Secure-renovacion');
   expect(Boolean(cookie?.httpOnly && cookie.secure)).toBe(true);
-  await page.getByRole('button', {name: 'Cerrar sesión'}).waitFor();
+  await conMenu(page, page.getByRole('button', {name: 'Cerrar sesión'})); await cerrarMenu(page);
   expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
   expect(await page.evaluate(() => document.cookie.includes('__Secure-renovacion'))).toBe(false);
 
@@ -45,7 +46,7 @@ test('X-06 credenciales en memoria, cookie exacta y enlace retirado del historia
   expect(new URL(page.url()).hash === '').toBe(true);
   const sonda = await page.evaluate(async () => (await fetch('/api/v1/salud')).status);
   expect(sonda).toBe(200);
-  await page.getByRole('link', {name: 'Acceder', exact: true}).click();
+  await irA(page, 'Acceder', { exact: true });
   await page.goBack();
   expect(new URL(page.url()).hash === '').toBe(true);
   expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);

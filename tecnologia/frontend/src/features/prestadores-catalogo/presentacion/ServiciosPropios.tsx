@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { mensajeDeError } from '../aplicacion/portafolio.js';
 import { accionesDe, validarServicioWeb, type ServiciosWeb } from '../aplicacion/servicios.js';
 import { limitesServicio, type EstadoServicio, type ServicioPrivado } from '../modelos/contratos.js';
+import './estilos-002.css';
+import { campoConError, idError } from './errores-campo.js';
 
 export interface CategoriaOpcion { readonly id: string; readonly nombre: string }
 const etiquetaDestino: Record<EstadoServicio, string> = { PUBLICADO: 'Reactivar', PAUSADO: 'Pausar', RETIRADO: 'Retirar' };
@@ -59,52 +61,73 @@ export function ServiciosPropios({ servicio, categorias }: { readonly servicio: 
   const nombreCategoria = (id: string) => categorias.find(c => c.id === id)?.nombre ?? `Categoría ${id.slice(0, 8)}`;
 
   if (servicios === undefined) return <p>Cargando mis servicios…</p>;
-  return <section aria-labelledby="titulo-servicios">
-    <h2 id="titulo-servicios">Mis servicios</h2>
-    {error && <p role="alert" className="error">{error}</p>}
-    {conflicto && <button type="button" onClick={() => void cargar()}>Recargar servicios</button>}
-    {aviso && <p role="status" className="aviso">{aviso}</p>}
-    {servicios.length === 0 && <p>Aún no ha publicado servicios.</p>}
+  return <section className="p002 p002-servicios" aria-labelledby="titulo-servicios">
+    <div className="p002-encabezado">
+      <h2 id="titulo-servicios">Mis servicios</h2>
+      <p className="p002-ayuda">Publique, edite, pause o retire los servicios que ofrece. Solo los publicados se ven en la búsqueda.</p>
+    </div>
+    {error && <p role="alert" className="error p002-mensaje p002-mensaje-error">{error}</p>}
+    {conflicto && <button type="button" className="boton boton-secundario" onClick={() => void cargar()}>Recargar servicios</button>}
+    {aviso && <p role="status" className="aviso p002-mensaje p002-mensaje-exito">{aviso}</p>}
+    {servicios.length === 0 && <p className="p002-vacio-suave">Aún no ha publicado servicios.</p>}
+    <div className="p002-rejilla p002-rejilla-ancha">
     {servicios.map(s => {
       const { editar, destinos } = accionesDe(s.estado);
       const editando = edicion?.id === s.servicioId;
-      return <article key={s.servicioId} aria-label={`Servicio: ${s.titulo}`}>
+      return <article className={`p002-tarjeta p002-servicio p002-servicio-${s.estado.toLowerCase()}`} key={s.servicioId} aria-label={`Servicio: ${s.titulo}`}>
         <h3>{s.titulo}</h3>
-        <p>{s.descripcion}</p>
-        <p>Categoría: {nombreCategoria(s.categoriaId)}</p>
-        <p>Estado: {etiquetaEstado[s.estado]} · versión {s.version}</p>
-        {s.estado === 'RETIRADO' && <p>Registro histórico de solo lectura. No admite cambios.</p>}
-        {editar && !editando && <button type="button" disabled={ocupado} onClick={() => { setEdicion({ id: s.servicioId, titulo: s.titulo, descripcion: s.descripcion, categoriaId: s.categoriaId }); setErroresEdicion({}); }}>{`Editar ${s.titulo}`}</button>}
-        {destinos.filter(d => d !== 'RETIRADO').map(d => <button key={d} type="button" disabled={ocupado} onClick={() => void cambiarEstado(s, d)}>{`${etiquetaDestino[d === 'PUBLICADO' ? 'PUBLICADO' : 'PAUSADO']} ${s.titulo}`}</button>)}
-        {destinos.includes('RETIRADO') && (retiro === s.servicioId
-          ? <><p>El retiro es definitivo: el servicio quedará de solo lectura.</p>
-            <button type="button" disabled={ocupado} onClick={() => void cambiarEstado(s, 'RETIRADO')}>{`Confirmar retiro de ${s.titulo}`}</button>
-            <button type="button" onClick={() => setRetiro(undefined)}>Cancelar retiro</button></>
-          : <button type="button" disabled={ocupado} onClick={() => setRetiro(s.servicioId)}>{`Retirar ${s.titulo}`}</button>)}
-        {editando && edicion && <form noValidate aria-label={`Edición de ${s.titulo}`} onSubmit={e => void guardarEdicion(e, s)}>
-          <label>Título<input value={edicion.titulo} maxLength={limitesServicio.titulo} onChange={e => setEdicion({ ...edicion, titulo: e.target.value })} /></label>
-          {erroresEdicion['titulo'] && <p role="alert" className="error">{erroresEdicion['titulo']}</p>}
-          <label>Descripción<textarea value={edicion.descripcion} maxLength={limitesServicio.descripcion} onChange={e => setEdicion({ ...edicion, descripcion: e.target.value })} /></label>
-          {erroresEdicion['descripcion'] && <p role="alert" className="error">{erroresEdicion['descripcion']}</p>}
-          <label>Categoría<select value={edicion.categoriaId} onChange={e => setEdicion({ ...edicion, categoriaId: e.target.value })}>
+        <p className="p002-descripcion">{s.descripcion}</p>
+        <p className="p002-dato">Categoría: {nombreCategoria(s.categoriaId)}</p>
+        <p className={`p002-estado p002-estado-${s.estado.toLowerCase()}`}>Estado: {etiquetaEstado[s.estado]} · versión {s.version}</p>
+        {s.estado === 'RETIRADO' && <p className="p002-ayuda">Registro histórico de solo lectura. No admite cambios.</p>}
+        <div className="p002-acciones">
+          {editar && !editando && <button type="button" className="boton boton-secundario" disabled={ocupado} aria-label={`Editar ${s.titulo}`} onClick={() => { setEdicion({ id: s.servicioId, titulo: s.titulo, descripcion: s.descripcion, categoriaId: s.categoriaId }); setErroresEdicion({}); }}>Editar</button>}
+          {destinos.filter(d => d !== 'RETIRADO').map(d => <button key={d} type="button" className={`boton ${d === 'PUBLICADO' ? 'boton-primario' : 'boton-secundario'}`} disabled={ocupado} aria-label={`${etiquetaDestino[d === 'PUBLICADO' ? 'PUBLICADO' : 'PAUSADO']} ${s.titulo}`} onClick={() => void cambiarEstado(s, d)}>{etiquetaDestino[d === 'PUBLICADO' ? 'PUBLICADO' : 'PAUSADO']}</button>)}
+          {destinos.includes('RETIRADO') && (retiro === s.servicioId
+            ? <div className="p002-confirmacion"><p>El retiro es definitivo: el servicio quedará de solo lectura.</p>
+              <div className="p002-acciones">
+                <button type="button" className="boton boton-peligro-solido" disabled={ocupado} aria-label={`Confirmar retiro de ${s.titulo}`} onClick={() => void cambiarEstado(s, 'RETIRADO')}>Confirmar retiro</button>
+                <button type="button" className="boton boton-secundario" onClick={() => setRetiro(undefined)}>Cancelar retiro</button>
+              </div></div>
+            : <button type="button" className="boton boton-peligro" disabled={ocupado} aria-label={`Retirar ${s.titulo}`} onClick={() => setRetiro(s.servicioId)}>Retirar</button>)}
+        </div>
+        {editando && edicion && <form noValidate aria-busy={ocupado} className="p002-formulario p002-formulario-anidado" aria-label={`Edición de ${s.titulo}`} onSubmit={e => void guardarEdicion(e, s)}>
+          <div className="p002-grupo-campo">
+            <label className="p002-campo">Título<input {...campoConError(erroresEdicion, 'edicion', 'titulo')} value={edicion.titulo} maxLength={limitesServicio.titulo} onChange={e => setEdicion({ ...edicion, titulo: e.target.value })} /></label>
+            {erroresEdicion['titulo'] && <p role="alert" id={idError('edicion', 'titulo')} className="error">{erroresEdicion['titulo']}</p>}
+          </div>
+          <div className="p002-grupo-campo">
+            <label className="p002-campo">Descripción<textarea {...campoConError(erroresEdicion, 'edicion', 'descripcion')} value={edicion.descripcion} maxLength={limitesServicio.descripcion} onChange={e => setEdicion({ ...edicion, descripcion: e.target.value })} /></label>
+            {erroresEdicion['descripcion'] && <p role="alert" id={idError('edicion', 'descripcion')} className="error">{erroresEdicion['descripcion']}</p>}
+          </div>
+          <label className="p002-campo">Categoría<select value={edicion.categoriaId} onChange={e => setEdicion({ ...edicion, categoriaId: e.target.value })}>
             {[...new Set([s.categoriaId, ...categorias.map(c => c.id)])].map(id => <option key={id} value={id}>{nombreCategoria(id)}</option>)}</select></label>
-          <button type="submit" disabled={ocupado}>Guardar cambios</button>
-          <button type="button" onClick={() => setEdicion(undefined)}>Descartar cambios</button>
+          <div className="p002-acciones-formulario">
+            <button type="submit" className="boton boton-acento" disabled={ocupado}>Guardar cambios</button>
+            <button type="button" className="boton boton-secundario" onClick={() => setEdicion(undefined)}>Descartar cambios</button>
+          </div>
         </form>}
       </article>;
     })}
-    {servicios.length < total && <button type="button" disabled={ocupado} onClick={() => void cargar(pagina + 1, true)}>Cargar más servicios</button>}
-    <form noValidate aria-label="Publicar servicio" onSubmit={e => void publicar(e)}>
+    </div>
+    {servicios.length < total && <button type="button" className="boton boton-secundario" disabled={ocupado} onClick={() => void cargar(pagina + 1, true)}>Cargar más servicios</button>}
+    <form noValidate aria-busy={ocupado} className="p002-formulario p002-formulario-tarjeta" aria-label="Publicar servicio" onSubmit={e => void publicar(e)}>
       <h3>Publicar un servicio</h3>
-      <label>Título del servicio<input value={nuevo.titulo} maxLength={limitesServicio.titulo} disabled={ocupado} onChange={e => setNuevo({ ...nuevo, titulo: e.target.value })} /></label>
-      {erroresNuevo['titulo'] && <p role="alert" className="error">{erroresNuevo['titulo']}</p>}
-      <label>Descripción del servicio<textarea value={nuevo.descripcion} maxLength={limitesServicio.descripcion} disabled={ocupado} onChange={e => setNuevo({ ...nuevo, descripcion: e.target.value })} /></label>
-      {erroresNuevo['descripcion'] && <p role="alert" className="error">{erroresNuevo['descripcion']}</p>}
-      <label>Categoría del servicio<select value={nuevo.categoriaId} disabled={ocupado || categorias.length === 0} onChange={e => setNuevo({ ...nuevo, categoriaId: e.target.value })}>
-        {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label>
-      {erroresNuevo['categoriaId'] && <p role="alert" className="error">{erroresNuevo['categoriaId']}</p>}
-      {categorias.length === 0 && <p>Aún no hay categorías disponibles para publicar.</p>}
-      <button type="submit" disabled={ocupado || categorias.length === 0}>Publicar servicio</button>
+      <div className="p002-grupo-campo">
+        <label className="p002-campo">Título del servicio<input {...campoConError(erroresNuevo, 'nuevo', 'titulo')} value={nuevo.titulo} maxLength={limitesServicio.titulo} disabled={ocupado} onChange={e => setNuevo({ ...nuevo, titulo: e.target.value })} /></label>
+        {erroresNuevo['titulo'] && <p role="alert" id={idError('nuevo', 'titulo')} className="error">{erroresNuevo['titulo']}</p>}
+      </div>
+      <div className="p002-grupo-campo">
+        <label className="p002-campo">Descripción del servicio<textarea {...campoConError(erroresNuevo, 'nuevo', 'descripcion')} value={nuevo.descripcion} maxLength={limitesServicio.descripcion} disabled={ocupado} onChange={e => setNuevo({ ...nuevo, descripcion: e.target.value })} /></label>
+        {erroresNuevo['descripcion'] && <p role="alert" id={idError('nuevo', 'descripcion')} className="error">{erroresNuevo['descripcion']}</p>}
+      </div>
+      <div className="p002-grupo-campo">
+        <label className="p002-campo">Categoría del servicio<select {...campoConError(erroresNuevo, 'nuevo', 'categoriaId')} value={nuevo.categoriaId} disabled={ocupado || categorias.length === 0} onChange={e => setNuevo({ ...nuevo, categoriaId: e.target.value })}>
+          {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label>
+        {erroresNuevo['categoriaId'] && <p role="alert" id={idError('nuevo', 'categoriaId')} className="error">{erroresNuevo['categoriaId']}</p>}
+      </div>
+      {categorias.length === 0 && <p className="p002-ayuda">Aún no hay categorías disponibles para publicar.</p>}
+      <div className="p002-acciones-formulario"><button type="submit" className="boton boton-acento" disabled={ocupado || categorias.length === 0}>Publicar servicio</button></div>
     </form>
   </section>;
 }

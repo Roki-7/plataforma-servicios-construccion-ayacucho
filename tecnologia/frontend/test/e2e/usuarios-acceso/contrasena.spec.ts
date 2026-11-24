@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '../../soporte/validacion.js';
 import { verificarVisibilidadContrasenas } from '../../soporte/visibilidad-contrasena.js';
+import { cerrarMenu, conMenu } from '../../soporte/menu-principal.js';
 
 test('CA-CLA-01 CA-CLA-04 flujo específico, credencial íntegra, PATCH prohibido y sesiones previas vigentes', async ({page, request, browser, browserName}, info) => {
   info.annotations.push({type:'navegador', description: browserName + ' ' + browser.version()});
@@ -18,7 +19,7 @@ test('CA-CLA-01 CA-CLA-04 flujo específico, credencial íntegra, PATCH prohibid
   await page.getByLabel('Correo', {exact:true}).fill(correo);
   await page.getByLabel('Contraseña', {exact:true}).fill(anterior);
   await page.getByRole('button', {name:'Iniciar sesión', exact:true}).click();
-  await page.getByRole('button', {name:'Cerrar sesión'}).waitFor();
+  await conMenu(page, page.getByRole('button', {name:'Cerrar sesión'})); await cerrarMenu(page);
   await expect(page).toHaveURL(/\/cuenta$/);
   await expect(page.locator('input[type=password][autocomplete=new-password]')).toHaveCount(0);
   const parche = await request.patch('/api/v1/perfil', {headers:{...origin, ...headers, 'Idempotency-Key':randomUUID()}, data:{version:1,nuevaContrasena:nueva}});
@@ -42,5 +43,5 @@ test('CA-CLA-01 CA-CLA-04 flujo específico, credencial íntegra, PATCH prohibid
   expect((await login(anterior)).status()).toBe(401);
   expect((await login(nueva.replace('a ', 'b '))).status()).toBe(401);
   expect((await login(nueva)).status()).toBe(200);
-  await expect(page.getByRole('button', {name:'Cerrar sesión'})).toBeVisible();
+  await conMenu(page, page.getByRole('button', {name:'Cerrar sesión'})); await cerrarMenu(page);
 });

@@ -13,7 +13,7 @@ interface PruebaDeCriterio { proyecto: string; titulo: string; estado: string }
  * `evidencia-<nombre>.json` en `hu03/<proyecto>/`. Solo escribe identidades y hechos verificables; el texto pasa por la misma redacción de secretos que usa la 001.
  */
 /** Carpeta de evidencia por historia de usuario según el criterio que demuestra el adjunto. */
-const carpetaDeEvidencia = (nombre: string): string => (nombre.startsWith('evidencia-ca-ser-') ? 'hu04' : nombre.startsWith('evidencia-ca-bus-') ? 'hu05' : nombre.startsWith('evidencia-ca-cat-') ? 'hu25' : 'hu03');
+const carpetaDeEvidencia = (nombre: string): string => (nombre.startsWith('evidencia-ca-ser-') ? 'hu04' : nombre.startsWith('evidencia-ca-bus-') ? 'hu05' : nombre.startsWith('evidencia-ca-cat-') ? 'hu25' : nombre.startsWith('evidencia-eq-07-') ? 'eq07' : 'hu03');
 
 export default class Reporte002 implements Reporter {
   private readonly proyectos = new Map<string, ResumenProyecto>();
@@ -37,7 +37,7 @@ export default class Reporte002 implements Reporter {
       lista.push({ proyecto, titulo: prueba.title, estado: resultado.status }); this.criterios.set(anotacion.description!, lista);
     }
     // Hechos verificables que las pruebas adjuntan (estados HTTP, huellas, identificadores): uno por proyecto y nombre.
-    // Cada historia de usuario conserva sus hechos en su carpeta: `evidencia-ca-pre-*` en `hu03`, `evidencia-ca-ser-*` en `hu04` `evidencia-ca-bus-*` en `hu05` y `evidencia-ca-cat-*` en `hu25`.
+    // Cada historia de usuario conserva sus hechos en su carpeta: `evidencia-ca-pre-*` en `hu03`, `evidencia-ca-ser-*` en `hu04` `evidencia-ca-bus-*` en `hu05` y `evidencia-ca-cat-*` en `hu25` y `evidencia-eq-07-*` en `eq07`.
     for (const a of resultado.attachments.filter((x) => /^evidencia-[a-z0-9-]+\.json$/.test(x.name) && x.body)) {
       const carpeta = resolve(this.opciones.evidencia, carpetaDeEvidencia(a.name), proyecto);
       mkdirSync(carpeta, { recursive: true });

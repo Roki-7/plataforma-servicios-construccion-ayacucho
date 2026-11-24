@@ -19,7 +19,8 @@ const prueba = (proyecto: string, titulo: string, criterios: string[]) => ({ tit
 const resultado = (status: TestResult['status'], adjuntos: object[] = []) => ({ status, attachments: adjuntos }) as unknown as TestResult;
 const evidencia = (nombre: string, datos: object) => ({ name: nombre, contentType: 'application/json', body: Buffer.from(JSON.stringify(datos)) });
 
-describe('T076 · reporte 002: criterios y evidencias por proyecto', () => {
+// El reporte escribe archivos en una carpeta temporal: con el anfitrión cargado (Docker, navegadores) una prueba puede superar los 5 s predeterminados.
+describe('T076 · reporte 002: criterios y evidencias por proyecto', { timeout: 30_000 }, () => {
   function ejecutar(casos: { proyecto: string; titulo: string; criterios: string[]; estado: TestResult['status']; adjuntos?: object[] }[]) {
     const carpeta = mkdtempSync(join(tmpdir(), 'reporte-002-')); carpetas.push(carpeta);
     const r = new Reporte002({ evidencia: carpeta });
@@ -55,12 +56,13 @@ describe('T076 · reporte 002: criterios y evidencias por proyecto', () => {
   });
 
   test('T077 a T079 · los hechos de HU04 (`evidencia-ca-ser-*`), HU05 (`evidencia-ca-bus-*`) y HU25 (`evidencia-ca-cat-*`) se conservan en `hu04/`, `hu05/` y `hu25/<proyecto>/` y los de HU03 siguen en `hu03/<proyecto>/`', () => {
-    const c = ejecutar([{ proyecto: 'firefox-768', titulo: 'CA-SER-03', criterios: ['CA-SER-03'], estado: 'passed', adjuntos: [evidencia('evidencia-ca-ser-03.json', { visitante: 401 }), evidencia('evidencia-ca-pre-01.json', { perfil: 1 }), evidencia('evidencia-ca-bus-01-02.json', { filtros: 4 }), evidencia('evidencia-ca-cat-03.json', { intentos: 9 })] }]);
+    const c = ejecutar([{ proyecto: 'firefox-768', titulo: 'CA-SER-03', criterios: ['CA-SER-03'], estado: 'passed', adjuntos: [evidencia('evidencia-ca-ser-03.json', { visitante: 401 }), evidencia('evidencia-ca-pre-01.json', { perfil: 1 }), evidencia('evidencia-ca-bus-01-02.json', { filtros: 4 }), evidencia('evidencia-ca-cat-03.json', { intentos: 9 }), evidencia('evidencia-eq-07-teclado.json', { paradas: 3 })] }]);
     expect(leer(c, 'hu04/firefox-768/evidencia-ca-ser-03.json').visitante).toBe(401); expect(existsSync(join(c, 'hu03/firefox-768/evidencia-ca-ser-03.json'))).toBe(false);
     expect(leer(c, 'hu03/firefox-768/evidencia-ca-pre-01.json').perfil).toBe(1); expect(existsSync(join(c, 'hu04/firefox-768/evidencia-ca-pre-01.json'))).toBe(false);
+    expect(leer(c, 'eq07/firefox-768/evidencia-eq-07-teclado.json').paradas).toBe(3); expect(existsSync(join(c, 'hu03/firefox-768/evidencia-eq-07-teclado.json'))).toBe(false);
     expect(leer(c, 'hu25/firefox-768/evidencia-ca-cat-03.json').intentos).toBe(9); expect(existsSync(join(c, 'hu03/firefox-768/evidencia-ca-cat-03.json'))).toBe(false);
     expect(leer(c, 'hu05/firefox-768/evidencia-ca-bus-01-02.json').filtros).toBe(4); expect(existsSync(join(c, 'hu03/firefox-768/evidencia-ca-bus-01-02.json'))).toBe(false);
-  });
+  }, 30_000);
 
   test('sin criterios declarados no se genera el archivo de trazabilidad y el resumen por proyecto conserva dispositivo y ancho', () => {
     const c = ejecutar([{ proyecto: 'chromium-1366', titulo: 'entorno', criterios: [], estado: 'passed' }]);

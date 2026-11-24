@@ -8,6 +8,7 @@ import { openSync, readFileSync, rmSync } from 'node:fs';
 import { access, mkdir, open, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { hostname, tmpdir } from 'node:os';
+import { request as httpsRequest } from 'node:https';
 import { connect } from 'node:tls';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -156,14 +157,15 @@ const validacionAntes = await fotoValidacion();
 // --- Servicios descartables de la corrida: API 3002 y web 5175 (los que enruta el proxy 8444) ---
 const detener = (hijo) => { if (!hijo || hijo.exitCode !== null) return; if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(hijo.pid), '/T', '/F'], { stdio: 'ignore' }); else hijo.kill('SIGTERM'); };
 const esperar = async (url, ms = 60000) => { const fin = Date.now() + ms; while (Date.now() < fin) { try { if ((await fetch(url)).ok) return; } catch { /* aún no responde */ } await new Promise((r) => setTimeout(r, 500)); } throw new Error(`No respondió ${url}.`); };
+const esperarProxy = async (ruta, ms = 60000) => { const fin = Date.now() + ms; while (Date.now() < fin) { const estado = await new Promise((ok) => { const r = httpsRequest({ host: '127.0.0.1', port: 8444, servername: 'localhost', path: ruta, ca: caPem, rejectUnauthorized: true, timeout: 5000 }, (res) => { res.resume(); ok(res.statusCode); }); r.on('error', () => ok(0)); r.on('timeout', () => { r.destroy(); ok(0); }); r.end(); }); if (estado === 200) return; await new Promise((r) => setTimeout(r, 500)); } throw new Error(`El proxy 8444 no entrega ${ruta} a tiempo.`); };
 
 const consultaSemilla = "select id, nombre, nivel, coalesce(categoria_padre_id::text, ''), activa from public.catalogo_clasificaciones order by id";
 const consultaConteos = "select table_name || '|' || (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I', table_name), false, true, '')))[1]::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name";
 const consultaAuditoria = "select coalesce(json_agg(t order by t.ocurrio_en), '[]'::json) from (select ocurrio_en, accion, recurso_tipo, recurso_id, motivo, responsable from public.administracion_auditoria) t";
 
 const lotes = especificaciones.length ? especificaciones : [''];
-// Las evidencias por historia (hu03, hu04…) de una serie anterior no se mezclan con las de esta.
-for (const nombre of await readdir(evidencia)) if (/^hu\d{2}$/.test(nombre)) await rm(resolve(evidencia, nombre), { recursive: true, force: true });
+// Las evidencias por historia (hu03, hu04…) y por escenario de calidad (eq07) de una serie anterior no se mezclan con las de esta.
+for (const nombre of await readdir(evidencia)) if (/^(hu|eq)\d{2}$/.test(nombre)) await rm(resolve(evidencia, nombre), { recursive: true, force: true });
 // Corpus de imágenes ficticias (T076) y carpeta de señales del agente de retención: ambos viven en la evidencia y se retiran al terminar.
 const carpetaImagenes = resolve(evidencia, 'imagenes'); const carpetaSenales = resolve(evidencia, 'senales');
 if (especificaciones.length === 0 || especificaciones.some((e) => e.includes('perfil-y-portafolio'))) {
@@ -193,6 +195,8 @@ for (const [i, especificacion] of lotes.entries()) {
     serviciosActivos = [api, web];
     entrada.pids = { api: api.pid, web: web.pid }; await registrar(entornos);
     await esperar(`http://127.0.0.1:${identidad002Esperada.puertoApi}/api/v1/salud`); await esperar(`http://127.0.0.1:${identidad002Esperada.puertoWeb}/`);
+    // La primera petición de un navegador entra por el proxy 8444 (contenedor → anfitrión): se espera a que esa ruta, y no solo el puerto directo, responda la web y la API.
+    for (const ruta of ['/', '/api/v1/salud']) await esperarProxy(ruta);
     // Agente que, a petición de la prueba, retiene la confirmación de una fotografía (CA-PRE-06) en la base descartable de ESTA corrida.
     await rm(carpetaSenales, { recursive: true, force: true }); await mkdir(carpetaSenales, { recursive: true });
     const registroAgente = resolve(tmpdir(), `ayacucho-002-e2e-${id}-agente.log`);

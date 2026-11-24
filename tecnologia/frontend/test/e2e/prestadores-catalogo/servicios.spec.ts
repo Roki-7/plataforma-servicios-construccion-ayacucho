@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test';
 import { cabecerasEscritura, criterios, crearCuenta, expect, origenWeb, registrarEvidencia, test, type CuentaE2E } from './soporte.js';
+import { irA } from '../../soporte/menu-principal.js';
 
 /**
  * T077 · Recorridos de HU04 (servicios del prestador) en Chromium, Firefox y WebKit a 360, 768 y 1366 px, sobre HTTPS con la CA 002 y una base descartable por corrida.
@@ -24,7 +25,7 @@ async function iniciarSesionEnFormulario(page: Page, cuenta: CuentaE2E): Promise
 }
 async function abrirMisServicios(page: Page, cuenta: CuentaE2E): Promise<void> {
   await page.goto('/acceso'); await iniciarSesionEnFormulario(page, cuenta);
-  await page.getByRole('link', { name: 'Mis servicios' }).click();
+  await irA(page, 'Mis servicios');
   await expect(page.getByRole('heading', { name: 'Mis servicios' })).toBeVisible({ timeout: esperaEscritura });
 }
 const estadoUi = (page: Page, texto: string): Locator => page.getByRole('status').filter({ hasText: texto });

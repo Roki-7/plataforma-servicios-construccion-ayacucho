@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { APIRequestContext, Browser, Page, TestInfo } from '@playwright/test';
 import { cabecerasEscritura, criterios, crearCuenta, expect, origenWeb, registrarEvidencia, test, type CuentaE2E } from './soporte.js';
+import { conMenu, irA } from '../../soporte/menu-principal.js';
 
 /**
  * T078 · Recorridos de HU05 (búsqueda y consulta de la oferta) en Chromium, Firefox y WebKit a 360, 768 y 1366 px, sobre HTTPS con la CA 002 y una base descartable por corrida.
@@ -65,11 +66,11 @@ async function iniciarSesion(page: Page, cuenta: CuentaE2E): Promise<void> {
   await page.goto('/acceso');
   await page.getByLabel('Correo').fill(cuenta.correo); await page.getByLabel('Contraseña', { exact: true }).fill(cuenta.contrasena); await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   // «Buscar servicios» también se ve sin sesión: se espera un enlace que solo existe con sesión iniciada.
-  await expect(page.getByRole('link', { name: 'Mi cuenta' })).toBeVisible({ timeout: esperaCarga });
+  await conMenu(page, page.getByRole('link', { name: 'Mi cuenta' }), esperaCarga);
 }
 /** Abre la búsqueda: con sesión por el enlace de la cabecera (la sesión vive en memoria) y sin sesión por la ruta pública. */
 async function abrirBusqueda(page: Page, conSesion: boolean): Promise<void> {
-  if (conSesion) await page.getByRole('link', { name: 'Buscar servicios' }).click(); else await page.goto('/buscar');
+  if (conSesion) await irA(page, 'Buscar servicios'); else await page.goto('/buscar');
   await expect(page.getByRole('heading', { name: 'Buscar servicios y prestadores' })).toBeVisible({ timeout: esperaCarga });
 }
 const resultados = (page: Page, tipo: 'Servicio' | 'Prestador') => page.getByRole('list', { name: 'Resultados' }).getByRole('article', { name: new RegExp(`^${tipo}: `) });
