@@ -1043,3 +1043,48 @@ Comprueban: menú lateral desde 768 px y panel «Menú» en celular, selectores 
 **Calidad:** `typecheck`, `lint` y 133 de 133 unitarias sin errores; `playwright --list` da 279 pruebas.
 
 **Sigue pendiente para cerrar T080:** recorridos manuales en celular y computadora reales (plantilla en `evidencia/002/manual-t080/`), y, si se desea cobertura de 001 completa tras el cambio del menú, su matriz habitual completa.
+
+## T081 · Escenario k6 de la 002 con 1 000 prestadores y 5 000 servicios (verificada)
+
+Estado: **verificada** (80 de 94 acumuladas). T080 continúa `[ ]` (verificaciones manuales en dispositivos reales). T081 figura con T080 entre sus dependencias, pero **no consume ningún resultado de T080**: el escenario es solo HTTP sobre la API pública y no usa la interfaz, su accesibilidad ni sus evidencias. Se ejecutó sin cerrar T080 por indicación expresa de la persona usuaria; queda anotado para que el cierre de T082/T083 (que dependen de T081) lo tenga en cuenta. T081 prepara y verifica el escenario; **la medición de EQ-01/PR01 es T082** y no se evalúa aquí.
+
+### Implementación
+
+- `tecnologia/backend/test/soporte/prestadores-catalogo/carga.ts`: conjunto ficticio y determinista (semilla `20260101`): 1 000 prestadores (3 tipos, 1 a 3 zonas, 1 a 2 especialidades, 60 % declaran disponibilidad, 5 % no publicables), 5 000 servicios (5 por prestador; 80 % PUBLICADO, 10 % PAUSADO, 10 % RETIRADO; 5 % en clasificaciones inactivas), 30 categorías de carga en dos niveles (con una raíz inactiva y una subcategoría con estado propio inactivo bajo una raíz activa) y 400 trabajos. Sin datos personales. Calcula, con las mismas reglas de visibilidad que las consultas públicas, el resultado esperado de 44 consultas de servicios y 44 de prestadores, de una muestra de 440 detalles y de 315 perfiles.
+- `tecnologia/backend/scripts/cargar-datos-carga-002.ts`: vuelca el conjunto en la base **descartable** `ayacucho_002_test_<id>` en una transacción (exige ese patrón de nombre; nunca `ayacucho_002_validacion`) y escribe el manifiesto.
+- `tecnologia/backend/test/performance/prestadores-catalogo.k6.js`: trayecto reproducible por usuario virtual (categorías → búsqueda de servicios → página siguiente → detalle → perfil → búsqueda de prestadores → perfil), **pausas de 3 a 8 s**, mezcla con generador sembrado (sin `Math.random`), ocho operaciones etiquetadas, aserciones de corrección por operación, umbrales (p95 < 2 s por operación, corrección 100 %, errores técnicos < 1 %), perfiles `humo` (5 VU, 90 s), `nominal` (50 VU, 15 min, para T082) y `ensayo-rapido` (solo corrección; pausas de 0,2 a 0,6 s) y un control negativo.
+- `tecnologia/frontend/scripts/ejecutar-e2e-002.mjs --carga` (`npm run test:carga:002`): reutiliza el ejecutor de T075 (bloqueo exclusivo, recursos descartables por corrida, recuperación de huérfanos, comprobación de que la validación local no cambia). En este modo no levanta Vite ni navegadores: crea la base/bucket/espacio Redis descartables, carga el conjunto, sirve la API compuesta, ejecuta k6 contra `https://localhost:8444` (o `--origen=directo` a `127.0.0.1:3002`) y retira todo. Evidencia en `tecnologia/.local/evidencia/002/carga` (sin tocar `e2e-linux`).
+- `tecnologia/backend/test/unit/prestadores-catalogo/carga.spec.ts`: 9 pruebas del conjunto y de las garantías estáticas del escenario.
+
+### Operaciones y etiquetas
+
+| `operacion` | `name` (plantilla sin identificadores) | Aserciones |
+|---|---|---|
+| `categorias` | `GET /categorias` | 200; número de categorías vigentes del manifiesto; sin datos privados |
+| `busqueda_servicios`, `busqueda_servicios_pagina` | `GET /servicios` | total, página y tamaño esperados; solo PUBLICADOS; categorías admitidas por el filtro; orden estable por identificador |
+| `busqueda_prestadores` | `GET /prestadores` | total, página y tamaño; orden por nombre; solo campos públicos |
+| `detalle_servicio` / `detalle_servicio_no_disponible` | `GET /servicios/{id}` | 200 del servicio pedido y publicado / 404 `RECURSO_NO_DISPONIBLE` sin revelar el estado |
+| `perfil_prestador` / `perfil_prestador_no_publicable` | `GET /prestadores/{id}` | 200 con el total de servicios visibles esperado y los dos avisos de 011 y 012 / 404 |
+
+El `url` completo se excluye de las etiquetas del sistema. Comprobación con la salida JSON de k6: etiquetas `check, error_code, escenario, expected_response, method, name, operacion, scenario, status`; `name` solo toma las seis plantillas de ruta y **ningún valor de etiqueta contiene un UUID**.
+
+### Verificación (Node 24.15.0, k6 2.0.0, API compuesta de 40 operaciones sobre recursos descartables)
+
+| Serie | Resultado |
+|---|---|
+| Base cargada (SQL independiente) | 1 000 perfiles, 1 000 proyecciones, 5 000 servicios (3 985 publicados, 3 606 visibles), 36 clasificaciones (6 de la semilla + 30 de carga), 400 trabajos |
+| `ensayo-rapido` (4 VU × 6 iteraciones) | 125 peticiones, corrección 100 %, 0 errores técnicos, p95 55 ms; 7 de las 8 operaciones muestreadas (en otra serie, 127 peticiones con las 8) |
+| `humo` (5 VU, 90 s, pausas de 3 a 8 s) | 93 peticiones en 120 s (0,78 RPS), **corrección 100 %**, 0 errores técnicos, p95 global 72 ms; las 8 operaciones con p95 ≤ 91 ms; umbrales cumplidos |
+| Control negativo (`--control-negativo`, totales desplazados en 1) | k6 sale con **99**: corrección 61 % y umbrales de corrección incumplidos en las búsquedas; confirma que las aserciones detectan errores |
+
+Tras cada serie: base, bucket y claves Redis descartables retirados, sin bloqueo ni procesos en 3002/5175 y huella de la validación (`ayacucho_002_validacion`, su bucket, Redis y Mailpit) **idéntica** (`validacionLocalSinCambios: true`). Evidencia archivada en `tecnologia/.local/evidencia/002/carga-t081/<serie>/` (resumen k6 por operación, manifiesto, preparación y `etiquetas-k6.json`).
+
+**Calidad:** backend `typecheck` y `lint` sin errores, 9 de 9 pruebas unitarias nuevas, frontend `typecheck` y `lint` sin errores. No se modificó la interfaz ni 001.
+
+### Limitaciones y cobertura posterior
+
+- Las **10 000 solicitudes** del escenario integral de EQ-01 y las **comparaciones de cotizaciones** son cobertura posterior (003 y siguientes); el manifiesto y el resumen de k6 las declaran.
+- Los resultados de `humo` y `ensayo-rapido` **no son** la medición de EQ-01: 5 usuarios y 90 s no acreditan p95 con 50 VU durante 15 min. La evaluación (p95, RPS, errores técnicos y la corrida con Redis caído) es T082; EQ-03 es T083.
+- El conjunto se carga por SQL directo en la base descartable (como los arneses de HU05), no por la API; así cada corrida parte del mismo estado exacto. La caché de lectura de Redis arranca vacía en cada corrida.
+- k6 confía en la CA 002 a través del almacén de certificados de Windows (importada previamente); con `--origen=directo` no usa TLS ni el proxy.
+- La proporción de 404 (servicio no disponible y perfil no publicable) en el trayecto es pequeña y aleatoria: en una serie corta puede no aparecer alguna operación.

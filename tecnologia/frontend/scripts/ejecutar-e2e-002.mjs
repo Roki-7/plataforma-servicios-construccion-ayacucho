@@ -22,7 +22,10 @@ const tecnologia = resolve(frontend, '..');
 const local = resolve(tecnologia, '.local');
 const backend = resolve(tecnologia, 'backend');
 const raizEvidencia = resolve(local, 'evidencia/002');
-const evidencia = resolve(process.env.E2E_EVIDENCIA ?? resolve(raizEvidencia, 'e2e-linux'));
+// `--carga` (T081): en lugar de los navegadores, prepara la base descartable con 1 000 prestadores y 5 000 servicios y ejecuta el escenario k6 contra la API compuesta. Reutiliza el
+// bloqueo exclusivo, los recursos descartables, la recuperación de huérfanos y la comprobación de que la validación local no cambia. Su evidencia va a `evidencia/002/carga`.
+const modoCarga = process.argv.includes('--carga');
+const evidencia = resolve(process.env.E2E_EVIDENCIA ?? resolve(raizEvidencia, modoCarga ? 'carga' : 'e2e-linux'));
 const ca = resolve(local, '002/tls/ca.crt');
 const imagen = process.env.E2E_IMAGEN_002 ?? 'ayacucho-001-e2e:fundacion';
 const proyecto = identidad002Esperada.proyectoCompose;
@@ -32,7 +35,8 @@ const operadorEnContenedor = '/app/.local/evidencia/002/e2e-linux/operador-efime
 
 const argumentos = process.argv.slice(2);
 const valor = (nombre) => argumentos.find((a) => a.startsWith(`${nombre}=`))?.slice(nombre.length + 1);
-const resto = argumentos.filter((a) => !a.startsWith('--especificaciones='));
+const resto = argumentos.filter((a) => !a.startsWith('--especificaciones=') && a !== '--carga' && !['--perfil=', '--vus=', '--duracion=', '--semilla=', '--origen=', '--control-negativo'].some((p) => a.startsWith(p)));
+const opcionesCarga = { perfil: valor('--perfil') ?? 'humo', vus: valor('--vus'), duracion: valor('--duracion'), semilla: valor('--semilla'), controlNegativo: argumentos.includes('--control-negativo'), origen: valor('--origen') === 'directo' ? 'http://127.0.0.1:3002' : 'https://localhost:8444' };
 const especificaciones = (valor('--especificaciones') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 function docker(args, opciones = {}) {
@@ -102,7 +106,7 @@ await access(ca);
 const estado = docker(['ps', '--filter', `label=com.docker.compose.project=${proyecto}`, '--format', '{{.Names}}|{{.Status}}']);
 const activos = new Map(salida(estado, 'Docker no está disponible').split(/\r?\n/).filter(Boolean).map((l) => l.split('|')));
 for (const s of ['postgres', 'redis', 'objetos', 'correo', 'proxy']) assert.ok(activos.get(contenedor(s))?.startsWith('Up'), `Falta el servicio ${s} del proyecto ${proyecto}. Inicie la infraestructura 002 (quickstart.md).`);
-assert.equal(docker(['image', 'inspect', imagen, '--format', '{{.Id}}']).status, 0, `No existe la imagen ${imagen}; constrúyala con Dockerfile.e2e (ver TLS-PRUEBAS.md).`);
+if (!modoCarga) assert.equal(docker(['image', 'inspect', imagen, '--format', '{{.Id}}']).status, 0, `No existe la imagen ${imagen}; constrúyala con Dockerfile.e2e (ver TLS-PRUEBAS.md).`);
 // --- Recuperación: lo que una ejecución anterior interrumpida dejó registrado (y SOLO eso) se retira antes de empezar ---
 const registro = resolve(evidencia, 'entornos-efimeros.json');
 const registrar = async (entradas) => writeFile(registro, JSON.stringify(entradas, null, 2));
@@ -127,7 +131,7 @@ for (const previo of entornos.filter((e) => !String(e.estado).startsWith('retira
 }
 if (huerfanos.length) { await registrar(entornos); process.stdout.write(`Retirados ${huerfanos.length} entorno(s) descartable(s) huérfano(s) registrado(s).\n`); await new Promise((r) => setTimeout(r, 1500)); }
 const libre = (puerto) => new Promise((ok) => { const s = createServer(); s.once('error', () => ok(false)); s.listen(puerto, '127.0.0.1', () => s.close(() => ok(true))); });
-for (const [nombre, puerto] of [['la API', identidad002Esperada.puertoApi], ['la web', identidad002Esperada.puertoWeb]]) {
+for (const [nombre, puerto] of [['la API', identidad002Esperada.puertoApi], ...(modoCarga ? [] : [['la web', identidad002Esperada.puertoWeb]])]) {
   assert.ok(await libre(puerto), `El puerto ${puerto} de ${nombre} está ocupado. Detenga la API/web de validación 002: el ejecutor levanta las suyas contra recursos descartables (el proxy 8444 enruta a esos puertos).`);
 }
 
@@ -163,12 +167,12 @@ const consultaSemilla = "select id, nombre, nivel, coalesce(categoria_padre_id::
 const consultaConteos = "select table_name || '|' || (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I', table_name), false, true, '')))[1]::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name";
 const consultaAuditoria = "select coalesce(json_agg(t order by t.ocurrio_en), '[]'::json) from (select ocurrio_en, accion, recurso_tipo, recurso_id, motivo, responsable from public.administracion_auditoria) t";
 
-const lotes = especificaciones.length ? especificaciones : [''];
+const lotes = modoCarga ? ['(carga k6)'] : especificaciones.length ? especificaciones : [''];
 // Las evidencias por historia (hu03, hu04…) y por escenario de calidad (eq07) de una serie anterior no se mezclan con las de esta.
 for (const nombre of await readdir(evidencia)) if (/^(hu|eq)\d{2}$/.test(nombre)) await rm(resolve(evidencia, nombre), { recursive: true, force: true });
 // Corpus de imágenes ficticias (T076) y carpeta de señales del agente de retención: ambos viven en la evidencia y se retiran al terminar.
 const carpetaImagenes = resolve(evidencia, 'imagenes'); const carpetaSenales = resolve(evidencia, 'senales');
-if (especificaciones.length === 0 || especificaciones.some((e) => e.includes('perfil-y-portafolio'))) {
+if (!modoCarga && (especificaciones.length === 0 || especificaciones.some((e) => e.includes('perfil-y-portafolio')))) {
   salida(spawnSync(process.execPath, ['--import', 'tsx', 'scripts/generar-imagenes-e2e-002.ts', `--salida=${carpetaImagenes}`], { cwd: backend, encoding: 'utf8' }), 'No se pudo generar el corpus de imágenes ficticias');
 }
 const corridas = []; const iniciales = []; let codigoFinal = 0;
@@ -190,34 +194,52 @@ for (const [i, especificacion] of lotes.entries()) {
     const semilla = validarSemilla(filasDeClasificaciones(psql(recursos.baseDatos, consultaSemilla)), { estricta: true });
     assert.ok(semilla.ok, `La semilla de la base descartable no es la determinista: faltantes=${semilla.faltantes.length}, alteradas=${semilla.alteradas.length}, adicionales=${semilla.adicionales}.`);
     const conteosIniciales = conteosDeTablas(psql(recursos.baseDatos, consultaConteos)); iniciales.push(conteosIniciales);
+    const manifiesto = resolve(evidencia, 'manifiesto-carga-002.json'); const resumenK6 = resolve(evidencia, 'resumen-k6.json'); let datosCarga;
+    if (modoCarga) {
+      // Antes de servir: el conjunto ficticio se vuelca en la base descartable (una transacción) y se comprueban sus conteos con SQL independiente de la carga.
+      const cargado = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/cargar-datos-carga-002.ts', id, `--salida=${manifiesto}`, ...(opcionesCarga.semilla ? [`--semilla=${opcionesCarga.semilla}`] : [])], { cwd: backend, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+      salida(cargado, 'No se pudo cargar el conjunto de carga'); datosCarga = JSON.parse(cargado.stdout.trim().split('\n').at(-1).trim());
+      datosCarga.sql = { prestadores: Number(psql(recursos.baseDatos, 'select count(*) from prestadores_perfiles').trim()), servicios: Number(psql(recursos.baseDatos, 'select count(*) from catalogo_servicios').trim()),
+        publicados: Number(psql(recursos.baseDatos, "select count(*) from catalogo_servicios where estado='PUBLICADO'").trim()), categorias: Number(psql(recursos.baseDatos, 'select count(*) from catalogo_clasificaciones').trim()) };
+    }
     api = spawn(process.execPath, ['--import', 'tsx', 'scripts/e2e-efimero-002.ts', 'servir', id], { cwd: backend, stdio: ['ignore', openSync(registroApi, 'w'), openSync(registroApi, 'a')] });
-    web = spawn(process.execPath, [resolve(frontend, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(identidad002Esperada.puertoWeb), '--strictPort', '--mode', 'validation'], { cwd: frontend, stdio: ['ignore', openSync(registroWeb, 'w'), openSync(registroWeb, 'a')] });
-    serviciosActivos = [api, web];
-    entrada.pids = { api: api.pid, web: web.pid }; await registrar(entornos);
-    await esperar(`http://127.0.0.1:${identidad002Esperada.puertoApi}/api/v1/salud`); await esperar(`http://127.0.0.1:${identidad002Esperada.puertoWeb}/`);
+    if (!modoCarga) web = spawn(process.execPath, [resolve(frontend, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(identidad002Esperada.puertoWeb), '--strictPort', '--mode', 'validation'], { cwd: frontend, stdio: ['ignore', openSync(registroWeb, 'w'), openSync(registroWeb, 'a')] });
+    serviciosActivos = [api, web].filter(Boolean);
+    entrada.pids = { api: api.pid, ...(web ? { web: web.pid } : {}) }; await registrar(entornos);
+    await esperar(`http://127.0.0.1:${identidad002Esperada.puertoApi}/api/v1/salud`); if (!modoCarga) await esperar(`http://127.0.0.1:${identidad002Esperada.puertoWeb}/`);
     // La primera petición de un navegador entra por el proxy 8444 (contenedor → anfitrión): se espera a que esa ruta, y no solo el puerto directo, responda la web y la API.
-    for (const ruta of ['/', '/api/v1/salud']) await esperarProxy(ruta);
-    // Agente que, a petición de la prueba, retiene la confirmación de una fotografía (CA-PRE-06) en la base descartable de ESTA corrida.
-    await rm(carpetaSenales, { recursive: true, force: true }); await mkdir(carpetaSenales, { recursive: true });
-    const registroAgente = resolve(tmpdir(), `ayacucho-002-e2e-${id}-agente.log`);
-    agente = spawn(process.execPath, ['--import', 'tsx', 'scripts/agente-retencion-e2e-002.ts', id, `--senales=${carpetaSenales}`], { cwd: backend, stdio: ['ignore', openSync(registroAgente, 'w'), openSync(registroAgente, 'a')] });
-    serviciosActivos = [api, web, agente];
-    entrada.estado = 'en uso'; entrada.pids = { api: api.pid, web: web.pid, agente: agente.pid }; await registrar(entornos);
+    for (const ruta of modoCarga ? ['/api/v1/salud'] : ['/', '/api/v1/salud']) await esperarProxy(ruta);
+    if (modoCarga) {
+      await writeFile(resolve(evidencia, 'preparacion-carga-002.json'), JSON.stringify({ ejecucion: id, fecha: new Date().toISOString(), modo: 'carga k6', independencia: { ok: true, identidad002 }, recursos: { aislamiento: 'efimero', baseDatos: recursos.baseDatos, bucket: recursos.bucket, espacioRedis: recursos.espacioRedis }, datos: datosCarga, perfil: opcionesCarga.perfil, origen: opcionesCarga.origen }, null, 2));
+      entrada.estado = 'en uso'; await registrar(entornos);
+      const argsK6 = ['run', '-e', 'CARGA_002=true', '-e', `ORIGEN=${opcionesCarga.origen}`, '-e', `MANIFIESTO=${manifiesto}`, '-e', `RESUMEN=${resumenK6}`, '-e', `PERFIL=${opcionesCarga.perfil}`,
+        ...(opcionesCarga.vus ? ['-e', `VUS=${opcionesCarga.vus}`] : []), ...(opcionesCarga.duracion ? ['-e', `DURACION=${opcionesCarga.duracion}`] : []), ...(opcionesCarga.semilla ? ['-e', `SEMILLA=${opcionesCarga.semilla}`] : []), ...(opcionesCarga.controlNegativo ? ['-e', 'CONTROL_NEGATIVO=true'] : []), resolve(backend, 'test/performance/prestadores-catalogo.k6.js')];
+      const k6 = spawnSync('k6', argsK6, { cwd: backend, stdio: 'inherit', env: process.env });
+      if (k6.error) throw k6.error;
+      resultado = { codigo: k6.status ?? 1 };
+    } else {
+      // Agente que, a petición de la prueba, retiene la confirmación de una fotografía (CA-PRE-06) en la base descartable de ESTA corrida.
+      await rm(carpetaSenales, { recursive: true, force: true }); await mkdir(carpetaSenales, { recursive: true });
+      const registroAgente = resolve(tmpdir(), `ayacucho-002-e2e-${id}-agente.log`);
+      agente = spawn(process.execPath, ['--import', 'tsx', 'scripts/agente-retencion-e2e-002.ts', id, `--senales=${carpetaSenales}`], { cwd: backend, stdio: ['ignore', openSync(registroAgente, 'w'), openSync(registroAgente, 'a')] });
+      serviciosActivos = [api, web, agente];
+      entrada.estado = 'en uso'; entrada.pids = { api: api.pid, web: web.pid, agente: agente.pid }; await registrar(entornos);
 
-    await writeFile(resolve(evidencia, 'preparacion-002.json'), JSON.stringify({
-      ejecucion: id, fecha: new Date().toISOString(), independencia: { ok: true, identidad002, referencia001: independencia.referencia001 },
-      semilla: { ok: true, estricta: true, adicionales: 0 }, recursos: { aislamiento: 'efimero', baseDatos: recursos.baseDatos, bucket: recursos.bucket, espacioRedis: recursos.espacioRedis },
-      tls: { caSha256: certificadoCa.fingerprint256, servidorSha256: servidor.fingerprint256 },
-    }, null, 2));
-    const montajes = [
-      ['--mount', `type=bind,source=${ca},target=/validacion/ca.crt,readonly`], ['--mount', `type=bind,source=${evidencia},target=/app/.local/evidencia/002/e2e-linux`],
-      ['--mount', `type=bind,source=${resolve(frontend, 'scripts')},target=/app/frontend/scripts,readonly`], ['--mount', `type=bind,source=${resolve(frontend, 'test')},target=/app/frontend/test,readonly`],
-      ['--mount', `type=bind,source=${resolve(frontend, 'playwright.002.config.ts')},target=/app/frontend/playwright.002.config.ts,readonly`],
-    ].flat();
-    const entorno = ['E2E_PREPARACION_002=/app/.local/evidencia/002/e2e-linux/preparacion-002.json', `E2E_EJECUCION_002=${id}`, 'E2E_EVIDENCIA=/app/.local/evidencia/002/e2e-linux', `E2E_OPERADOR_002=${operadorEnContenedor}`, 'E2E_TLS_NEGATIVAS=true', 'MAILPIT_API=http://correo:8025', 'E2E_IMAGENES_002=/app/.local/evidencia/002/e2e-linux/imagenes', 'E2E_SENALES_002=/app/.local/evidencia/002/e2e-linux/senales'].flatMap((e) => ['-e', e]);
-    const r = docker(['run', '--rm', '--init', '--name', `ayacucho-002-e2e-${id.slice(0, 8)}`, '--label', `ayacucho.e2e002=${id}`, '--network', red, '--shm-size=1g', ...montajes, ...entorno,
-      '--entrypoint', '/bin/bash', imagen, '/app/frontend/scripts/confianza-e2e-002.sh', ...(especificacion ? [especificacion] : []), ...resto], { stdio: 'inherit' });
-    resultado = { codigo: r.status ?? 1 };
+      await writeFile(resolve(evidencia, 'preparacion-002.json'), JSON.stringify({
+        ejecucion: id, fecha: new Date().toISOString(), independencia: { ok: true, identidad002, referencia001: independencia.referencia001 },
+        semilla: { ok: true, estricta: true, adicionales: 0 }, recursos: { aislamiento: 'efimero', baseDatos: recursos.baseDatos, bucket: recursos.bucket, espacioRedis: recursos.espacioRedis },
+        tls: { caSha256: certificadoCa.fingerprint256, servidorSha256: servidor.fingerprint256 },
+      }, null, 2));
+      const montajes = [
+        ['--mount', `type=bind,source=${ca},target=/validacion/ca.crt,readonly`], ['--mount', `type=bind,source=${evidencia},target=/app/.local/evidencia/002/e2e-linux`],
+        ['--mount', `type=bind,source=${resolve(frontend, 'scripts')},target=/app/frontend/scripts,readonly`], ['--mount', `type=bind,source=${resolve(frontend, 'test')},target=/app/frontend/test,readonly`],
+        ['--mount', `type=bind,source=${resolve(frontend, 'playwright.002.config.ts')},target=/app/frontend/playwright.002.config.ts,readonly`],
+      ].flat();
+      const entorno = ['E2E_PREPARACION_002=/app/.local/evidencia/002/e2e-linux/preparacion-002.json', `E2E_EJECUCION_002=${id}`, 'E2E_EVIDENCIA=/app/.local/evidencia/002/e2e-linux', `E2E_OPERADOR_002=${operadorEnContenedor}`, 'E2E_TLS_NEGATIVAS=true', 'MAILPIT_API=http://correo:8025', 'E2E_IMAGENES_002=/app/.local/evidencia/002/e2e-linux/imagenes', 'E2E_SENALES_002=/app/.local/evidencia/002/e2e-linux/senales'].flatMap((e) => ['-e', e]);
+      const r = docker(['run', '--rm', '--init', '--name', `ayacucho-002-e2e-${id.slice(0, 8)}`, '--label', `ayacucho.e2e002=${id}`, '--network', red, '--shm-size=1g', ...montajes, ...entorno,
+        '--entrypoint', '/bin/bash', imagen, '/app/frontend/scripts/confianza-e2e-002.sh', ...(especificacion ? [especificacion] : []), ...resto], { stdio: 'inherit' });
+      resultado = { codigo: r.status ?? 1 };
+    }
     // Estado final de la base descartable y su auditoría, conservada como evidencia antes de retirarla.
     const conteosFinales = conteosDeTablas(psql(recursos.baseDatos, consultaConteos));
     const auditoria = JSON.parse(psql(recursos.baseDatos, consultaAuditoria).trim() || '[]');
