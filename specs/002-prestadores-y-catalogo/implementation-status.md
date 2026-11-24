@@ -867,3 +867,58 @@ Estado: **verificada** (78 de 94 acumuladas). Los criterios CA-BUS-01 a CA-BUS-0
 - CA-BUS-08 se verifica sobre los datos privados que 002 realmente almacena (correo e identificador de cuenta); no hay en 002 un recurso de documentos privados que probar.
 - El orden de los resultados se comprueba como estabilidad entre páginas y repeticiones, no contra un orden de negocio concreto.
 - Siguen abiertos los pendientes técnicos anteriores (conteos de Actions n.º 3, margen de 120 s de `busqueda-publica.spec.ts`, lentitud ocasional del disco, causa inferida de RF39, informes locales de 001, `verificar-https-002.ts`). Como en T075, no se ejecuta en CI. T079 no se ha iniciado.
+
+## T079 · RF39 por el canal interno real y matriz EQ-04/PR04 (verificada)
+
+Estado: **verificada** (79 de 94 acumuladas). La gestión de categorías por el canal interno autenticado del monolito y la matriz de accesos no autorizados se ejecutan en dos niveles: **E2E** contra el monolito completo por HTTPS (Chromium, Firefox y WebKit a 360, 768 y 1366 px; base, bucket y espacio Redis descartables por corrida, T075) e **integración** con PostgreSQL real y las rutas HTTP reales del arnés US4. No se modificó ningún archivo de 001, ni el workflow de CI, ni el código de la aplicación, y no se relajó ningún control.
+
+### Implementación
+
+- `tecnologia/frontend/test/e2e/prestadores-catalogo/categorias.spec.ts`: tres pruebas por proyecto (27 en la matriz; 207 con las de T075 a T078). El canal interno de RF39 es la API HTTPS autenticada (no tiene interfaz web propia); el operador es el operador ficticio de la base descartable (`E2E_OPERADOR_002`, con el permiso concedido por el flujo operativo de la semilla). El navegador aporta el cliente HTTP y la visibilidad pública.
+- `tecnologia/backend/test/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts`: tres pruebas con la matriz de nueve actores por seis operaciones (más servicios ajenos), huella de contenido de **todas** las tablas antes y después de cada actor y cuerpo de error sin divulgación. Escribe `matriz-pr04-002.json` en `EVIDENCIA_JEST`.
+- `tecnologia/frontend/scripts/verificar-auditoria-002.mjs`: contrasta la auditoría que exporta el ejecutor por corrida (`auditoria-corrida-N.json`) con las acciones que declaran las pruebas (`auditoriaEsperada`); solo lee evidencia local.
+- `tecnologia/frontend/test/soporte/reporte-002.ts` (+ prueba unitaria): los hechos `evidencia-ca-cat-*` se guardan en `hu25/<proyecto>/`.
+
+### Cobertura por criterio
+
+| Criterio | Nivel y verificación |
+|---|---|
+| CA-CAT-01 | E2E: el operador crea una raíz y una subcategoría (nacen inactivas y no son públicas), edita la raíz (versión 2), activa ambas y aparecen en la consulta pública. |
+| CA-CAT-02, CA-CAT-08 | E2E: con la búsqueda ya calentada, la desactivación confirmada de la raíz la oculta de inmediato junto con sus servicios (detalle 404, búsqueda vacía); los servicios conservan PUBLICADO/PAUSADO y versión; la subcategoría conserva su estado propio activo y queda efectivamente inactiva. |
+| CA-CAT-03 | E2E e integración: ver matriz. Visitante, cuenta sin permiso, permiso revocado y sesión cerrada no crean, editan, activan, previsualizan ni confirman, y no obtienen el recuento. |
+| CA-CAT-05 | Backend (T060 a T065, `autorizacion-y-categorias.spec.ts`, 32 pruebas reejecutadas): concesión solo con constancia, firma, ejecutor distinto y sin autoconcesión. En E2E: ninguna de las cuentas ajenas puede usar el canal. |
+| CA-CAT-06 | E2E: contraste con la auditoría exportada: cada acción del operador deja una fila con responsable (la cuenta del operador), acción, recurso y motivo. Los rechazos no dejan filas. |
+| CA-CAT-07 | E2E: la vista previa informa 2 servicios afectados (el pausado no cuenta) sin cambiar nada; sin `confirmacionId` o sin motivo la desactivación da 400; con una confirmación inexistente, 409 `CONFIRMACION_NO_VALIDA`; con versión vieja, 409 `VERSION_DESACTUALIZADA`; una confirmación ya usada, 409. Todo se conserva hasta la confirmación válida. Si el impacto cambia tras la vista previa, la confirmación se rechaza con 409 `IMPACTO_DESACTUALIZADO` (observado en la puesta a punto y cubierto en `autorizacion-y-categorias.spec.ts`). |
+| CA-CAT-09 | E2E: al reactivar vuelven los publicados cuya clasificación efectiva está activa; el pausado sigue excluido. |
+| CA-CAT-10 | E2E (parte con Redis disponible): exclusión inmediata con búsqueda calentada. La caída de Redis queda en T069 (`redis-revision.spec.ts`), no se reejecutó aquí. |
+| EQ-04 / PR04 | Ver matriz. |
+
+### Matriz EQ-04/PR04
+
+| Nivel | Actores | Intentos | Rechazados | Mutaciones | Divulgaciones |
+|---|---|---|---|---|---|
+| Integración (PostgreSQL real, 6 operaciones × 9 actores, más servicios ajenos) | visitante; token malformado; cliente sin permiso; prestador titular; prestador ajeno; permiso revocado con sesión abierta; sesión cerrada del operador; operador con origen ajeno; operador sin `Origin`; revocación entre vista previa y confirmación; servicios del titular desde visitante, cliente y prestador ajeno | 67 | 67 (100 %) | 0 (huella de todas las tablas idéntica por actor) | 0 (cuerpo = solo `codigo`, `mensaje`, `detalles`, sin nombres, recuento, confirmación ni claves) |
+| E2E (monolito completo, HTTPS) | visitante; token malformado; cliente; titular; prestador ajeno; sesión cerrada; origen ajeno; sin `Origin`; recursos privados (perfil, servicios, trabajos y fotografías ajenos, 8 URLs privadas) | 828 en 9 proyectos (92 por proyecto) | 774 con 4xx; 54 son URLs fuera de `/api/v1` que la aplicación web responde con su carcasa HTML (no es el recurso) | 0 (el catálogo, la búsqueda, el perfil y los servicios del titular quedan idénticos y la confirmación del operador sigue siendo suya y vigente) | 0 |
+
+Códigos observados: visitante 401 `NO_AUTENTICADO`; token malformado o sesión cerrada 401 (`NO_AUTENTICADO` o `SESION_NO_VALIDA`); cuenta sin permiso o permiso revocado 403 `SIN_PERMISO`; origen ajeno 403 `ORIGEN_NO_ADMITIDO`; sin `Origin` 400 `CABECERA_REQUERIDA`; recurso ajeno 404 `RECURSO_NO_DISPONIBLE` o 403.
+
+### Verificación
+
+- **E2E:** 27 de 27 pruebas aprobadas en 9 proyectos (2,2 min). La trazabilidad registra CA-CAT-01, 02, 03, 05, 06, 07, 08, 09, 10, CA-PRE-03 y CA-SER-03 aprobados en 9 de 9 proyectos; la evidencia suma 27 archivos en `hu25/<proyecto>/`.
+- **Auditoría:** `verificar-auditoria-002.mjs`: 109 filas exportadas = 108 acciones esperadas de las pruebas + la concesión de la semilla; cada recurso tiene exactamente las filas esperadas (36 recursos) con el mismo responsable, sin filas de intentos no autorizados y en orden cronológico.
+- **Integración:** `seguridad-end-to-end.spec.ts` 3 de 3, junto con `autorizacion-y-categorias.spec.ts` y `visibilidad-categorias.spec.ts` reejecutados (42 de 42 pruebas).
+- **Aislamiento:** al terminar no quedan bases de prueba, buckets `e2e-*`, claves Redis `ayacucho:002:e2e-*`, bloqueo ni procesos en 3002 y 5175; la huella de las 27 tablas de `ayacucho_002_validacion`, su bucket, su espacio Redis y Mailpit quedaron idénticos (`validacionLocalSinCambios: true`). No se tocó 001 ni se eliminó ningún volumen.
+- **Calidad (Node 24.15.0):** frontend `typecheck`, `lint` y `build` sin errores; 121 de 121 pruebas unitarias; backend `typecheck` y `lint` sin errores; `playwright test --list` da 207 pruebas. `git diff --check` sin errores.
+- Comandos: `npm --prefix tecnologia/frontend run test:e2e:002 -- --especificaciones=categorias.spec.ts` y después `node tecnologia/frontend/scripts/verificar-auditoria-002.mjs`; en backend, `npm --prefix tecnologia/backend run test:integration:002 -- --testPathPatterns seguridad-end-to-end` (infraestructura 002 en marcha y Node 24).
+
+### Puesta a punto (se conserva por transparencia)
+
+Las primeras ejecuciones fallaron por supuestos míos, no por defectos de seguridad ni funcionales: versiones de categoría mal contadas (la activación sube la versión), códigos de error de origen (`ORIGEN_NO_ADMITIDO` y `CABECERA_REQUERIDA`), una vista previa tomada antes de publicar el servicio (el control `IMPACTO_DESACTUALIZADO` la invalidó correctamente), rutas del perfil de prestador que el arnés US4 no monta (se movieron a la matriz E2E del monolito completo) y, en la matriz E2E, rutas fuera de `/api/v1` que la aplicación web sirve como HTML. Ninguna aserción de seguridad se relajó.
+
+### Limitaciones y pendientes
+
+- La **concesión y la revocación firmadas** del permiso (comando interno del host, firma del Product Owner, ejecutor distinto) no pueden ejecutarse desde el navegador: se verifican en integración (`autorizacion-y-categorias.spec.ts`, T060 a T065). Por eso la **cuenta revocada con sesión abierta** y la revocación entre vista previa y confirmación se prueban en integración y no en E2E.
+- Tras reconceder el permiso, una confirmación anterior de la misma cuenta, clasificación y versión sigue siendo usable una sola vez si no venció; el criterio solo exige el rechazo mientras el permiso está revocado, que se cumple.
+- 002 no tiene aún un recurso de documentos privados en 002: las rutas de documentos y archivos privados devuelven 404 y no existe ruta que los entregue.
+- CA-CAT-10 con Redis caído y la restauración se mantienen en T069/T071.
+- Siguen abiertos los pendientes técnicos anteriores (conteos de Actions n.º 3, margen de 120 s de `busqueda-publica.spec.ts`, lentitud ocasional del disco, causa inferida de RF39, informes locales de 001, `verificar-https-002.ts`). Como en T075, no se ejecuta en CI. T080 no se ha iniciado.
