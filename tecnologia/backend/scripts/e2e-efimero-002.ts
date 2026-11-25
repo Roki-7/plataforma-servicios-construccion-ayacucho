@@ -39,7 +39,12 @@ async function entorno(): Promise<{ env: NodeJS.ProcessEnv; adminUrl: string; ur
   const base = await leerConfiguracion002();
   const admin = exigirBase002(base['DATABASE_URL']);
   const efimera = new URL(admin.href); efimera.pathname = `/${nombres.baseDatos}`;
-  return { env: { ...base, DATABASE_URL: efimera.href, S3_BUCKET: nombres.bucket, REDIS_NAMESPACE: nombres.espacioRedis }, adminUrl: admin.href, urlEfimera: efimera.href };
+  // T082 (corrida con Redis caído): la API puede usar el Redis AISLADO de la prueba (proyecto `ayacucho-redis002-aislado`, 63850) para que detenerlo no afecte al Redis de la validación.
+  // Solo se admite exactamente esa URL; el espacio de claves sigue siendo el descartable de la corrida.
+  const aislado = process.env['E2E_REDIS_URL_AISLADO'];
+  // 63851 es un puerto sin ningún servicio: modela un Redis que rechaza las conexiones desde el primer momento.
+  if (aislado !== undefined && !['redis://127.0.0.1:63850', 'redis://127.0.0.1:63851'].includes(aislado)) throw new Error('E2E_REDIS_URL_AISLADO solo admite el Redis aislado de la prueba (63850) o un puerto sin servicio (63851).');
+  return { env: { ...base, DATABASE_URL: efimera.href, S3_BUCKET: nombres.bucket, REDIS_NAMESPACE: nombres.espacioRedis, ...(aislado ? { REDIS_URL: aislado } : {}) }, adminUrl: admin.href, urlEfimera: efimera.href };
 }
 
 async function sql(adminUrl: string, texto: string): Promise<void> {
@@ -94,8 +99,15 @@ try {
       throw error;
     }
   } else if (accion === 'servir') {
+    // Diagnóstico de la API descartable (T082): deja constancia en su registro de cómo y cuándo termina el proceso (señal, excepción o salida), para no perder una caída silenciosa.
+    const nota = (texto: string) => process.stderr.write(`[${new Date().toISOString()}] ${texto}
+`);
+    process.on('exit', (codigo) => nota(`el proceso de la API termina con código ${codigo}`));
+    process.on('uncaughtException', (e) => { nota(`excepción no capturada: ${e instanceof Error ? e.stack : String(e)}`); process.exit(1); });
+    process.on('unhandledRejection', (e) => { nota(`promesa rechazada sin capturar: ${e instanceof Error ? e.stack : String(e)}`); process.exit(1); });
+    for (const senal of ['SIGBREAK', 'SIGHUP'] as const) process.on(senal, () => nota(`señal ${senal} recibida`));
     const servicio = await iniciarOferta002(env);
-    const cerrar = () => { void servicio.cerrar().finally(() => process.exit(0)); };
+    const cerrar = () => { nota('cierre solicitado por señal SIGTERM/SIGINT'); void servicio.cerrar().finally(() => process.exit(0)); };
     process.once('SIGTERM', cerrar); process.once('SIGINT', cerrar);
   } else {
     await retirar(env, adminUrl);

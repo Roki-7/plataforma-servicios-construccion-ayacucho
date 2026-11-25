@@ -47,13 +47,14 @@ if (!perfiles[perfil]) throw new Error('PERFIL no válido: humo, nominal o ensay
 const pausaRapida = perfil === 'ensayo-rapido';
 
 const operaciones = ['categorias', 'busqueda_servicios', 'busqueda_servicios_pagina', 'busqueda_prestadores', 'detalle_servicio', 'detalle_servicio_no_disponible', 'perfil_prestador', 'perfil_prestador_no_publicable'];
+let fallosRegistrados = 0;
 const correccion = new Rate('correccion');
 const erroresTecnicos = new Rate('errores_tecnicos');
 const thresholds = { http_req_failed: ['rate<0.01'], errores_tecnicos: ['rate<0.01'], correccion: ['rate==1'] };
 for (const o of operaciones) { thresholds[`http_req_duration{operacion:${o}}`] = ['p(95)<2000']; thresholds[`correccion{operacion:${o}}`] = ['rate==1']; }
 
 export const options = {
-  scenarios: { oferta_publica: { ...perfiles[perfil], exec: 'trayecto', tags: { escenario: perfil } } },
+  scenarios: { oferta_publica: { ...perfiles[perfil], exec: 'trayecto', tags: { escenario: __ENV.ESCENARIO || perfil } } },
   thresholds,
   // Sin `url` entre las etiquetas del sistema: los identificadores y las consultas no se convierten en series de métricas.
   systemTags: ['status', 'method', 'name', 'scenario', 'check', 'error', 'error_code', 'expected_response'],
@@ -77,6 +78,8 @@ function pedir(ruta, nombre, operacion, esperado) {
 function comprobar(res, operacion, reglas) {
   const resultados = check(res, reglas, { operacion });
   correccion.add(resultados, { operacion });
+  // Diagnóstico: una comprobación fallida deja una línea con la operación, el estado, la duración y la hora (sin identificadores ni contenido); hasta 5 por usuario virtual.
+  if (!resultados && fallosRegistrados++ < 5) console.warn(JSON.stringify({ evento: 'comprobacion_fallida', operacion, estado: res.status, duracion_ms: Math.round(res.timings.duration), hora: new Date().toISOString() }));
   return resultados;
 }
 const json = (res) => { try { return res.json(); } catch { return null; } };
@@ -104,9 +107,9 @@ function buscarServicios(esperada, pagina, operacion) {
   comprobar(res, operacion, {
     'búsqueda de servicios 200': (r) => r.status === 200,
     'total, página y tamaño esperados': () => cuerpoPaginado(c, esperada.total, enPagina, pagina),
-    'solo servicios PUBLICADOS': () => !!c && c.elementos.every((e) => e.estado === 'PUBLICADO'),
-    'categorías admitidas por el filtro': () => !!c && (esperada.categoriasValidas.length === 0 || c.elementos.every((e) => esperada.categoriasValidas.indexOf(e.categoriaId) >= 0)),
-    'orden estable por identificador': () => !!c && c.elementos.every((e, i) => i === 0 || c.elementos[i - 1].servicioId < e.servicioId),
+    'solo servicios PUBLICADOS': () => !!c && Array.isArray(c.elementos) && c.elementos.every((e) => e.estado === 'PUBLICADO'),
+    'categorías admitidas por el filtro': () => !!c && Array.isArray(c.elementos) && (esperada.categoriasValidas.length === 0 || c.elementos.every((e) => esperada.categoriasValidas.indexOf(e.categoriaId) >= 0)),
+    'orden estable por identificador': () => !!c && Array.isArray(c.elementos) && c.elementos.every((e, i) => i === 0 || c.elementos[i - 1].servicioId < e.servicioId),
     'sin datos privados': sinDatosPrivados,
   });
   return c && c.elementos ? c.elementos : [];
@@ -119,8 +122,8 @@ function buscarPrestadores(esperada, pagina) {
   comprobar(res, 'busqueda_prestadores', {
     'búsqueda de prestadores 200': (r) => r.status === 200,
     'total, página y tamaño esperados': () => cuerpoPaginado(c, esperada.total, enPagina, pagina),
-    'orden por nombre': () => !!c && c.elementos.every((e, i) => i === 0 || c.elementos[i - 1].nombrePublico.toLowerCase() <= e.nombrePublico.toLowerCase()),
-    'solo campos públicos': () => !!c && c.elementos.every((e) => Object.keys(e).sort().join(',') === 'disponibilidadDeclarada,distritos,especialidadesIds,nombrePublico,prestadorId,tipo'),
+    'orden por nombre': () => !!c && Array.isArray(c.elementos) && c.elementos.every((e, i) => i === 0 || c.elementos[i - 1].nombrePublico.toLowerCase() <= e.nombrePublico.toLowerCase()),
+    'solo campos públicos': () => !!c && Array.isArray(c.elementos) && c.elementos.every((e) => Object.keys(e).sort().join(',') === 'disponibilidadDeclarada,distritos,especialidadesIds,nombrePublico,prestadorId,tipo'),
     'sin datos privados': sinDatosPrivados,
   });
   return c && c.elementos ? c.elementos : [];
@@ -138,8 +141,8 @@ function perfilPrestador(id, serviciosVisibles) {
   const publicable = serviciosVisibles >= 0; const operacion = publicable ? 'perfil_prestador' : 'perfil_prestador_no_publicable';
   const res = pedir('/prestadores/' + id + '?pagina=1&tamano=' + tamano, 'GET /prestadores/{id}', operacion, publicable ? 200 : 404); const c = json(res);
   comprobar(res, operacion, publicable
-    ? { 'perfil 200': (r) => r.status === 200, 'perfil del prestador pedido': () => !!c && c.prestadorId === id, 'servicios visibles esperados': () => !!c && c.servicios.total === serviciosVisibles,
-      'avisos independientes de 011 y 012': () => !!c && c.avisos.calificaciones === 'Calificaciones aún no disponibles' && c.avisos.verificaciones === 'Verificaciones aún no disponibles', 'sin datos privados': sinDatosPrivados }
+    ? { 'perfil 200': (r) => r.status === 200, 'perfil del prestador pedido': () => !!c && c.prestadorId === id, 'servicios visibles esperados': () => !!c && !!c.servicios && c.servicios.total === serviciosVisibles,
+      'avisos independientes de 011 y 012': () => !!c && !!c.avisos && c.avisos.calificaciones === 'Calificaciones aún no disponibles' && c.avisos.verificaciones === 'Verificaciones aún no disponibles', 'sin datos privados': sinDatosPrivados }
     : { 'perfil no publicable: 404': (r) => r.status === 404, 'error RECURSO_NO_DISPONIBLE': () => !!c && c.codigo === 'RECURSO_NO_DISPONIBLE' });
 }
 

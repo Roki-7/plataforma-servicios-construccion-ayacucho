@@ -7,7 +7,7 @@ import { randomUUID, X509Certificate } from 'node:crypto';
 import { openSync, readFileSync, rmSync } from 'node:fs';
 import { access, mkdir, open, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
-import { hostname, tmpdir } from 'node:os';
+import { cpus, hostname, release as osRelease, tmpdir, totalmem } from 'node:os';
 import { request as httpsRequest } from 'node:https';
 import { connect } from 'node:tls';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
@@ -35,8 +35,8 @@ const operadorEnContenedor = '/app/.local/evidencia/002/e2e-linux/operador-efime
 
 const argumentos = process.argv.slice(2);
 const valor = (nombre) => argumentos.find((a) => a.startsWith(`${nombre}=`))?.slice(nombre.length + 1);
-const resto = argumentos.filter((a) => !a.startsWith('--especificaciones=') && a !== '--carga' && !['--perfil=', '--vus=', '--duracion=', '--semilla=', '--origen=', '--control-negativo'].some((p) => a.startsWith(p)));
-const opcionesCarga = { perfil: valor('--perfil') ?? 'humo', vus: valor('--vus'), duracion: valor('--duracion'), semilla: valor('--semilla'), controlNegativo: argumentos.includes('--control-negativo'), origen: valor('--origen') === 'directo' ? 'http://127.0.0.1:3002' : 'https://localhost:8444' };
+const resto = argumentos.filter((a) => !a.startsWith('--especificaciones=') && a !== '--carga' && !['--perfil=', '--vus=', '--duracion=', '--semilla=', '--origen=', '--control-negativo', '--redis-caido'].some((p) => a.startsWith(p)));
+const opcionesCarga = { perfil: valor('--perfil') ?? 'humo', vus: valor('--vus'), duracion: valor('--duracion'), semilla: valor('--semilla'), controlNegativo: argumentos.includes('--control-negativo'), redisCaido: argumentos.some((a) => a === '--redis-caido' || a.startsWith('--redis-caido=')), redisModo: valor('--redis-caido') ?? 'detenido', origen: valor('--origen') === 'directo' ? 'http://127.0.0.1:3002' : 'https://localhost:8444' };
 const especificaciones = (valor('--especificaciones') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 function docker(args, opciones = {}) {
@@ -48,6 +48,7 @@ const salida = (r, mensaje) => { assert.equal(r.status, 0, `${mensaje}${r.stderr
 /** Consulta de solo lectura a PostgreSQL 002 sobre la base indicada (la validación o la descartable). */
 const psql = (base, consulta, opciones = {}) => salida(docker(['exec', '-i', contenedor('postgres'), 'psql', '-X', '-U', 'ayacucho_validacion_002', '-d', base, '-v', 'ON_ERROR_STOP=1', '-tA', '-F', '|', ...(opciones.input === undefined ? ['-c', consulta] : [])], opciones.input === undefined ? {} : { input: opciones.input }), 'Consulta a PostgreSQL 002 fallida');
 const garage = (...args) => docker(['exec', contenedor('objetos'), '/garage', ...args]);
+const redisAislado = 'ayacucho-redis002-aislado-redis-1';
 
 // --- Evidencia dedicada, sin redirecciones fuera de tecnologia/.local/evidencia/002 ---
 const desplazamiento = relative(raizEvidencia, evidencia);
@@ -167,6 +168,24 @@ const consultaSemilla = "select id, nombre, nivel, coalesce(categoria_padre_id::
 const consultaConteos = "select table_name || '|' || (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I', table_name), false, true, '')))[1]::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name";
 const consultaAuditoria = "select coalesce(json_agg(t order by t.ocurrio_en), '[]'::json) from (select ocurrio_en, accion, recurso_tipo, recurso_id, motivo, responsable from public.administracion_auditoria) t";
 
+/** Muestras periódicas (cada 30 s) de los recursos durante la carga: memoria y CPU acumulada de la API y consumo de los contenedores de PostgreSQL y Redis. */
+function iniciarMuestreo(pidApi) {
+  const muestras = []; let activo = true; let pendiente = Promise.resolve();
+  const tomar = () => new Promise((fin) => {
+    const t = new Date().toISOString(); const m = { t };
+    const stats = spawn('docker', ['stats', '--no-stream', '--format', '{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}', contenedor('postgres'), contenedor('redis')], { stdio: ['ignore', 'pipe', 'ignore'] }); let texto = '';
+    stats.stdout.on('data', (d) => { texto += d; });
+    stats.on('close', () => {
+      m.contenedores = Object.fromEntries(texto.split(/\r?\n/).filter(Boolean).map((l) => { const [n, cpu, mem] = l.split('|'); return [n.replace(`${proyecto}-`, '').replace('-1', ''), { cpu, memoria: mem }]; }));
+      const ps = process.platform === 'win32' ? spawnSync('powershell.exe', ['-NoProfile', '-Command', `$p = Get-Process -Id ${Number(pidApi)} -ErrorAction SilentlyContinue; if ($p) { "$([math]::Round($p.CPU, 1))|$([math]::Round($p.WorkingSet64 / 1MB))" }`], { encoding: 'utf8' }) : undefined;
+      const [cpuS, memMB] = (ps?.stdout ?? '').trim().split('|'); if (cpuS) m.api = { cpuAcumuladaSegundos: Number(cpuS), memoriaMB: Number(memMB) };
+      muestras.push(m); fin();
+    });
+  });
+  const temporizador = setInterval(() => { if (activo) pendiente = pendiente.then(tomar); }, 30000); pendiente = tomar();
+  return { async detener() { activo = false; clearInterval(temporizador); await pendiente; return muestras; } };
+}
+
 const lotes = modoCarga ? ['(carga k6)'] : especificaciones.length ? especificaciones : [''];
 // Las evidencias por historia (hu03, hu04…) y por escenario de calidad (eq07) de una serie anterior no se mezclan con las de esta.
 for (const nombre of await readdir(evidencia)) if (/^(hu|eq)\d{2}$/.test(nombre)) await rm(resolve(evidencia, nombre), { recursive: true, force: true });
@@ -185,7 +204,7 @@ for (const [i, especificacion] of lotes.entries()) {
   const validos = validarRecursosEfimeros(recursos); assert.ok(validos.ok, validos.problemas.join(' '));
   const operador = resolve(evidencia, 'operador-efimero.json');
   const entrada = { corrida: i + 1, id, ...recursos, estado: 'creando' }; entornos.push(entrada); await registrar(entornos);
-  let api; let web; let agente; const inicio = new Date().toISOString(); let resultado = { codigo: 1 }; let fallo;
+  let api; let web; let agente; let muestreo; const inicio = new Date().toISOString(); let resultado = { codigo: 1 }; let fallo;
   const registroApi = resolve(tmpdir(), `ayacucho-002-e2e-${id}-api.log`); const registroWeb = resolve(tmpdir(), `ayacucho-002-e2e-${id}-web.log`);
   const mensajesAntes = await idsMailpit();
   try {
@@ -202,7 +221,12 @@ for (const [i, especificacion] of lotes.entries()) {
       datosCarga.sql = { prestadores: Number(psql(recursos.baseDatos, 'select count(*) from prestadores_perfiles').trim()), servicios: Number(psql(recursos.baseDatos, 'select count(*) from catalogo_servicios').trim()),
         publicados: Number(psql(recursos.baseDatos, "select count(*) from catalogo_servicios where estado='PUBLICADO'").trim()), categorias: Number(psql(recursos.baseDatos, 'select count(*) from catalogo_clasificaciones').trim()) };
     }
-    api = spawn(process.execPath, ['--import', 'tsx', 'scripts/e2e-efimero-002.ts', 'servir', id], { cwd: backend, stdio: ['ignore', openSync(registroApi, 'w'), openSync(registroApi, 'a')] });
+    if (modoCarga && opcionesCarga.redisCaido) {
+      // El Redis aislado (63850) existe solo para ensayos que lo detienen: se levanta, la API se conecta a él y se detendrá durante la carga. El Redis de la validación no se toca.
+      assert.equal(docker(['start', redisAislado]).status, 0, `No se pudo iniciar ${redisAislado} (proyecto Docker aislado de 002).`);
+      for (let i = 0; i < 40 && docker(['exec', redisAislado, 'redis-cli', 'ping']).stdout?.trim() !== 'PONG'; i += 1) await new Promise((r) => setTimeout(r, 500));
+    }
+    api = spawn(process.execPath, ['--import', 'tsx', 'scripts/e2e-efimero-002.ts', 'servir', id], { cwd: backend, env: { ...process.env, ...(modoCarga ? { NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --report-on-fatalerror --report-uncaught-exception --report-directory=${evidencia}`.trim() } : {}), ...(modoCarga && opcionesCarga.redisCaido ? { E2E_REDIS_URL_AISLADO: opcionesCarga.redisModo === 'rechazo' ? 'redis://127.0.0.1:63851' : 'redis://127.0.0.1:63850' } : {}) }, stdio: ['ignore', openSync(registroApi, 'w'), openSync(registroApi, 'a')] });
     if (!modoCarga) web = spawn(process.execPath, [resolve(frontend, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(identidad002Esperada.puertoWeb), '--strictPort', '--mode', 'validation'], { cwd: frontend, stdio: ['ignore', openSync(registroWeb, 'w'), openSync(registroWeb, 'a')] });
     serviciosActivos = [api, web].filter(Boolean);
     entrada.pids = { api: api.pid, ...(web ? { web: web.pid } : {}) }; await registrar(entornos);
@@ -212,9 +236,29 @@ for (const [i, especificacion] of lotes.entries()) {
     if (modoCarga) {
       await writeFile(resolve(evidencia, 'preparacion-carga-002.json'), JSON.stringify({ ejecucion: id, fecha: new Date().toISOString(), modo: 'carga k6', independencia: { ok: true, identidad002 }, recursos: { aislamiento: 'efimero', baseDatos: recursos.baseDatos, bucket: recursos.bucket, espacioRedis: recursos.espacioRedis }, datos: datosCarga, perfil: opcionesCarga.perfil, origen: opcionesCarga.origen }, null, 2));
       entrada.estado = 'en uso'; await registrar(entornos);
+      if (opcionesCarga.redisCaido) {
+        // Con Redis disponible se calienta la categoría pública y después se DETIENE: la corrida mide el respaldo en PostgreSQL con la caída ya ocurrida.
+        await esperarProxy('/api/v1/categorias'); if (opcionesCarga.redisModo !== 'rechazo') assert.equal(docker(['stop', redisAislado]).status, 0, 'No se pudo detener el Redis aislado.');
+        await esperarProxy('/api/v1/categorias'); await esperarProxy('/api/v1/servicios?tamano=1');
+      }
+      muestreo = iniciarMuestreo(api.pid);
+      const inicioK6 = new Date().toISOString();
       const argsK6 = ['run', '-e', 'CARGA_002=true', '-e', `ORIGEN=${opcionesCarga.origen}`, '-e', `MANIFIESTO=${manifiesto}`, '-e', `RESUMEN=${resumenK6}`, '-e', `PERFIL=${opcionesCarga.perfil}`,
         ...(opcionesCarga.vus ? ['-e', `VUS=${opcionesCarga.vus}`] : []), ...(opcionesCarga.duracion ? ['-e', `DURACION=${opcionesCarga.duracion}`] : []), ...(opcionesCarga.semilla ? ['-e', `SEMILLA=${opcionesCarga.semilla}`] : []), ...(opcionesCarga.controlNegativo ? ['-e', 'CONTROL_NEGATIVO=true'] : []), resolve(backend, 'test/performance/prestadores-catalogo.k6.js')];
-      const k6 = spawnSync('k6', argsK6, { cwd: backend, stdio: 'inherit', env: process.env });
+      // k6 corre de forma asíncrona para que el muestreo de recursos siga ejecutándose durante los 15 minutos (spawnSync bloquearía el bucle de eventos).
+      let salidaApi; api.once('exit', (codigo, senal) => { salidaApi = { codigo, senal, en: new Date().toISOString() }; });
+      const k6 = await new Promise((ok) => { const h = spawn('k6', argsK6, { cwd: backend, stdio: 'inherit', env: process.env }); h.once('error', (error) => ok({ error })); h.once('exit', (status) => ok({ status })); });
+      const muestras = await muestreo.detener(); muestreo = undefined;
+      await writeFile(resolve(evidencia, 'condiciones-ejecucion.json'), JSON.stringify({
+        ejecucion: id, escenario: opcionesCarga.redisCaido ? 'redis_caido' : opcionesCarga.perfil, inicioK6, finK6: new Date().toISOString(), origen: opcionesCarga.origen,
+        redis: opcionesCarga.redisCaido ? (opcionesCarga.redisModo === 'rechazo' ? { estado: 'inalcanzable: la API apunta a un puerto sin servicio (conexión rechazada)', url: 'redis://127.0.0.1:63851' } : { estado: 'contenedor aislado detenido durante toda la carga', contenedor: redisAislado, url: 'redis://127.0.0.1:63850' }) : { estado: 'disponible', url: 'redis://127.0.0.1:63800 (espacio descartable)' },
+        anfitrion: { sistema: `${process.platform} ${osRelease()}`, cpus: cpus().length, modeloCpu: cpus()[0]?.model, memoriaGB: Math.round(totalmem() / 2 ** 30), node: process.version },
+        versiones: { k6: (spawnSync('k6', ['version'], { encoding: 'utf8' }).stdout ?? '').trim(), docker: (docker(['version', '--format', '{{.Server.Version}}']).stdout ?? '').trim(), postgres: (psql(recursos.baseDatos, 'show server_version').trim()) },
+        contenedores: Object.fromEntries(['postgres', 'redis', 'objetos', 'proxy'].map((s) => [s, (docker(['inspect', contenedor(s), '--format', '{{.Config.Image}}']).stdout ?? '').trim()])),
+        api: { procesos: 1, comando: 'node --import tsx scripts/e2e-efimero-002.ts servir (composición oferta-002, 40 operaciones)', pool: 'valores por defecto de la configuración 002' },
+        procesoApi: salidaApi ? { terminoDuranteLaCarga: true, ...salidaApi } : { terminoDuranteLaCarga: false },
+        muestras,
+      }, null, 2));
       if (k6.error) throw k6.error;
       resultado = { codigo: k6.status ?? 1 };
     } else {
@@ -247,7 +291,13 @@ for (const [i, especificacion] of lotes.entries()) {
     resultado.cambios = diferenciaDeConteos(conteosIniciales, conteosFinales); resultado.auditoria = auditoria.length;
   } catch (error) { fallo = error instanceof Error ? error.message : String(error); resultado = { codigo: 1 }; }
   finally {
+    if (muestreo) await muestreo.detener().catch(() => undefined);
     detener(api); detener(web); detener(agente);
+    if (modoCarga && opcionesCarga.redisCaido) {
+      // El Redis aislado se deja como estaba (detenido) y sin claves de la corrida.
+      docker(['start', redisAislado]); for (let i = 0; i < 40 && docker(['exec', redisAislado, 'redis-cli', 'ping']).stdout?.trim() !== 'PONG'; i += 1) await new Promise((r) => setTimeout(r, 500));
+      docker(['exec', redisAislado, 'redis-cli', 'FLUSHALL']); docker(['stop', redisAislado]);
+    }
     await new Promise((r) => setTimeout(r, 1500));
     await rm(carpetaSenales, { recursive: true, force: true });
     // Mensajes de correo generados por ESTA corrida; los anteriores no se tocan.

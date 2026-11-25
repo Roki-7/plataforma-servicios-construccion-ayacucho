@@ -1089,6 +1089,41 @@ Tras cada serie: base, bucket y claves Redis descartables retirados, sin bloqueo
 - k6 confía en la CA 002 a través del almacén de certificados de Windows (importada previamente); con `--origen=directo` no usa TLS ni el proxy.
 - La proporción de 404 (servicio no disponible y perfil no publicable) en el trayecto es pequeña y aleatoria: en una serie corta puede no aparecer alguna operación.
 
+## T082 — EQ-01 y PR01 con 50 usuarios virtuales durante 15 minutos
+
+**Estado evaluado: EQ-01 = APROBADA (corrida nominal con Redis disponible); PR01 con Redis caído = cumplida en dos corridas independientes posteriores al cortacircuitos (`redis-caido-e` y `redis-caido-f`). T082 se cierra `[x]` con el riesgo residual descrito en «Anomalías».**
+
+### Configuración (todas las corridas)
+k6 2.0.0, escenario `prestadores-catalogo.k6.js` perfil `nominal` (50 VU constantes, 15 min, pausas de 3 a 8 s, semilla `20260101`), origen `https://localhost:8444` (proxy TLS), API compuesta de 40 operaciones (Node 24.15.0, un proceso) sobre base, bucket y espacio Redis **descartables**; conjunto de T081 (1 000 prestadores, 5 000 servicios, 3 606 visibles). Una sola carga a la vez. Evidencia (local, no versionada) en `tecnologia/.local/evidencia/002/carga-t082/<serie>/` (`resumen-k6.json`, `condiciones-ejecucion.json` con muestras cada 30 s, `serie-002.json`, `manifiesto-carga-002.json`).
+
+### Resultados globales por serie
+| Serie | Redis | Duración | Peticiones | RPS | p95 | p99 | Errores técnicos | Corrección | Veredicto |
+|---|---|---|---|---|---|---|---|---|---|
+| `nominal` | disponible | 930 s | 8 267 | 8,89 | 63 ms | 110 ms | 0 % | 100 % | **Válida; umbrales k6 cumplidos** |
+| `nominal-b` | disponible | 930 s | 8 050 | 8,65 | 139 ms | 5,65 s | 0,46 % | 99,54 % | Cumple EQ-01 (p95 ≤ 2 s, errores < 1 %); incumple el umbral estricto de corrección por 503 de una parada breve del anfitrión (≈ 25 s) |
+| `redis-caido` | detenido | 908 s | 12 631 | 13,91 | — | — | 71 % | 45 % | **Inválida**: la API murió (0xC0000409) |
+| `redis-caido-b` | detenido | 930 s | 8 246 | 8,86 | 68 ms | 127 ms | 0 % | 100 % | Válida, umbrales cumplidos (sin cortacircuitos) |
+| `redis-caido-c` | detenido | 930 s | 8 173 | 8,79 | 77 ms | 455 ms | 0,21 % | 99,79 % | Ráfaga por checkpoint largo de PostgreSQL |
+| `redis-caido-d` | detenido | 930 s | 8 271 | 8,90 | — | — | 91,7 % | 8 % | **Inválida**: API caída (0xC0000409) a las 19:12:52 |
+| **`redis-caido-e`** | **detenido durante toda la carga** | **931 s** (50 VU completos) | **8 228** | **8,84** | **83 ms** | **263 ms** | **0 %** | **100 %** | **Válida; todos los umbrales cumplidos; API viva; con cortacircuitos** |
+| **`redis-caido-f`** | **detenido durante toda la carga** | **929 s** (50 VU completos) | **8 207** | **8,83** | **57 ms** | **103 ms** | **0 %** | **100 %** | **Válida; 19 de 19 umbrales cumplidos; salida 0; API viva; con cortacircuitos; sin ningún `comprobacion_fallida`** |
+
+### Por operación — `nominal` y `redis-caido-e`
+`redis-caido-e` (Redis detenido): `categorias` 1 625 pet., p95 105 ms; `busqueda_servicios` 1 625, 98 ms; `busqueda_servicios_pagina` 823, 93 ms; `busqueda_prestadores` 628, 83 ms; `detalle_servicio` 1 429, 46 ms; `detalle_servicio_no_disponible` 196, 45 ms; `perfil_prestador` 1 759, 80 ms; `perfil_prestador_no_publicable` 141, 33 ms. Corrección 100 % en las ocho; máximo individual 620 ms. `redis-caido-f` (segunda corrida independiente, mismas condiciones y umbrales): `categorias` 1 602 pet., p95 47 ms (p99 391 ms, máx. 448 ms); `busqueda_servicios` 1 602, 70 ms; `busqueda_servicios_pagina` 856, 69 ms; `busqueda_prestadores` 663, 51 ms; `detalle_servicio` 1 423, 30 ms; `detalle_servicio_no_disponible` 179, 27 ms; `perfil_prestador` 1 755, 49 ms; `perfil_prestador_no_publicable` 125, 24 ms; corrección 100 % en las ocho y máximo individual 448 ms. Las dos corridas con cortacircuitos son equivalentes (8 228 y 8 207 peticiones, 0 errores, p95 83 y 57 ms). El detalle de `nominal` y de las demás series está en cada `resumen-k6.json`.
+
+### Corrida separada con Redis caído
+El contenedor Redis **aislado** (`ayacucho-redis002-aislado`, puerto 63850; la API descartable lo usa mediante `E2E_REDIS_URL_AISLADO`) se calienta y se **detiene antes de la carga**; el Redis de la validación no se toca. Con Redis caído el servicio continúa íntegro mediante PostgreSQL: 0 % de errores técnicos, 100 % de corrección y p95 de 83 ms (frente a 63 ms con Redis).
+- **Mitigación añadida:** `ClienteRedis002` abre un circuito tras un fallo y responde «no disponible» sin red durante `REDIS_REINTENTO_MS` (1 s por defecto; 0 lo desactiva), de modo que no se abre una conexión por petición mientras Redis no responde. Prueba unitaria `cliente-redis-circuito.spec.ts` (200 llamadas inmediatas con el circuito abierto; validación del parámetro).
+- **Recuperación al restablecer Redis:** `redis-revision.spec.ts` (suite opt-in: se omite si no existe `REDIS_AISLADO_URL=redis://127.0.0.1:63850`; por eso salió omitida en la primera ejecución) se ejecutó con esa variable fuera de cualquier carga: **5 de 5 pruebas pasan** (repetida tras `redis-caido-f`, también 5 de 5) (caché compartida entre réplicas, CA-CAT-10 con Redis detenido, repoblación tardía, revisión inaccesible → 503 y recuperación, rotación de espacio tras restaurar).
+
+### Anomalías y riesgo residual (sin relajar umbrales)
+1. **Caída de la API con Redis detenido (0xC0000409)** en 3 de 5 corridas previas al cortacircuitos (`redis-caido`, `-d` y una anterior); sin stderr ni informe de Node; causa raíz **no demostrada**. Evidencia disponible: en `redis-caido-d` la API murió ≈ 75 s tras iniciar k6 con memoria estable (216 → 118 → 121 MB) y CPU normal, es decir, sin fuga ni agotamiento observables; 0xC0000409 es un fast-fail nativo de Windows y no hay stderr, informe de Node ni volcado. No se identificó la causa. Hipótesis **no demostrada**: la apertura de una conexión nueva por petición hacia un Redis detenido (escenario que el circuito elimina). Contrapunto: `redis-caido-b`, sin circuito, completó 15 min sin caída; la caída era intermitente. Tras el cortacircuitos hay **dos** corridas independientes de 15 min sin caída (`-e`, `-f`) y 0 errores, lo que es coherente con la mitigación pero **no prueba** la causa; dos corridas no descartan una intermitencia de menor frecuencia. Si reaparece, repetir con volcado de proceso de Windows (WER/`procdump`) y reabrir T082.
+2. 503 de 5–13 s en `nominal-b` (parada ≈ 25 s del anfitrión) y ráfaga de 0,21 % en `-c` (checkpoint de PostgreSQL de 155–160 s): ruido del equipo de ensayo, ya documentado; no son fallos de la aplicación.
+3. `nominal` no tiene muestras de recursos (el muestreo se corrigió después); las demás series sí.
+
+### Calidad y aislamiento
+Backend `tsc` y `eslint` sin errores; 259 de 259 pruebas unitarias; `fundamentos-redis` y `redis-revision` pasan. Limpieza de PostgreSQL verificada con el rol documentado de la validación (`ayacucho_validacion_002`; no existe un rol `postgres`): `pg_database` solo contiene `ayacucho_002_validacion`, sin bases `ayacucho_002_test_*`; 0 claves `ayacucho:002:e2e-*` en el Redis de validación. Cada serie termina con recursos descartables en estado `retirado`, sin bloqueo ni procesos en 3002/5175, Redis aislado detenido y vacío, y `validacionLocalSinCambios: true`. No se modificó 001, `usuarios-acceso.yml`, el workflow de CI ni los volúmenes. T080 sigue pendiente; T083 no iniciada.
+
 ## T080 · Revisión integral de validaciones del perfil de cuenta (incidencia de la revisión manual; T080 sigue PENDIENTE)
 
 **Incidencia I-01.** En «Editar mi perfil» (funcionalidad 001, HU02/RF05) un teléfono con letras se guardó y se mostró «Perfil actualizado».
