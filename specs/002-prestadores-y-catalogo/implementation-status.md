@@ -1124,6 +1124,57 @@ El contenedor Redis **aislado** (`ayacucho-redis002-aislado`, puerto 63850; la A
 ### Calidad y aislamiento
 Backend `tsc` y `eslint` sin errores; 259 de 259 pruebas unitarias; `fundamentos-redis` y `redis-revision` pasan. Limpieza de PostgreSQL verificada con el rol documentado de la validación (`ayacucho_validacion_002`; no existe un rol `postgres`): `pg_database` solo contiene `ayacucho_002_validacion`, sin bases `ayacucho_002_test_*`; 0 claves `ayacucho:002:e2e-*` en el Redis de validación. Cada serie termina con recursos descartables en estado `retirado`, sin bloqueo ni procesos en 3002/5175, Redis aislado detenido y vacío, y `validacionLocalSinCambios: true`. No se modificó 001, `usuarios-acceso.yml`, el workflow de CI ni los volúmenes. T080 sigue pendiente; T083 no iniciada.
 
+## T083 · EQ-03 y PR03 — dos réplicas frente a una (T083 completada)
+
+**Estado evaluado: EQ-03 = APROBADA.** La configuración A (una réplica) a 25 VU y la B (dos réplicas con el doble de CPU y memoria) a 50 VU cumplen p95 ≤ 2 s y errores técnicos < 1 % durante 15 minutos completos, y ambas se comparan con A a 50 VU (referencia). **La aprobación se limita a esos umbrales: no demuestra escalabilidad bajo saturación** (ver «Limitaciones»).
+
+### Diseño del ensayo
+- **Imagen de ensayo** `ayacucho-backend-ensayo-002:t083` (`tecnologia/backend/Dockerfile.ensayo-002`): misma base y Node 24.15.0 que el `Dockerfile` de producción y **el mismo código `src/`** medido en T081/T082; añade `tsx` y el arnés `scripts/servir-replica-002.ts`, que sirve la misma composición de 40 operaciones sobre la base y el bucket descartables. La configuración de la 002 exige los recursos dedicados en 127.0.0.1; dentro del contenedor se atienden con relés TCP hacia PostgreSQL, Redis y objetos (idénticos con una y con dos réplicas) y un relé de entrada publica el puerto de la API. Sin cambios en `src/`.
+- **Presupuesto de las réplicas:** cada una con **1 CPU y 512 MB** (`--cpus 1 --memory 512m --memory-swap 512m`). A = 1 CPU y 512 MB totales; B = **2 CPU y 1 GiB totales (el doble)**. Los límites son efectivos: se leen del cgroup del contenedor (cgroup v1 de Docker Desktop: cuota 100 000/100 000 µs y 536 870 912 bytes) y el orquestador aborta si no coinciden; quedaron registrados en `condiciones-ejecucion.json` de cada serie.
+- **Recursos fijos comparables:** PostgreSQL (mismo contenedor `ayacucho-002-validacion-postgres-1`, misma configuración, sin límites propios; comparte el anfitrión Docker de 8 CPU y 3,73 GiB), Redis, objetos, correo, base descartable con los mismos datos (1 000 prestadores, 5 000 servicios, semilla `20260101`), mismo escenario k6 y mismos umbrales. Se midió el consumo real cada 30 s. Un único balanceador Caddy (round robin) en `https://localhost:8446` en las tres configuraciones (con un solo destino en A); el registro de accesos marca la réplica que atendió cada petición (`X-Replica`). Calentamiento idéntico antes de k6 (3 respuestas 200 consecutivas por réplica en cuatro rutas y 5 s de pausa); la distribución cuenta solo desde el inicio de k6. Una carga a la vez.
+- Código: `frontend/scripts/replicas-002.mjs` (nuevo), `frontend/scripts/ejecutar-e2e-002.mjs` (`--replicas`, `--cpus`, `--memoria`), `backend/test/performance/prestadores-catalogo.k6.js` (solo se admite además el origen 8446; umbrales sin cambios). Evidencia local (no versionada) en `tecnologia/.local/evidencia/002/carga-t083/<serie>/`.
+
+### Resultados de las tres mediciones válidas (15 min, perfil nominal, salida 0)
+| | A · 1 réplica · 25 VU (`a-1r-25vu`) | A · 1 réplica · 50 VU, referencia (`a-1r-50vu-3`) | B · 2 réplicas · 50 VU (`b-2r-50vu`) |
+|---|---|---|---|
+| Duración / peticiones | 930 s / 4 148 | 930 s / 8 232 | 930 s / 8 261 |
+| RPS | 4,46 | 8,85 | 8,88 |
+| p95 global | **66 ms** | **51 ms** | **51 ms** |
+| p99 global | 246 ms | 136 ms | 141 ms |
+| Errores técnicos | **0 %** | **0 %** | **0 %** |
+| Corrección | 100 % (8 operaciones) | 100 % | 100 % |
+| Umbrales k6 | 19/19 | 19/19 | 19/19 |
+| Estados HTTP | 3 985 × 200, 163 × 404 esperados | 7 933 × 200, 299 × 404 | 7 929 × 200, 332 × 404 |
+| Reparto del tráfico | 100 % réplica 1 | 100 % réplica 1 | **4 131 / 4 130 (50,0 % / 50,0 %)** |
+| CPU de la API (media; máx.) | 7,8 %; 49 % de 1 CPU | 8,8 %; 21 % | réplica 1: 5,8 %; 42 % · réplica 2: 5,3 %; 36 % |
+| Memoria de la API (media; máx.) | 133 MB; 137 MB de 512 | 158 MB; 163 MB | réplica 1: 131 MB; 136 MB · réplica 2: 128 MB; 133 MB |
+| PostgreSQL CPU media (máx.) / memoria | 12 % (35 %) / 56 MB | 16 % (78 %) / 87 MB | 12 % (50 %) / 94 MB |
+| Contenedores | sin OOM ni reinicios | sin OOM ni reinicios | ambas réplicas `running`, sin OOM ni reinicios |
+
+Por operación, el p95 máximo fue de 94 ms en A25, 79 ms en A50 y 76 ms en B (`busqueda_servicios_pagina`); el mayor valor individual observado fue de 1,48 s (`categorias`, A50) y 1,02 s (`busqueda_prestadores`, B), siempre bajo 2 s. El detalle por operación está en cada `resumen-k6.json`.
+
+### Evaluación contra el criterio de T083
+- A a 25 VU: p95 ≤ 2 s y errores técnicos < 1 % → cumple.
+- B a 50 VU con el doble de CPU y memoria totales: p95 ≤ 2 s y errores técnicos < 1 % → cumple; ambas réplicas atendieron tráfico (50/50) dentro de los presupuestos.
+- Comparación de A y B a 50 VU: p95 equivalente (51 ms), RPS equivalente (8,85 frente a 8,88), 0 % de errores en ambas y reparto uniforme; el consumo de CPU por réplica en B es ≈ 35 % menor que en A (carga repartida).
+- Doble presupuesto del backend y recursos fijos comparables documentados; ensayo Redis de dos réplicas **separado** (`redis-revision.spec.ts`, 5 de 5 en T082).
+- **EQ-03 / PR03: APROBADA.**
+
+### Series descartadas (conservadas, no usadas)
+- `a-1r-50vu`: **interrumpida** a los 2 min 35 s por suspensión del trabajo; `INTERRUMPIDA.md`; su `resumen-k6.json` era un resto de otra corrida y se renombró (`…ARRASTRADO-de-a-1r-25vu.json`).
+- `INVALIDO-intento-sin-proxy-a-1r-50vu-2`: el intento falló al inicio (faltaba el contenedor `proxy` 002 tras reiniciar Docker) y el script copió restos de la carpeta de trabajo; marcada `NO-EJECUTADA.md`. Se repitió como `a-1r-50vu-3`.
+- Estas dos no se usan en ninguna comparación. El script `carga-t083.sh` se corrigió para apartar restos (`carga-residuo/`) y guardar el código de salida.
+
+### Limitaciones
+- La carga de 50 VU con pausas de 3 a 8 s son ≈ 9 RPS; la API usó ≈ 9 % de su CPU y ≈ 30 % de su memoria. Con esa carga **no hay saturación** y duplicar réplicas no aporta mejora medible de latencia ni de RPS; la aprobación acredita que la ampliación mantiene los umbrales y reparte el tráfico, no una ganancia de capacidad. Probar saturación exigiría otro escenario fuera de T083.
+- Las tres corridas se ejecutan en una sola máquina (k6, Docker Desktop con 8 CPU y 3,73 GiB, base de datos y réplicas comparten anfitrión); los valores absolutos no se extrapolan a producción. El balanceador pasa por Docker Desktop (red virtual de Windows).
+- PostgreSQL no tiene límite propio: se garantiza igualdad de configuración y datos, y se registra su consumo, no un tope. Un único proceso k6 genera toda la carga.
+- Las 10 000 solicitudes del escenario integral y las comparaciones de cotizaciones siguen como cobertura posterior (T081).
+- Cada serie se ejecutó una vez; no se calcula variabilidad entre repeticiones.
+
+### Calidad y limpieza
+Backend `tsc` y `eslint` sin errores (incluye `scripts/servir-replica-002.ts`), 259 de 259 pruebas unitarias, `eslint` de `frontend/scripts` sin errores. Tras cada serie: réplicas, balanceador y base/bucket/claves descartables retirados, sin procesos k6 ni listeners en 8446/3002/5175, sin bloqueo; PostgreSQL de validación (sin límites, saludable) con `ayacucho_002_validacion` como única base 002 y datos sin cambios (`validacionLocalSinCambios: true`); 001 no se modificó. Incidencia operativa: tras reiniciar Docker hubo que levantar los contenedores 002 con el comando de Compose del quickstart (sin tocar volúmenes) y se recreó una vez el contenedor de PostgreSQL de validación para retirar un límite que Docker no permite quitar en caliente (volumen y datos intactos).
+
 ## T080 · Revisión integral de validaciones del perfil de cuenta (incidencia de la revisión manual; T080 sigue PENDIENTE)
 
 **Incidencia I-01.** En «Editar mi perfil» (funcionalidad 001, HU02/RF05) un teléfono con letras se guardó y se mostró «Perfil actualizado».

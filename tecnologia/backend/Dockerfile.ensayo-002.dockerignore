@@ -1,0 +1,14 @@
+node_modules/
+dist/
+test/
+.git/
+.local/
+.env*
+coverage/
+*.log*
+**/*.key
+**/*.crt
+**/*corpus*
+**/*catalogo-fixture*
+Dockerfile*
+.dockerignore

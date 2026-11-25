@@ -10,6 +10,7 @@
 // identificador de servicio, prestador o consulta llega a las métricas.
 //
 // Ejecución (la prepara `ejecutar-e2e-002.mjs --carga`, con una base, un bucket y un espacio Redis descartables):
+//   (T083: ORIGEN=https://localhost:8446 es el balanceador de réplicas del ensayo EQ-03/PR03.)
 //   k6 run -e CARGA_002=true -e ORIGEN=https://localhost:8444 -e MANIFIESTO=<manifiesto.json> -e RESUMEN=<resumen.json> -e PERFIL=humo|nominal|ensayo-rapido test/performance/prestadores-catalogo.k6.js
 //
 // Cobertura POSTERIOR (no incluida aquí): las 10 000 solicitudes del escenario integral de EQ-01 y las comparaciones de cotizaciones requieren funcionalidades posteriores a la 002.
@@ -20,7 +21,7 @@ import { Rate } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 
 const origen = __ENV.ORIGEN || 'https://localhost:8444';
-if (__ENV.CARGA_002 !== 'true' || !['https://localhost:8444', 'http://127.0.0.1:3002'].includes(origen)) {
+if (__ENV.CARGA_002 !== 'true' || !['https://localhost:8444', 'https://localhost:8446', 'http://127.0.0.1:3002'].includes(origen)) {
   throw new Error('Se requiere el entorno de carga descartable de la 002 (ejecutar-e2e-002.mjs --carga) y un origen local de la 002.');
 }
 if (!__ENV.MANIFIESTO) throw new Error('Falta MANIFIESTO (el manifiesto de resultados esperados).');
