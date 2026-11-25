@@ -1236,7 +1236,7 @@
         "properties": {
           "nombreMostrar": {
             "type": "string",
-            "description": "Nombre para persona o empresa.",
+            "description": "Nombre para persona o empresa. Sin caracteres de control (NUL, saltos de línea, tabuladores ni separadores Unicode de línea o párrafo); admite personas y empresas.",
             "minLength": 1,
             "maxLength": 200
           },
@@ -1288,7 +1288,7 @@
               "string",
               "null"
             ],
-            "description": "Opcional; registrarlo no autoriza compartirlo.",
+            "description": "Opcional; registrarlo no autoriza compartirlo. Solo dígitos, espacios y + - . ( ); entre 6 y 15 dígitos; sin formato nacional. Vacío o solo espacios equivale a null (se normaliza a null al guardar). La regla de caracteres y de cantidad de dígitos la valida el servidor y la rechaza con 400 DATOS_INVALIDOS y el motivo en detalles (campo telefono), no el esquema, para no devolver un error genérico.",
             "maxLength": 32
           },
           "distrito": {
@@ -1296,7 +1296,7 @@
               "string",
               "null"
             ],
-            "description": "Distrito de cuenta, no zona profesional de RF06.",
+            "description": "Distrito de cuenta, no zona profesional de RF06. Texto libre sin caracteres de control. Vacío o solo espacios equivale a null. El servidor rechaza los caracteres de control con 400 DATOS_INVALIDOS y el motivo en detalles.",
             "maxLength": 100
           },
           "fotografia": {
@@ -1600,7 +1600,7 @@
           },
           "nombreMostrar": {
             "type": "string",
-            "description": "Nombre para mostrar.",
+            "description": "Nombre para mostrar. Sin caracteres de control (NUL, saltos de línea, tabuladores ni separadores Unicode de línea o párrafo); admite personas y empresas.",
             "minLength": 1,
             "maxLength": 200
           },
@@ -1609,7 +1609,7 @@
               "string",
               "null"
             ],
-            "description": "Cambiarlo no autoriza divulgar el nuevo valor.",
+            "description": "Cambiarlo no autoriza divulgar el nuevo valor. Solo dígitos, espacios y + - . ( ); entre 6 y 15 dígitos; sin formato nacional. Vacío o solo espacios equivale a null (se normaliza a null al guardar). La regla de caracteres y de cantidad de dígitos la valida el servidor y la rechaza con 400 DATOS_INVALIDOS y el motivo en detalles (campo telefono), no el esquema, para no devolver un error genérico.",
             "maxLength": 32
           },
           "distrito": {
@@ -1617,7 +1617,7 @@
               "string",
               "null"
             ],
-            "description": "Opcional.",
+            "description": "Opcional. Texto libre sin caracteres de control. Vacío o solo espacios equivale a null. El servidor rechaza los caracteres de control con 400 DATOS_INVALIDOS y el motivo en detalles.",
             "maxLength": 100
           },
           "fotografiaId": {

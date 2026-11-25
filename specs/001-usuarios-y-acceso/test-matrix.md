@@ -1,4 +1,4 @@
-# Matriz de validación — 53 escenarios de 001
+# Matriz de validación — 57 escenarios de 001
 
 Los **53/53 CA** tienen evidencia por historia, nivel y versión. La evidencia
 transversal se registra por intento, incluidas las ejecuciones completas,
@@ -9,6 +9,12 @@ US1–US7, el incidente 503, la inestabilidad nativa y el corpus productivo pend
 T115 aprobó las **152 asociaciones** de los 53 CA con JUnit y la selección
 Playwright de Chromium a 768 px. La matriz completa T007 y CI se registran en
 T116 con sus resultados independientes.
+
+**Enmienda controlada 2026-11-25** (validación de contacto, revisión manual de T080 de
+la 002): se añaden CA-PER-07 a CA-PER-10 (FR-033), con lo que la matriz pasa a **57
+escenarios y 169 asociaciones** (152 + 17). Las 152 asociaciones originales conservan su
+evidencia histórica; las nuevas se verifican con las pruebas de la enmienda (ver
+[estado de implementación](implementation-status.md)).
 
 Fuente: [spec.md](spec.md). Regla de replay confirmada: [research R12](research.md#r12-tensión-documental-de-idempotencia-decisión-confirmada).
 El alcance sigue siendo RF01–RF05 y HU01–HU02; las variantes no crean nuevos CA.
@@ -92,6 +98,10 @@ replicar la misma aserción superficial en cada nivel.
 | CA-PER-04 | HU02 / RF05 | FR-017 | U/I/C | perfil | Modificar dato privado no cambia la proyección compartible ni publica correo/documentos/dirección. |
 | CA-PER-05 | HU02 / RF05 | FR-016 | I/C/E | perfil | Dos ediciones con misma versión: una gana y la otra409; no sobrescribir silenciosamente. |
 | CA-PER-06 | HU02 / RF05 | FR-031 | U/I/C/E | perfil | Registrar teléfono no autoriza; true explícito autoriza valor, false retira; cambiar número no hereda consentimiento del anterior. |
+| CA-PER-07 | HU02 / RF05 | FR-033 | U/I/C/V/E | perfil | Teléfono con letras o símbolos, con menos de 6 o más de 15 dígitos o de más de 32 caracteres: 400 con el motivo junto al campo, sin guardar nada; los teléfonos con formato internacional válidos se admiten sin imponer formato nacional; también en el registro. |
+| CA-PER-08 | HU02 / RF05 | FR-033 | U/I/C/V | perfil | Teléfono y distrito vacíos o de solo espacios se normalizan a null (verificado en PostgreSQL) y siguen siendo opcionales; la repetición idempotente conserva el resultado. |
+| CA-PER-09 | HU02 / RF05 | FR-033 | U/I/C/V | perfil | NUL, saltos de línea, tabuladores y otros caracteres de control (y U+2028/U+2029) se rechazan en nombre, teléfono y distrito, con motivo por campo y sin guardar; los nombres de personas y empresas con tildes y signos habituales se admiten. |
+| CA-PER-10 | HU02 / RF05 | FR-033 | U/I/C/V | perfil | El distrito de cuenta es texto libre de hasta 100 caracteres, sin lista cerrada y sin caracteres de control. |
 | CA-COR-01 | HU02; apoyo HU01 / RF05; apoyo RF02/RF04 | FR-023, FR-032 | I/C/E | correo | Solicitud con autenticación de hasta300 s: autorizada, correo anterior permanece hasta verificación y desafío se entrega al nuevo. |
 | CA-COR-02 | HU02; apoyo HU01 / RF05; apoyo RF02/RF04 | FR-032 | U/I/C | correo | 299.999/300/300.001 s y sin marca: admitir/admitir/exigir contraseña/exigir contraseña; usar misma sesión. |
 | CA-COR-03 | HU02; apoyo HU01 / RF05; apoyo RF02/RF04 | FR-032 | U/I/C | correo | Actividad/refresh no renuevan marca; fecha enviada por cliente no manda; reautenticación correcta sí actualiza su sesión. |

@@ -11,7 +11,7 @@ test('CA-REC-08 CA-PER-02 CA-AUT-01 el reset preserva perfil, invalida accesos p
   const cuenta = await cuentaFicticia(e.db, ['cliente', 'prestador']);
   const otra = await e.post('/sesiones', {correo: cuenta.correo, contrasena: cuenta.contrasena}).expect(200);
   const foto = await e.post('/perfil/fotografias', await imagenPerfil(), randomUUID(), cuenta.acceso).expect(201);
-  const cambios = {nombreMostrar: 'Titular de regresión', telefono: '123', distrito: 'Ayacucho', fotografiaId: foto.body.fotografiaId, autorizarCompartirTelefono: true};
+  const cambios = {nombreMostrar: 'Titular de regresión', telefono: '123456', distrito: 'Ayacucho', fotografiaId: foto.body.fotografiaId, autorizarCompartirTelefono: true};
   const {body: perfil} = await e.patch(cuenta.acceso, {version: 1, ...cambios}).expect(200);
   const enlace = await emitirEnlace(e, cuenta.correo);
   await e.post('/recuperaciones/' + enlace.token, datosRecuperacion()).expect(200);

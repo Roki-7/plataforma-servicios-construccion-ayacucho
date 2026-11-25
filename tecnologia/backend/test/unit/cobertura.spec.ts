@@ -5,8 +5,8 @@ test('T115 usa la matriz normativa y detecta una asociación ausente', async () 
   const base = new URL('../../../../specs/001-usuarios-y-acceso/',import.meta.url);
   const [spec,tabla] = await Promise.all(['spec.md','test-matrix.md'].map(p=>readFile(new URL(p,base),'utf8')));
   const matriz = leerMatriz(spec!,tabla!);
-  expect(matriz.size).toBe(53);
-  expect([...matriz.values()].flat().length).toBe(152);
+  expect(matriz.size).toBe(57);
+  expect([...matriz.values()].flat().length).toBe(169);
   const cubiertos: Parameters<typeof verificarAsociaciones>[1] = new Map();
   for(const [caso,ns] of matriz) for(const nivel of ns) {
     const conjunto = cubiertos.get(nivel)??new Set<string>();

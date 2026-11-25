@@ -1088,3 +1088,39 @@ Tras cada serie: base, bucket y claves Redis descartables retirados, sin bloqueo
 - El conjunto se carga por SQL directo en la base descartable (como los arneses de HU05), no por la API; así cada corrida parte del mismo estado exacto. La caché de lectura de Redis arranca vacía en cada corrida.
 - k6 confía en la CA 002 a través del almacén de certificados de Windows (importada previamente); con `--origen=directo` no usa TLS ni el proxy.
 - La proporción de 404 (servicio no disponible y perfil no publicable) en el trayecto es pequeña y aleatoria: en una serie corta puede no aparecer alguna operación.
+
+## T080 · Revisión integral de validaciones del perfil de cuenta (incidencia de la revisión manual; T080 sigue PENDIENTE)
+
+**Incidencia I-01.** En «Editar mi perfil» (funcionalidad 001, HU02/RF05) un teléfono con letras se guardó y se mostró «Perfil actualizado».
+
+### Reglas aprobadas de 001 para los campos editables
+| Campo | Regla aprobada (fuente) | Backend | Frontend | Base de datos |
+|---|---|---|---|---|
+| Nombre para mostrar | Obligatorio, no vacío, hasta 200 puntos de código; persona o empresa, sin imponer nombres/apellidos (`data-model.md` §0 y §1; contrato `ActualizarPerfil`; CA-PER-02/03) | Cumple (vacío, solo espacios y 201 se rechazan) | Cumple | `CHECK char_length BETWEEN 1 AND 200` |
+| Teléfono | Opcional, privado, hasta 32; **«No imponer formatos nacionales al teléfono»** (`data-model.md` §0); contrato: `string \| null`, `maxLength: 32`, sin patrón; no equivale a autorizar su divulgación (CA-PER-06) | Cumple lo aprobado: acepta cualquier texto bien formado de hasta 32 | Ídem | `CHECK char_length <= 32` |
+| Distrito de cuenta | Opcional, hasta 100; «dato opcional de cuenta, no zona profesional»; no restringirlo al distrito de RF06 | Cumple (texto libre) | Ídem | `CHECK <= 100` |
+| Fotografía | UUID de una fotografía propia, validada y utilizable | Cumple (UUID; propiedad y objeto verificados en la transacción; pruebas CA-PER-02/03 existentes) | Subida con validación previa | FK |
+| Correo | No editable por el perfil (`PROPIEDAD_NO_ADMITIDA`); se cambia por el flujo de reautenticación y verificación (US6); formato válido, hasta 320 | Cumple | Cumple | `CHECK` de forma |
+| Contraseña | No editable por el perfil; 15 a 128 caracteres, sin composición obligatoria, no común (FR-022, CA-REG-09 a 11, US3/US6) | Cumple (suites existentes) | Cumple | hash Argon2id |
+
+### Reproducción controlada (validador del backend, 23 entradas)
+- Aceptados, **conformes a lo aprobado**: teléfono `abc123xyz`, `!!!@@@`, `<script>`, `999
+888`, `""`, solo espacios; distrito `12345@@` y `""`; nombre con salto de línea. Rechazados: teléfono de 33, distrito de 101, nombre vacío, solo espacios o de 201, `fotografiaId` no UUID, `correo` y `contrasena` como campos del perfil.
+- **Conclusión sobre el teléfono con letras:** **no incumple una regla aprobada**; la especificación no define qué caracteres admite un teléfono y solo prohíbe imponer formatos nacionales. Es una **laguna de especificación** y requiere una decisión antes de cambiar el alcance (ver «Decisiones pendientes»). No se introdujo ninguna restricción nueva.
+
+### Defecto confirmado y corregido (D-01)
+- **Síntoma:** un carácter NUL (U+0000) en nombre, teléfono o distrito (y en el correo del registro) superaba la validación y PostgreSQL lo rechazaba al guardar: la API respondía **503** «servicio no disponible» en lugar de **400** con el motivo del campo. Reproducido con la prueba de integración nueva (3 de 3 fallaban con 503). Incumple CA-PER-03 («se rechaza el cambio, se explican las correcciones y se conserva el perfil anterior») y FR-020.
+- **Corrección** (no cambia ninguna regla aprobada: PostgreSQL no puede almacenar NUL): `validarEdicionPerfil` (`dominio/consentimiento-telefono.ts`) y `texto()` del registro (`dominio/cuenta.ts`) rechazan NUL con `DATOS_INVALIDOS` y el motivo del campo; el frontend lo rechaza antes de enviar (`aplicacion/perfil.ts`, `aplicacion/registro.ts`) con el mismo mensaje accesible por campo. El contrato OpenAPI no cambia.
+- **Pruebas nuevas:** unitarias de backend `perfil-validacion.spec.ts` (6 casos: NUL en cada campo del perfil y del registro más las reglas aprobadas intactas), integración `perfil-validacion.spec.ts` (3 casos, 400 y perfil sin cambios en base) y unitaria de frontend (`validarPerfilWeb`). Un E2E con NUL no es viable desde el navegador (no se puede teclear); los E2E del perfil no cambian.
+
+### Resultados
+Backend `tsc` y `eslint` sin errores; unitarias 267/267; contratos de 001 118/118; integración de 001 107/107 (12 suites, incluida la nueva); frontend `tsc` y `eslint` sin errores y 49/49 pruebas de acceso. E2E de 001 con Chromium: la primera ejecución (`evidencia/002/t080-validacion-perfil/`) falló en `registro.spec.ts` (360 y 1366 px) y en `recuperacion-perfil` a 360 px. **Diagnóstico corregido:** en un primer informe se atribuyó a «selectores obsoletos de 001»; era un error. Las pruebas del repositorio ya usaban «¿Cómo usarás la plataforma?» y el menú plegable; el ejecutor (`probar-navegadores.mjs --sin-construir`) corre dentro de la imagen `ayacucho-001-e2e:fundacion`, que **copia `test/` al construirse** y tenía una copia antigua. No hubo ningún cambio de código ni de pruebas de 001 para esto: se reconstruyó la imagen (misma etiqueta, desde `Dockerfile.e2e` y el código vigente) y se repitió. Resultado (evidencia en `evidencia/002/t080-regresion-001-imagen-reconstruida/`): las seis suites E2E de 001 (`registro`, `sesiones`, `contrasena`, `permisos`, `recuperacion-perfil`, `seguridad-navegador`) **pasan a 360 y a 1366 px (12 de 12)**. Regresión de 002 tras el cambio: integración de 002 143/143 (15 suites) y contratos de 002 65/65 (6 suites, incluida `regresion-001-002`). Las pruebas de integración y de contrato de 001 de la primera ejecución (107/107 y 118/118) no se repiten porque el código no cambió desde entonces.
+
+### Decisiones aprobadas e implementadas (enmienda controlada de 001, 2026-11-25)
+
+El responsable del producto aprobó las cuatro decisiones: teléfono opcional con solo dígitos, espacios y `+ - . ( )`, 6 a 15 dígitos y hasta 32 caracteres, sin formato nacional; teléfono y distrito vacíos o de solo espacios se guardan como null; se rechazan NUL, saltos de línea, tabuladores y demás caracteres de control en nombre, teléfono y distrito; distrito de cuenta como texto libre de hasta 100 caracteres sin lista cerrada. **Incidencia I-01 resuelta**; la enmienda, sus cambios, pruebas y resultados están en `specs/001-usuarios-y-acceso/implementation-status.md` («Enmienda controlada 2026-11-25»), con `spec.md` (FR-033, CA-PER-07 a CA-PER-10), `data-model.md`, el contrato y la matriz de pruebas actualizados. No cambia el alcance de la 002.
+
+- **Regresión de 001 tras la enmienda:** unitarias 315/315, contratos 126/126, integración 129/129, frontend 152/152 y E2E de Chromium a 360 y 1366 px 16/16 (imagen de navegadores reconstruida; evidencia en `evidencia/002/t080-enmienda-001-e2e/`).
+- **Regresión de 002:** integración 143/143 y contratos 65/65 (incluida la compatibilidad con 001).
+- **Corrección de un diagnóstico anterior:** los fallos de `registro.spec.ts` y de `recuperacion-perfil` a 360 px que se atribuyeron a «selectores obsoletos» eran de una imagen Docker de navegadores desactualizada; con la imagen reconstruida pasan sin cambios de código.
+- **T080 sigue PENDIENTE:** faltan los recorridos manuales R1 a R9 en computadora y celular reales; los formularios de cuenta tienen ahora ayuda y errores nuevos en el teléfono que deben revisarse en esos recorridos (R4 y R7).

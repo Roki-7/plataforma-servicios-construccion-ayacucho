@@ -244,6 +244,24 @@ y fotografía en una cuenta de prueba, comprobando titularidad y persistencia.
 6. **CA-PER-06 — Given** un teléfono registrado, **When** no existe autorización
    explícita del titular para compartirlo, **Then** no se comparte. Registrar
    el teléfono no equivale a autorizar su divulgación.
+7. **CA-PER-07 — Given** una edición del perfil con un teléfono que contiene letras
+   o símbolos distintos de dígitos, espacios, `+`, `-`, `.` y paréntesis, o con menos
+   de 6 o más de 15 dígitos, o con más de 32 caracteres, **When** se intenta guardar,
+   **Then** se rechaza con un mensaje junto al campo que indica la regla, no se guarda
+   nada y se conserva el perfil anterior. Un teléfono válido no depende de un formato
+   nacional (admite, por ejemplo, `+51 984 123 456` y `(01) 234-5678`).
+8. **CA-PER-08 — Given** un teléfono o un distrito vacío o con solo espacios,
+   **When** se guarda el perfil o se registra la cuenta, **Then** el valor se
+   normaliza a null en PostgreSQL y los dos campos siguen siendo opcionales.
+9. **CA-PER-09 — Given** un nombre para mostrar, un teléfono o un distrito con
+   caracteres de control (NUL, saltos de línea, tabuladores u otros de la categoría
+   Unicode Cc), **When** se intenta guardar o registrar, **Then** se rechaza con
+   400 `DATOS_INVALIDOS` y el motivo del campo, sin guardar nada. Los nombres de
+   personas y empresas con tildes, ñ y signos habituales (`.`, `,`, `&`, `-`, `'`)
+   se siguen admitiendo.
+10. **CA-PER-10 — Given** un distrito de cuenta, **When** se guarda, **Then** es
+    texto libre de hasta 100 caracteres sin caracteres de control; no se compara con
+    una lista cerrada de distritos.
 
 ### User Story 6 - Cambiar el correo de acceso (Priority: P1)
 
@@ -319,6 +337,9 @@ contraseña actual correcta e incorrecta y comprobar qué credencial inicia sesi
 | Correo duplicado con distinto uso de mayúsculas o registro simultáneo | No duplicar la cuenta; CA-REG-03. La misma equivalencia se aplica al acceso y al cambio de correo. |
 | Falta de consentimiento, perfil o confirmación de contraseña | No completar el registro; CA-REG-02 y CA-REG-05. |
 | Teléfono, distrito o fotografía ausentes | No impedir el registro; CA-REG-08. |
+| Teléfono con letras o símbolos, con menos de 6 o más de 15 dígitos o de más de 32 caracteres | Rechazarlo con el motivo del campo; CA-PER-07. |
+| Teléfono o distrito vacío o con solo espacios | Normalizar a null; CA-PER-08. |
+| Nombre, teléfono o distrito con NUL, saltos de línea, tabuladores u otros caracteres de control | Rechazarlos con 400 y el motivo del campo; CA-PER-09. |
 | Contraseñas de 14, 15, 128 y 129 caracteres | Aplicar los límites inclusivos de 15 a 128; CA-REG-09. |
 | Espacios, pegado y ausencia de combinaciones de tipos de caracteres | No rechazarlos por esos motivos; CA-REG-10. |
 | Contraseña común o comprometida | Rechazarla aunque cumpla la longitud; CA-REG-11. |
@@ -399,6 +420,16 @@ son decisiones confirmadas del usuario, no supuestos.
   la cuenta protegida; las fallas NO DEBEN comunicarse como operaciones exitosas.
 - **FR-021 (RF01, RF05)**: Teléfono, distrito y fotografía DEBEN ser opcionales
   al registrarse. La información profesional se completa en RF06, no en 001.
+- **FR-033 (RF01, RF05)** *(enmienda controlada 2026-11-25)*: El servidor DEBE validar
+  por sí mismo, en el registro y en la edición del perfil: (a) nombre para mostrar
+  obligatorio, de hasta 200 caracteres y sin caracteres de control; (b) teléfono
+  opcional con solo dígitos, espacios y `+ - . ( )`, entre 6 y 15 dígitos y hasta 32
+  caracteres en total, sin imponer un formato nacional; (c) distrito opcional de
+  texto libre de hasta 100 caracteres y sin caracteres de control. Teléfono y distrito
+  vacíos o con solo espacios DEBEN almacenarse como null. Los datos inválidos NO DEBEN
+  guardarse y la respuesta DEBE indicar el motivo por campo. La validación del
+  navegador es solo una ayuda y usa los mismos mensajes. Los valores ya almacenados
+  antes de la enmienda no se migran y solo se revalidan si el titular los cambia.
 - **FR-022 (RF01, RF03, RF05)**: Las contraseñas nuevas DEBEN tener entre 15 y
   128 caracteres inclusive y confirmación coincidente. Se DEBEN admitir espacios
   y pegado desde gestores, sin combinaciones obligatorias de mayúsculas, números
@@ -628,6 +659,28 @@ criterios anteriores; no son propuestas pendientes.
   Si pasó más tiempo o no hay registro, se pide nuevamente la contraseña.
   Actividad y renovación automática no reinician el plazo; el servidor comprueba
   la condición. La verificación del nuevo correo sigue siendo obligatoria.
+
+### Enmienda controlada — 2026-11-25 (revisión manual de T080)
+
+La revisión manual de T080 (002) mostró que «Editar mi perfil» aceptó un teléfono con
+letras. La especificación no fijaba qué caracteres admite un teléfono (solo prohibía
+imponer formatos nacionales). El responsable del producto aprobó expresamente estas
+cuatro decisiones como enmienda controlada de 001; no cambian la autenticación, los
+permisos ni la privacidad:
+
+- **D1 — Teléfono**: opcional; solo dígitos, espacios, `+`, `-`, `.` y paréntesis;
+  de 6 a 15 dígitos cuando se proporciona; máximo 32 caracteres en total; sin formato
+  exclusivamente peruano. (CA-PER-07, FR-033.)
+- **D2 — Vacíos**: teléfono o distrito vacíos o con solo espacios se normalizan a null
+  y siguen siendo opcionales; PostgreSQL almacena null. (CA-PER-08.)
+- **D3 — Caracteres de control**: se rechazan NUL, saltos de línea, tabuladores y los
+  demás caracteres de control en nombre, teléfono y distrito; se mantienen las reglas
+  de nombres de personas y empresas con tildes y signos habituales. (CA-PER-09.)
+- **D4 — Distrito**: texto libre de cuenta, sin lista cerrada, máximo 100 caracteres y
+  sin caracteres de control. (CA-PER-10.)
+
+También se corrige el carácter NUL (U+0000), que superaba la validación y provocaba una
+falla de la base de datos (503 en lugar de 400).
 
 No quedan aclaraciones de negocio abiertas entre las preguntas planteadas.
 La especificación está lista para revisión y planificación; las dependencias

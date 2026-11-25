@@ -6,6 +6,28 @@ Las siete historias y sus 53 CA conservan su evidencia por nivel. La versión de
 identifican instantáneas locales de fuentes y pruebas sobre ese commit. Cada
 intento nuevo está debajo de `tecnologia/.local/evidencia/001/cierre/`.
 
+## Enmienda controlada 2026-11-25 — validación de contacto del perfil (revisión manual de T080 de la 002)
+
+**Origen.** En la revisión manual de T080 «Editar mi perfil» guardó un teléfono con letras. La especificación no definía qué caracteres admite un teléfono (solo prohibía formatos nacionales). El responsable del producto aprobó expresamente cuatro decisiones como enmienda controlada de 001; no cambian autenticación, permisos ni privacidad.
+
+**Decisiones aprobadas (spec.md «Enmienda controlada», FR-033, CA-PER-07 a CA-PER-10).**
+- **D1 teléfono:** opcional; solo dígitos, espacios, `+ - . ( )`; 6 a 15 dígitos; hasta 32 caracteres; sin formato nacional.
+- **D2 vacíos:** teléfono y distrito vacíos o de solo espacios se guardan como null.
+- **D3 control:** se rechazan NUL, saltos de línea, tabuladores y los demás caracteres de control (categoría Cc más U+2028/U+2029) en nombre, teléfono y distrito; las reglas de nombres de personas y empresas se conservan.
+- **D4 distrito:** texto libre de cuenta, máximo 100, sin lista cerrada.
+
+**Defectos y cambios.**
+- **D-01 (defecto previo, corregido):** un NUL en nombre, teléfono, distrito o correo superaba la validación y PostgreSQL lo rechazaba: 503 en lugar de 400 (reproducido con la integración nueva: fallaba con 503).
+- **Backend:** `dominio/datos-contacto.ts` (nuevo: reglas, motivos por campo y normalización), `dominio/cuenta.ts` (registro), `dominio/consentimiento-telefono.ts` (edición) y los casos de uso `actualizar-perfil.ts` y `registrar-cuenta.ts` (normalizan después de validar; la clave de idempotencia usa el cuerpo original). Un rechazo informa todos los campos inválidos a la vez y no guarda nada. Sin `CHECK` nuevo ni migración: los valores anteriores no se migran y solo se revalidan si el titular los cambia.
+- **Frontend:** `aplicacion/validacion-contacto.ts` (nuevo, mismas reglas y mensajes), `perfil.ts`, `registro.ts`, `Registro.tsx` y `EditarPerfil.tsx`: ayuda visible del teléfono enlazada con `aria-describedby`, `type="tel"` e `inputMode="tel"`, `aria-invalid` y error junto al campo; vacíos se envían como null.
+- **Contrato y datos:** `contracts/openapi.json` (y su espejo `tecnologia/backend/contracts/openapi.json`) documenta las reglas en las descripciones y conserva `maxLength` 200/32/100. **No se usa `pattern`:** el adaptador HTTP compartido responde 400 sin motivo por campo ante un fallo de esquema en el cuerpo y no se modificó por ser común a 001 y 002. `data-model.md`, `spec.md`, `contracts/README.md` y `test-matrix.md` (57 escenarios, 169 asociaciones) actualizados; `scripts/verificar-cobertura-001.ts` y `test/unit/cobertura.spec.ts` esperan ahora 57 casos y 169 asociaciones.
+
+**Pruebas nuevas y adaptadas.** Unitarias de backend `perfil-validacion.spec.ts` (57 casos); integración `perfil-validacion.spec.ts` (25 casos con PostgreSQL real: datos inválidos no se guardan, vacíos quedan `NULL`, repetición idempotente, registro); contrato `perfil-validacion.spec.ts` (cuerpo `Error`, `Perfil`, `RegistroResultado`); frontend (perfil y registro: mensajes, accesibilidad, null, distrito libre; 18 casos nuevos); E2E Playwright `perfil-validacion.spec.ts` (recorrido completo con recarga de página). Los teléfonos de prueba que ya no eran válidos (`111`, `+51 libre`, etc.) se sustituyeron por números válidos en las suites existentes; los dos mensajes de «nombre vacío» pasaron a «Ingrese su nombre para mostrar.».
+
+**Resultados (2026-11-25).** Backend `tsc` y `eslint` sin errores; unitarias 315/315; contratos de 001 126/126 (11 suites); integración de 001 129/129 (12 suites; un fallo aislado de `registro.spec.ts` tras un E2E no se reprodujo en dos repeticiones, 10/10 y 129/129); frontend `tsc`, `eslint` y 152/152 pruebas. **E2E en Chromium con la imagen reconstruida a 360 y 1366 px: 16/16** (perfil-validacion, perfil, registro, sesiones, contrasena, permisos, recuperacion-perfil, seguridad-navegador; resumen en `tecnologia/.local/evidencia/002/t080-enmienda-001-e2e/`). Regresión de 002: integración 143/143 (15 suites) y contratos 65/65 (6 suites, incluida `regresion-001-002`).
+
+**Nota sobre los E2E.** El ejecutor corre dentro de la imagen `ayacucho-001-e2e:fundacion`, que copia `test/` al construirse; una imagen antigua hace fallar suites ya corregidas. Se reconstruyó antes de esta regresión.
+
 ## Criterios y resultados por tarea
 
 | Tarea | Versión, alcance y resultado | Evidencia |

@@ -1,10 +1,11 @@
 import type { ApiUsuarios } from './puertos.js';
 import type { ActualizarPerfil, ImagenEntrada } from '../modelos/contratos.js';
+import { motivoDistrito, motivoNombre, motivoTelefono } from './validacion-contacto.js';
 export function validarPerfilWeb(d: ActualizarPerfil): Record<string,string> {
   const e:Record<string,string>={};
-  const valido=(v:string)=>!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(v);
-  if(d.nombreMostrar !== undefined && (!valido(d.nombreMostrar) || !d.nombreMostrar.trim() || [...d.nombreMostrar].length>200))e['nombreMostrar']='Ingrese un nombre válido de hasta 200 caracteres.';
-  for(const [campo,max]of [['telefono',32],['distrito',100]]as const){const v=d[campo];if(v!==undefined && v!==null && (!valido(v) || [...v].length>max))e[campo]=`Ingrese hasta ${max} caracteres válidos.`;}
+  if(d.nombreMostrar !== undefined){const m=motivoNombre(d.nombreMostrar);if(m)e['nombreMostrar']=m;}
+  if(d.telefono !== undefined && d.telefono !== null){const m=motivoTelefono(d.telefono);if(m)e['telefono']=m;}
+  if(d.distrito !== undefined && d.distrito !== null){const m=motivoDistrito(d.distrito);if(m)e['distrito']=m;}
   return e;
 }
 export class PerfilWeb {

@@ -24,7 +24,7 @@ test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesi
   const editar = (headers: typeof sesion, data: object) => request.patch('/api/v1/perfil', {
     headers: {...headers, ...origen, 'Idempotency-Key': randomUUID()}, data,
   });
-  const datos = {nombreMostrar: 'Perfil editado', telefono: '123', distrito: 'Ayacucho'};
+  const datos = {nombreMostrar: 'Perfil editado', telefono: '123456', distrito: 'Ayacucho'};
   const guardado = await editar(sesion, {version: 1, ...datos});
   expect(guardado.status()).toBe(200);
   const perfil = await guardado.json();

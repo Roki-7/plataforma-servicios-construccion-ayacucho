@@ -80,6 +80,22 @@ objetivo procede siempre de la sesión. Campos extra como cuentaId, administrado
 correo en PATCH o identificador interno modificable se rechazan con 400.
 Fotos ajenas reciben 404; el rol por sí solo no permite leerlas.
 
+### Validación de contacto en `POST /cuentas` y `PATCH /perfil` (enmienda controlada 2026-11-25, FR-033)
+
+El servidor valida por sí mismo, sin depender del navegador:
+
+| Campo | Regla | Rechazo |
+|---|---|---|
+| `nombreMostrar` | Obligatorio, 1 a 200 caracteres, sin caracteres de control | 400 `DATOS_INVALIDOS`, motivo en `detalles` (`campo: nombreMostrar`) |
+| `telefono` | Opcional (`string` o `null`); solo dígitos, espacios y `+ - . ( )`; de 6 a 15 dígitos; hasta 32 caracteres; sin formato nacional; vacío o solo espacios se guarda como `null` | 400 `DATOS_INVALIDOS`, motivo en `detalles` (`campo: telefono`) |
+| `distrito` | Opcional; texto libre de hasta 100 caracteres, sin caracteres de control; vacío o solo espacios se guarda como `null` | 400 `DATOS_INVALIDOS`, motivo en `detalles` (`campo: distrito`) |
+
+«Caracteres de control» son la categoría Unicode Cc (NUL, saltos de línea, tabuladores, DEL y controles C1)
+y los separadores de línea y de párrafo (U+2028, U+2029). Los límites de longitud los aplica además el esquema
+(`maxLength`), que responde 400 sin motivo por campo; las demás reglas se declaran en las descripciones del
+esquema y se rechazan en el dominio con el motivo del campo (no se usa `pattern` para no devolver un error
+genérico). Un rechazo no guarda nada. Los valores almacenados antes de la enmienda no se migran.
+
 ## Sesiones, cookies y CSRF
 
 Bearer opaco de 256 bits en Authorization; digest y estado en PostgreSQL.
