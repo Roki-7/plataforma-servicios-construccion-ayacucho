@@ -22,8 +22,9 @@ Documentar los patrones previstos en el backend, indicando dónde se utilizan, q
 | Unit of Work | Guardado coordinado de la aceptación. | Evitar que queden cambios parciales en la contratación, la solicitud, las propuestas y el aviso. | Un contexto transaccional compartido por operación. | UnidadDeTrabajo, UnidadDeTrabajoBD. |
 | Transactional Outbox | Contratación → avisos pendientes. | Conservar la intención de envío aunque falle el proveedor después de guardar el acuerdo. | Aviso almacenado con la operación y envío posterior al commit. | AvisosPendientes, RegistroAvisosAdapter y proceso de avisos pendientes del módulo Notificaciones. |
 | Clave de idempotencia (Idempotency Key) | Peticiones de aceptación y confirmación. | Evitar que un doble clic o un reintento tras una desconexión cree una segunda contratación. | Clave enviada por la aplicación web, reservada y guardada con el resultado dentro de la transacción. | AceptarPropuestaCommand, UnidadDeTrabajo, UnidadDeTrabajoBD. |
+| Decorator | Catálogo y búsqueda (002) → consultas públicas de oferta y de categorías. | Acelerar las lecturas más frecuentes sin cambiar los casos de uso y sin que Redis decida la frescura. | Decoradores que envuelven la consulta con Redis y una revisión durable de PostgreSQL que forma parte de la clave; si Redis falla, resuelve PostgreSQL. | CatalogoCache, CategoriasConCache y la [estrategia de caché](../../02-arquitectura-software/estrategia-de-cache.md). |
 
-Transactional Outbox es un patrón de integración y consistencia; no pertenece al catálogo clásico GoF. Se incluye porque forma parte del flujo documentado. Los puertos del backend se ubican en Aplicación y sus implementaciones en Infraestructura.
+El Decorator de lectura con caché ya está aplicado en la 002 (Redis activo desde la entrega, con revisión durable y respaldo en PostgreSQL); su detalle y los datos que no se guardan en caché están en la [estrategia de caché](../../02-arquitectura-software/estrategia-de-cache.md). Transactional Outbox es un patrón de integración y consistencia; no pertenece al catálogo clásico GoF. Se incluye porque forma parte del flujo documentado. Los puertos del backend se ubican en Aplicación y sus implementaciones en Infraestructura.
 
 ## Cómo funciona cada patrón
 
@@ -33,6 +34,7 @@ Transactional Outbox es un patrón de integración y consistencia; no pertenece 
 | Repository | El negocio pide guardar la contratación; el repositorio resuelve la persistencia y sus conflictos conocidos. |
 | Unit of Work | Los cambios relacionados se confirman juntos o se revierten antes de confirmar. |
 | Transactional Outbox | Se guarda el aviso con el acuerdo y se envía después; no se mantiene la transacción abierta esperando al proveedor. |
+| Decorator (lectura con caché) | La consulta pública se envuelve con Redis. Antes de usar un acierto se comprueba en PostgreSQL que la revisión de la oferta no cambió; ante un fallo o una revisión distinta, se lee PostgreSQL. No se borran claves: una revisión nueva basta para invalidarlas. |
 
 La consulta previa no reemplaza los controles de unicidad y versión en persistencia. Los reintentos de aceptación utilizan idempotencia. Los avisos también necesitan identificar y controlar entregas repetidas: Outbox por sí solo no garantiza una entrega exactamente una vez.
 
@@ -61,6 +63,5 @@ La búsqueda asistida no se reintenta en el momento, porque haría esperar más 
 | Patrón | Dónde se aplicaría | Cuándo |
 |---|---|---|
 | Adapter para pagos | Cobro de planes o servicios de la plataforma. | Al implementar ese servicio y seleccionar el proveedor; no cobra el trabajo al prestador en el alcance actual. |
-| Decorator | Consultas frecuentes de catálogo o perfiles. | Para envolver los repositorios de catálogo con la caché Redis sin cambiar los casos de uso. Se activa cuando las mediciones de EQ-01 lo justifiquen. |
 | Factory | Construcción de variantes de acuerdos. | Si la complejidad justifica una fábrica específica. Los métodos estáticos actuales no demuestran que ya exista Factory Method de GoF. |
 | Facade | Operaciones públicas de módulos que crezcan. | Si se necesita simplificar varias colaboraciones detrás de una interfaz. Una API pública no implica por sí sola el patrón. |
