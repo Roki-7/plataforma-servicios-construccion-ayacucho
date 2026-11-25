@@ -21,6 +21,10 @@ El backlog se ordena por prioridad MoSCoW y por dependencias entre módulos. Cad
 
 Las funcionalidades 001 a 006 cubren los **24 requisitos del MVP**.
 
+**Dependencias que afectan a la 002.** El filtro de búsqueda por calificación (RF09) y la identificación de prestadores sin valoraciones reales dependen de **011** (RF34); la verificación de prestadores (RF07) y el alcance completo de RF45 dependen de **012**. La 002 los difiere con avisos explícitos y no los promete. La 002 depende de 001 (identidad); 003 consumirá la elegibilidad de servicios que expone la API interna de Catálogo.
+
+**Estado de la 002 (en validación, rama `002-prestadores-y-catalogo`; no fusionada en `main`).** Completadas HU03, HU04, HU05 y HU25 en validación local, con EQ-01 y EQ-03 medidas y PR07 parcial (T080 cerrada por excepción). Siguen pendientes el cierre documental (T093 y T094), la integración continua y la revisión del pull request. Solo se considera «implementado» lo fusionado en `main`.
+
 ## 2. Plan de sprints
 
 | Sprint | Objetivo | Entregable | Estado |

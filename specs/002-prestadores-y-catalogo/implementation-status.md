@@ -1299,3 +1299,25 @@ El responsable del producto aprobó las cuatro decisiones: teléfono opcional co
 **Resolución pendiente (a decidir por el responsable).** A) Implementar: TTL por defecto de 3 600 s en categorías, variación aleatoria acotada del TTL de búsquedas y métricas agregadas de caché, con pruebas. B) Enmendar el plan para aceptar los valores actuales con su justificación. EQ-01 (T082) puede orientar la decisión. Hasta resolverla, las diferencias permanecen documentadas en `estrategia-de-cache.md`.
 **Corregido respecto al documento anterior.** Ya no describe la caché como «se activa cuando las mediciones lo muestren», ni el borrado de claves como mecanismo de invalidación, ni una caché de perfil público de 5 minutos (en la 002 el detalle y los servicios de un perfil se leen siempre de PostgreSQL).
 **Sin versionar.** Los cambios de T084 permanecen en el árbol de trabajo a la espera de aprobación para commit.
+
+## T085 a T092 · Documentación de arquitectura, diseño, gestión y guía técnica (completadas)
+
+**Alcance.** Solo documentación y diagramas; sin cambios de código, contratos, migraciones ni datos. Cada documento se contrastó con el contrato OpenAPI de 002, el esquema real de PostgreSQL de la validación (consulta de solo lectura), el código de los módulos y las evidencias ya registradas.
+
+| Tarea | Archivos | Qué refleja |
+|---|---|---|
+| T085 | `docs/02-arquitectura-software/api-rest.md` | 23 operaciones de 002 y 17 base (40), filtros reales, precedencia de rutas, fotos (JSON con base64, 14 000 000 bytes, 10 000 000 decodificados, 4 096 px, WebP saneado), errores y 413; el filtro por calificación sigue dependiendo de 011 |
+| T086 | `docs/03-diseno-de-software/modelo-de-datos.md` | 16 tablas de 002 con propiedad, restricciones y límites; sin claves foráneas entre módulos; inventario de referencias y respaldo coordinado; INC-002-01 |
+| T087 | `docs/02-arquitectura-software/seguridad-y-privacidad.md` | Permiso RF39, alta inicial con constancia y aprobación firmada, revocación, auditoría inmutable, portafolio e imágenes, privacidad del respaldo y frontera con 012 |
+| T088 | `docs/02-arquitectura-software/componentes-arquitectonicos.md`, `docs/04-modelo-c4/03-nivel3-componentes.md`, `docs/04-modelo-c4/05-despliegue.md` | Diez módulos, APIs públicas, proyección, auditoría, Redis y bucket privado; entorno de validación local |
+| T089 | `img/fuentes-svg/{componentes-arquitectonicos,nivel3-componentes,despliegue}.{drawio,svg}` y `img/{componentes-arquitectonicos,nivel3-componentes,despliegue}.png` | Se añadió la caché Redis (cilindro y enlace «Lee y guarda (caché)») en los dos diagramas de componentes y se actualizaron los rótulos de bucket privado, caché y PostgreSQL; el despliegue ya dibujaba los enlaces a objetos, Redis y PostgreSQL |
+| T090 | `docs/05-gestion/04-pruebas.md`, `06-mvp-y-evolucion.md`, `02-backlog-y-sprints.md` | PR01 y PR03 con sus mediciones reales y su alcance; PR12 distinguido del ensayo de IA (PR05); dependencias de 011 y 012; PR07 parcial |
+| T091 | `docs/trazabilidad.md` | Cadena HU → RF → AC/EQ → DA → ADR → módulo → prueba para HU03, HU04, HU05 y HU25; escenarios (35 originales y CA-CAT-11 a 14) con sus archivos de prueba; PR04, PR07, PR01, PR03, regresión 001 y dependencias posteriores; sin renumerar |
+| T092 | `tecnologia/README.md`, `specs/002-prestadores-y-catalogo/quickstart.md` | Se distinguen `dev:prepare:002`, Compose, migración, inicialización y siembra; confianza TLS; protocolo de pareja PostgreSQL y bucket con manifiesto verificable; restauración; directorios de evidencia y dependencias |
+
+**Limitaciones registradas.**
+- **T089:** no hay Draw.io en el entorno. Los `.drawio` y los `.svg` se editaron por programa con la misma geometría (el SVG es derivado de los mismos cambios) y los PNG se regeneraron renderizando el SVG con Chromium al mismo tamaño que los originales (2600 px de ancho); **no se abrieron los `.drawio` en Draw.io**, así que su apertura queda por comprobar. Las cuatro vistas se revisaron a simple vista.
+- **T091:** la asignación de pruebas por escenario se derivó de las tareas de `tasks.md`; no se volvieron a ejecutar las pruebas en esta tarea.
+- **T092:** el recorrido manual completo desde una base limpia no se repitió aquí; lo respaldan los scripts existentes y las corridas efímeras (que migran y siembran una base nueva por corrida) de T075 a T083.
+- Los estados de PR01, PR03, PR04 y PR07 se describen como «medidas en validación local; pendientes de CI», sin declarar ejecución en CI.
+- Las diferencias del plan de caché (INC-002-02) siguen abiertas.

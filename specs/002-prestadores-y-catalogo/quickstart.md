@@ -1,6 +1,6 @@
 # Guía de validación — 002 Prestadores y catálogo
 
-Esta guía define la validación posterior a la implementación. Los recorridos de la 002, sus pruebas de carga y los estados de aprobación están pendientes. Los comandos propuestos se identifican como tales. [Plan](plan.md) · [Modelo de datos](data-model.md) · [Especificación](spec.md) · [Contrato OpenAPI](contracts/openapi.json).
+Esta guía describe la validación de la 002 y los comandos para reproducirla; los resultados obtenidos se registran en [implementation-status.md](implementation-status.md). Cada comando indica si ya se ejecutó o si queda pendiente. [Plan](plan.md) · [Modelo de datos](data-model.md) · [Especificación](spec.md) · [Contrato OpenAPI](contracts/openapi.json).
 
 ## Prerrequisitos y comprobaciones disponibles
 
@@ -20,6 +20,47 @@ npm.cmd --prefix tecnologia/frontend run
 
 El Compose actual declara PostgreSQL 18, Redis 8, Mailpit, Garage y el proxy Caddy bajo el perfil `web`. Si Node global no alcanza la versión requerida, usar el wrapper local con Node 24. En Linux, usar `npm` en los ejemplos de PowerShell. Los scripts `dev:prepare`, `test:seed` y `test:performance` existentes preparan o prueban la 001. La cuenta ficticia administrativa de referencia de ese seed carece de un permiso concedido. [Wrapper local](../../tecnologia/scripts/npm-local.ps1) · [Guía de validación 001](../001-usuarios-y-acceso/quickstart.md).
 
+## Estado de la guía y recorrido reproducible desde una base limpia
+
+**Estado.** Los comandos de esta guía existen y se ejecutaron en la validación local de la 002 (resultados en [implementation-status.md](implementation-status.md)). Lo no ejecutado se identifica en cada sección: integración continua de la 002, PR07 en celular físico y la ejecución de la aceptación completa por el Product Owner.
+
+**Dependencias.** Node.js 24 LTS desde 24.15 (si el global no alcanza, usar el Node 24 local de `tecnologia/.local/toolchain`), npm con lockfiles, Docker con Compose, k6 2.0 y los navegadores de Playwright. En Windows, PostgreSQL, Redis, Garage y el proxy corren en contenedores; la API y Vite corren en el anfitrión.
+
+**Distinguir cada paso (no son equivalentes):**
+
+| Paso | Qué hace | Qué no hace |
+|---|---|---|
+| `dev:prepare:002` | Genera en `tecnologia/.local/002/` (ignorado por Git) la configuración, secretos aleatorios, la CA y el certificado TLS locales, el Caddyfile y el catálogo ficticio. | No inicia contenedores ni toca la base. |
+| Compose (`-p ayacucho-002-validacion`) | Inicia PostgreSQL, Redis, correo y objetos, y con `--profile web` el proxy HTTPS en el puerto 8444. | No migra ni crea el bucket. |
+| `db:migrate:002` | Aplica las migraciones de la 001 y de la 002 (17 en total, la última `NombresUnicosDeClasificaciones1795000000009`). | No carga datos. |
+| `storage:init:002` | Crea el bucket privado del portafolio y sus credenciales exclusivas. | No guarda imágenes. |
+| `test:seed:002` | Siembra clasificaciones, prestadores y servicios ficticios y concede el permiso RF39 a un operador ficticio por el procedimiento protegido. Es idempotente. | No debe ejecutarse contra una base de producción. |
+
+**Recorrido desde una base limpia (reproducible).**
+
+1. `npm ci` en `tecnologia/backend` y `tecnologia/frontend`.
+2. `dev:prepare:002 -- --validation`.
+3. `docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.002.yaml up -d --wait postgres redis correo objetos`.
+4. `db:migrate:002`, `storage:init:002` y `test:seed:002`, en ese orden.
+5. `start:validation:002` (API en 3002) y `dev:validation:002` (Vite en 5175) en terminales separadas; después el proxy con `--profile web up -d proxy`.
+6. Comprobar con `test:https:002` (verifica TLS, contratos y el flujo de RF39; **crea datos ficticios** en la base de validación).
+
+**Confianza TLS.** El navegador debe confiar en la CA local `tecnologia/.local/002/tls/ca.crt` para ver `https://localhost:8444` sin avisos; para curl se pasa con `--cacert`. Los ejecutores de Playwright instalan solo esa CA dentro de su contenedor efímero. El certificado de `localhost` tiene vigencia corta (el vigente vence el 2026-11-30): renovarlo antes de una corrida larga.
+
+**Protocolo de pareja PostgreSQL y bucket (respaldo y restauración).** El respaldo coordinado produce una pareja del mismo `backupId`: un volcado de PostgreSQL tomado con una instantánea y los objetos saneados del bucket, unidos por un **manifiesto verificable** (versión de PostgreSQL, migraciones, SHA-256 del volcado y clave, tamaño, tipo y SHA-256 de cada objeto) y marcados `COMPLETO` solo tras cotejarlos. Los artefactos se cifran con `RESPALDO_CLAVE` y se guardan en `RESPALDO_DIRECTORIO`, **fuera del repositorio**.
+
+```powershell
+$env:RESPALDO_CLAVE = '<32 bytes en base64, fuera de Git>'; $env:RESPALDO_DIRECTORIO = '<ruta absoluta fuera del repositorio>'
+npm.cmd --prefix tecnologia/backend run backup:portafolio:002 -- --confirmo ayacucho_002_validacion
+npm.cmd --prefix tecnologia/backend run restore:portafolio:002 -- --backup-id <uuid> --base-destino ayacucho_002_restauracion_<sufijo> --prefijo-destino pruebas/<uuid>/portafolio/ --confirmo ayacucho_002_restauracion_<sufijo>
+```
+
+La restauración siempre usa **destinos nuevos** (nunca sobrescribe), mantiene cerrada la puerta de arranque hasta validar todo y abre con un espacio de claves de Redis nuevo. Un respaldo solo se restaura con código cuya lista de migraciones sea idéntica: tras añadir una migración hay que generar un respaldo nuevo. El ensayo aislado usa `preparar-ensayo-restauracion-002` y `tecnologia/compose.ensayo-restauracion.yaml`; sus suites son opt-in: `redis-revision` (`REDIS_AISLADO_URL`), `procedimiento-rf39-aislado` (`RF39_AISLADA_URL`), y `restauracion-portafolio` y `fotos-cuenta-composicion` (`ENSAYO_RESTAURACION_ENV`), todas con `npm run test:integration:002:infra` y sus contenedores propios iniciados. Sin esas variables se omiten.
+
+**Directorios de evidencia.** Informes y capturas bajo `tecnologia/.local/evidencia/002/<serie>/` (local, no versionado); la evidencia de la 001 no se modifica. Los registros oficiales de cierre se versionan en `specs/002-prestadores-y-catalogo/` y `specs/002-prestadores-y-catalogo/evidencia/`.
+
+**Pruebas E2E y de carga.** `npm run test:e2e:002` (frontend) y `npm run test:carga:002` crean recursos descartables por corrida, ejecutan los 9 proyectos de navegador o el escenario k6 y retiran solo lo que crearon, sin tocar la validación local ni usar `down -v`.
+
 ## Preparación y arranque para la 002
 
 `dev:prepare:002` genera configuración, TLS y un catálogo ficticio en `tecnologia/.local/002/` antes de iniciar Compose. Compose inicia PostgreSQL, Redis, correo y objetos. El iniciador verifica la configuración dedicada de la 002. La fase de preparación permite llegar hasta el arranque de estos servicios y comprobar la configuración con `start:validation:002 -- --verificar-config`.
@@ -34,7 +75,7 @@ docker compose -p ayacucho-002-validacion --env-file tecnologia/.local/002/compo
 npm.cmd --prefix tecnologia/backend run start:validation:002 -- --verificar-config
 ```
 
-Ejecutar estos tres pasos por separado cuando estén implementados.
+Ejecutar estos tres pasos por separado y en este orden.
 
 ```powershell
 npm.cmd --prefix tecnologia/backend run db:migrate:002
@@ -103,7 +144,7 @@ La matriz agrupa los **35 escenarios** de [spec.md](spec.md). Cada ID deberá ap
 - **Contrato y arquitectura.** Ejecutar la suite original de la 001 con su composición y contrato existentes. Ejecutar las pruebas propias de la 002 y las de composición conjunta que comparan el inventario efectivo con la unión de contratos y verifican las operaciones de 001 individualmente. Revisar colisiones, esquemas de errores, validación de consulta y cuerpos, autorizaciones y cabeceras. Las reglas de dependencia verifican capas, entradas públicas y ausencia de acceso directo a tablas ajenas. Se conserva PR12 como antecedente del control de arquitectura.
 - **Navegador (EQ-07/PR07).** Ejecutar las pruebas de búsqueda y de gestión del titular a 360, 768 y 1366 px en Chromium, Firefox y WebKit. Repetir los recorridos principales en un celular y una computadora reales. Registrar versión, ancho y plataforma. El flujo completo de crear y seguir una solicitud pertenece a la 003 y posteriores.
 
-Los comandos de la siguiente selección se ejecutarán cuando existan las suites propias en el entorno 002. El filtro de Jest identifica los archivos nuevos por ruta. Playwright usa configuración y evidencia propias para mantener los informes de la 001 separados.
+Los comandos de la siguiente selección ejecutan las suites propias de la 002; el ejecutor `npm run test:e2e:002` (con recursos descartables por corrida) sustituye al comando directo de Playwright cuando se necesitan los 9 proyectos. El filtro de Jest identifica los archivos nuevos por ruta. Playwright usa configuración y evidencia propias para mantener los informes de la 001 separados.
 
 ```powershell
 $evidencia002 = "tecnologia/.local/evidencia/002/" + (Get-Date -Format 'yyyyMMdd-HHmmss')
