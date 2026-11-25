@@ -29,8 +29,9 @@ describe('HU25 · creación de clasificaciones', () => {
     const e = rechazo(() => crearClasificacion({ id: uuid(3), nombre: 'Nieta', padre: hija() }));
     expect(e).toMatchObject({ http: 422, codigo: 'JERARQUIA_CATEGORIA_NO_VALIDA' });
   });
-  test('la comparación de nombres ignora mayúsculas, tildes y espacios repetidos', () => {
-    expect(normalizarNombre('  Albañilería   Y  Muros ')).toBe(normalizarNombre('albanileria y muros'));
+  test('la comparación de nombres ignora mayúsculas, tildes de vocales y espacios repetidos, pero distingue ñ de n', () => {
+    expect(normalizarNombre('  Albañilería   Y  Muros ')).toBe(normalizarNombre('ALBAÑILERIA y muros'));
+    expect(normalizarNombre('Albañilería')).not.toBe(normalizarNombre('Albanileria'));
     expect(normalizarNombre('Pintura')).not.toBe(normalizarNombre('Pinturas'));
   });
 });

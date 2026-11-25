@@ -122,7 +122,7 @@ El [contrato de la 002 y su guía](contracts/README.md) fijan nombres de rutas, 
 | HU03 · CA-PRE-01 a 08 | Dominio y validaciones, PostgreSQL real con cuotas concurrentes, contrato HTTP, S3 con geometría, metadatos y pérdida de escritura, E2E de portafolio. |
 | HU04 · CA-SER-01 a 09 | Máquina de estados, versión y reintentos, visibilidad posterior a pausa y retiro, titularidad, elegibilidad y preservación de referencias. |
 | HU05 · CA-BUS-01 a 08 | Combinaciones de filtros y total por página, datos públicos permitidos, avisos independientes, caída de Redis, carga y trayectos web. |
-| HU25 · CA-CAT-01 a 10 | Identidad y permisos, alta inicial, revocación con sesión abierta, confirmación obsoleta, auditoría atómica, jerarquía y cambio público con Redis antes, durante y después de una caída. |
+| HU25 · CA-CAT-01 a 14 | Identidad y permisos, alta inicial, revocación con sesión abierta, confirmación obsoleta, auditoría atómica, jerarquía, cambio público con Redis antes, durante y después de una caída, y unicidad de nombres entre hermanas (normalización, 409, concurrencia, migración y paridad con PostgreSQL). |
 | PR04 / EQ-04 y arquitectura | Todas las peticiones denegadas de la matriz deben rechazar sin mutar ni divulgar. Validar dependencias y contrato privado de módulos siguiendo PR12 como precedente arquitectónico. |
 | PR07 / EQ-07 | Navegadores Chromium, Firefox y WebKit en 360, 768 y 1366 px. Comprobar recorridos web y revisión manual de legibilidad, controles por teclado y mensajes de estado. |
 | PR01 / EQ-01 | 50 usuarios concurrentes, 15 minutos, pausas de 3–8 s y datos ficticios. p95 ≤ 2 s, fallos técnicos < 1 %. Medir las operaciones HTTP de búsqueda y consulta de la API por separado con RPS y corrección. |

@@ -5,7 +5,7 @@ import { uuidEnMinusculas } from '../../../compartido/dominio/identificadores.js
 import type { ClasificacionAdmin, GestionClasificaciones, PrevisualizacionDesactivacion, RevisionDeOferta } from '../api-publica.js';
 import { clasificacionActiva, type Clasificacion } from '../dominio/clasificacion.js';
 import { cambiarEstadoClasificacion, crearClasificacion, editarNombreClasificacion, normalizarNombre } from '../dominio/gestion-clasificaciones.js';
-import type { RepositorioClasificaciones } from './puertos/clasificaciones.js';
+import { NombreDeClasificacionEnUso, type RepositorioClasificaciones } from './puertos/clasificaciones.js';
 import { calcularImpacto, validarConfirmacion } from './impacto-desactivacion.js';
 
 const noDisponible = () => new ErrorAplicacion(404, 'RECURSO_NO_DISPONIBLE', 'Recurso no disponible.');
@@ -14,6 +14,9 @@ export const versionDesactualizada = () => new ErrorAplicacion(409, 'VERSION_DES
 export function aAdmin(c: Clasificacion, padre: Clasificacion | null): ClasificacionAdmin {
   return { categoriaId: c.id, categoriaPadreId: c.categoriaPadreId, nombre: c.nombre, activaPropia: c.activa, activaEfectiva: clasificacionActiva(c, padre ?? undefined), version: c.version };
 }
+
+export const nombreEnUso = () => new ErrorAplicacion(409, 'NOMBRE_CLASIFICACION_EN_USO', 'Ya existe una clasificación con un nombre equivalente en la misma categoría.',
+  [{ campo: 'nombre', motivo: 'El nombre ya está en uso entre las clasificaciones hermanas.' }]);
 
 /** Gestión de clasificaciones. El llamador (Administración) ya tomó el permiso RF39 y la idempotencia. Aquí: revisión exclusiva, raíz, subcategoría. */
 export class ClasificacionesServicio implements GestionClasificaciones {
@@ -37,7 +40,8 @@ export class ClasificacionesServicio implements GestionClasificaciones {
       padre = p.clasificacion;
     }
     const nueva = crearClasificacion({ id: randomUUID(), nombre: entrada.nombre, ...(padre ? { padre } : {}) });
-    await this.repo.insertar(tx, nueva, normalizarNombre(nueva.nombre));
+    if (await this.repo.existeHermanaConNombre(tx, nueva.categoriaPadreId, nueva.nombre, null)) throw nombreEnUso();
+    try { await this.repo.insertar(tx, nueva, normalizarNombre(nueva.nombre)); } catch (e) { throw e instanceof NombreDeClasificacionEnUso ? nombreEnUso() : e; }
     await this.revision.incrementar(tx);
     return aAdmin(nueva, padre ?? null);
   }
@@ -47,7 +51,9 @@ export class ClasificacionesServicio implements GestionClasificaciones {
     const { clasificacion, padre } = await this.cargar(tx, id);
     if (clasificacion.version !== version) throw versionDesactualizada();
     const nueva = editarNombreClasificacion(clasificacion, nombre);
-    await this.repo.actualizar(tx, clasificacion.id, { nombre: nueva.nombre, nombreNormalizado: normalizarNombre(nueva.nombre) });
+    if (await this.repo.existeHermanaConNombre(tx, clasificacion.categoriaPadreId, nueva.nombre, clasificacion.id)) throw nombreEnUso();
+    try { await this.repo.actualizar(tx, clasificacion.id, { nombre: nueva.nombre, nombreNormalizado: normalizarNombre(nueva.nombre) }); }
+    catch (e) { throw e instanceof NombreDeClasificacionEnUso ? nombreEnUso() : e; }
     await this.revision.incrementar(tx);
     return aAdmin(nueva, padre);
   }

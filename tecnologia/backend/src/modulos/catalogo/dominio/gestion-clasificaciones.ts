@@ -4,9 +4,23 @@ import type { Clasificacion } from './clasificacion.js';
 
 export const limiteNombreClasificacion = 120;
 
-/** Clave de comparación de nombres: sin mayúsculas, tildes ni espacios repetidos. */
+/**
+ * Espacios que se reducen a un espacio convencional (INC-002-01). Conjunto explícito, no `\s`: la misma lista está en la función SQL
+ * `catalogo_clave_nombre`. U+0009 a U+000D (tabulador, saltos, avance de página), U+0020, U+0085, U+00A0, U+1680, U+2000 a U+200A,
+ * U+2028, U+2029, U+202F, U+205F y U+3000. No incluye U+200B ni U+FEFF (no son espacios: se conservan).
+ */
+// eslint-disable-next-line no-control-regex -- el conjunto de espacios equivalentes incluye U+0009 a U+000D a propósito
+const ESPACIOS_EQUIVALENTES = /[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
+
+/**
+ * Clave de comparación de nombres entre hermanas. Debe producir lo mismo que `catalogo_clave_nombre` de PostgreSQL, que es la autoridad.
+ * 1. Descompone en NFD. 2. Conserva la distinción entre ñ y n (n + tilde combinante pasa a ñ). 3. Elimina las marcas combinantes
+ * U+0300 a U+036F (tildes de las vocales, diéresis, etc.); los signos de espaciado ^ ` ¨ · NO son marcas combinantes y se conservan.
+ * 4. Reduce los espacios equivalentes a uno y recorta. 5. Minúsculas (Σ siempre a σ, como PostgreSQL).
+ */
 export function normalizarNombre(nombre: string): string {
-  return nombre.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return nombre.normalize('NFD').replace(/[Nn]\u0303/g, '\u00f1').replace(/[\u0300-\u036f]/g, '')
+    .replace(ESPACIOS_EQUIVALENTES, ' ').replace(/^ | $/g, '').replace(/\u03a3/g, '\u03c3').toLowerCase();
 }
 
 function nombreValido(nombre: unknown): string {

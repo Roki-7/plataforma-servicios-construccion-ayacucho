@@ -2,7 +2,7 @@ import type { ContextoTransaccion } from '../../../../compartido/aplicacion/tran
 import { filasDe } from '../../../../compartido/infraestructura/postgres/filas.js';
 import type { UnidadDeTrabajoPostgres } from '../../../../compartido/infraestructura/postgres/unidad-de-trabajo.js';
 import type { ClasificacionAdmin, ClasificacionPublica } from '../../api-publica.js';
-import type { FilaConfirmacion, RepositorioClasificaciones } from '../../aplicacion/puertos/clasificaciones.js';
+import { NombreDeClasificacionEnUso, type FilaConfirmacion, type RepositorioClasificaciones } from '../../aplicacion/puertos/clasificaciones.js';
 import type { Clasificacion } from '../../dominio/clasificacion.js';
 
 interface Fila { id: string; nombre: string; nivel: number; categoria_padre_id: string | null; activa: boolean; version: number }
@@ -10,6 +10,14 @@ const columnas = 'id,nombre,nivel,categoria_padre_id,activa,version';
 const aClasificacion = (f: Fila): Clasificacion => f.nivel === 1
   ? { id: f.id, nombre: f.nombre, nivel: 1, categoriaPadreId: null, activa: f.activa, version: f.version }
   : { id: f.id, nombre: f.nombre, nivel: 2, categoriaPadreId: f.categoria_padre_id as string, activa: f.activa, version: f.version };
+
+const INDICE_HERMANAS = 'catalogo_clasificaciones_hermanas_clave';
+/** Traduce la violación del índice único de hermanas (SQLSTATE 23505) y deja pasar cualquier otro error. */
+function traducirUnicidad(e: unknown): never {
+  const o = e as { code?: string; constraint?: string; driverError?: { code?: string; constraint?: string } };
+  if ((o.code ?? o.driverError?.code) === '23505' && (o.constraint ?? o.driverError?.constraint) === INDICE_HERMANAS) throw new NombreDeClasificacionEnUso();
+  throw e;
+}
 
 export class ClasificacionesPostgres implements RepositorioClasificaciones {
   constructor(private readonly uow: UnidadDeTrabajoPostgres) {}
@@ -26,13 +34,18 @@ export class ClasificacionesPostgres implements RepositorioClasificaciones {
     const padre = filas.find(f => f.id === propia.categoria_padre_id);
     return { clasificacion: aClasificacion(propia), padre: padre ? aClasificacion(padre) : null };
   }
+  async existeHermanaConNombre(tx: ContextoTransaccion, padreId: string | null, nombre: string, excluirId: string | null): Promise<boolean> {
+    const f = await this.q<{ uno: number }>(tx, `SELECT 1 AS uno FROM catalogo_clasificaciones WHERE categoria_padre_id IS NOT DISTINCT FROM $1::uuid
+      AND nombre_clave = catalogo_clave_nombre($2::text) AND ($3::uuid IS NULL OR id <> $3::uuid) LIMIT 1`, [padreId, nombre, excluirId]);
+    return f.length > 0;
+  }
   async insertar(tx: ContextoTransaccion, c: Clasificacion, nombreNormalizado: string): Promise<void> {
     await this.q(tx, 'INSERT INTO catalogo_clasificaciones(id,nombre,nombre_normalizado,nivel,categoria_padre_id,activa,version) VALUES($1,$2::varchar,$3,$4,$5,$6,$7)',
-      [c.id, c.nombre, nombreNormalizado, c.nivel, c.categoriaPadreId, c.activa, c.version]);
+      [c.id, c.nombre, nombreNormalizado, c.nivel, c.categoriaPadreId, c.activa, c.version]).catch(traducirUnicidad);
   }
   async actualizar(tx: ContextoTransaccion, id: string, c: { nombre?: string; nombreNormalizado?: string; activa?: boolean }): Promise<number> {
     const filas = await this.q<{ version: number }>(tx, `UPDATE catalogo_clasificaciones SET nombre=COALESCE($2::varchar,nombre), nombre_normalizado=COALESCE($3,nombre_normalizado),
-      activa=COALESCE($4,activa), version=version+1, actualizada_en=CURRENT_TIMESTAMP WHERE id=$1 RETURNING version`, [id, c.nombre ?? null, c.nombreNormalizado ?? null, c.activa ?? null]);
+      activa=COALESCE($4,activa), version=version+1, actualizada_en=CURRENT_TIMESTAMP WHERE id=$1 RETURNING version`, [id, c.nombre ?? null, c.nombreNormalizado ?? null, c.activa ?? null]).catch(traducirUnicidad);
     if (!filas[0]) throw new Error('La clasificación a actualizar no existe.');
     return filas[0].version;
   }

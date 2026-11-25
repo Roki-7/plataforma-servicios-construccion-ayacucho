@@ -2,6 +2,7 @@ import type { Provider, Type } from '@nestjs/common';
 import type { RegistroPersistencia002 } from './persistencia.js';
 import { PermisosYAuditoria1795000000007 } from '../modulos/administracion/infraestructura/migraciones/permisos-y-auditoria.js';
 import { ConfirmacionesDesactivacion1795000000008 } from '../modulos/catalogo/infraestructura/migraciones/confirmaciones-desactivacion.js';
+import { NombresUnicosDeClasificaciones1795000000009 } from '../modulos/catalogo/infraestructura/migraciones/nombres-unicos-de-clasificaciones.js';
 import { IndicesBusqueda1795000000006 } from '../modulos/catalogo/infraestructura/migraciones/indices-busqueda.js';
 import { ServiciosCatalogo1795000000005 } from '../modulos/catalogo/infraestructura/migraciones/servicios.js';
 import { PerfilesYPortafolio1795000000004 } from '../modulos/prestadores/infraestructura/migraciones/perfiles-y-portafolio.js';
@@ -12,7 +13,7 @@ import { registroServicios002 } from './servicios-002.js';
 
 /** Migraciones aditivas de la 002 en orden cronológico (las comunes 001 a 003 las registra la composición de persistencia). */
 export const persistenciaOferta002: readonly RegistroPersistencia002[] = [{ migraciones: [PerfilesYPortafolio1795000000004, ServiciosCatalogo1795000000005,
-  IndicesBusqueda1795000000006, PermisosYAuditoria1795000000007, ConfirmacionesDesactivacion1795000000008] }];
+  IndicesBusqueda1795000000006, PermisosYAuditoria1795000000007, ConfirmacionesDesactivacion1795000000008, NombresUnicosDeClasificaciones1795000000009] }];
 
 export interface OpcionesOferta002 {
   readonly prestadores: OpcionesPrestadores002;

@@ -14,6 +14,7 @@ import { ClasificacionesServicio } from '../modulos/catalogo/aplicacion/clasific
 import type { AlmacenCache } from '../modulos/catalogo/infraestructura/cache/catalogo-cache.js';
 import { CategoriasConCache, type ConsultaCategorias } from '../modulos/catalogo/infraestructura/cache/categorias-cache.js';
 import { ConfirmacionesDesactivacion1795000000008 } from '../modulos/catalogo/infraestructura/migraciones/confirmaciones-desactivacion.js';
+import { NombresUnicosDeClasificaciones1795000000009 } from '../modulos/catalogo/infraestructura/migraciones/nombres-unicos-de-clasificaciones.js';
 import { ClasificacionesPostgres } from '../modulos/catalogo/infraestructura/persistencia/clasificaciones.js';
 import { CATEGORIAS_PUBLICAS_002, CategoriasPublicasController } from '../modulos/catalogo/presentacion/categorias-publicas.controller.js';
 import type { UsuariosAcceso } from '../modulos/usuarios-acceso/api-publica.js';
@@ -41,7 +42,7 @@ export interface OpcionesCategorias002 {
 /** Registro explícito de HU25. La red HTTP no ofrece altas ni revocaciones de permisos: eso pertenece al comando interno. */
 export function registroCategorias002(opciones: OpcionesCategorias002 = {}): {
   readonly controladores: readonly Type[]; readonly proveedores: readonly Provider[];
-  readonly persistencia: readonly { readonly migraciones: readonly (new () => PermisosYAuditoria1795000000007 | ConfirmacionesDesactivacion1795000000008)[] }[];
+  readonly persistencia: readonly { readonly migraciones: readonly (new () => PermisosYAuditoria1795000000007 | ConfirmacionesDesactivacion1795000000008 | NombresUnicosDeClasificaciones1795000000009)[] }[];
   readonly operaciones: readonly string[];
 } {
   const proveedores: Provider[] = [
@@ -65,5 +66,5 @@ export function registroCategorias002(opciones: OpcionesCategorias002 = {}): {
         new GestionarPermisosRf39({ usuarios, uow, permisos, registro, auditoria, configuracion: opciones.configuracionRf39 as ConfiguracionRf39 }) } satisfies Provider] : []),
   ];
   return { controladores: [CategoriasPublicasController, CategoriasAdminController], proveedores,
-    persistencia: [{ migraciones: [PermisosYAuditoria1795000000007, ConfirmacionesDesactivacion1795000000008] }], operaciones: operacionesCategorias002 };
+    persistencia: [{ migraciones: [PermisosYAuditoria1795000000007, ConfirmacionesDesactivacion1795000000008, NombresUnicosDeClasificaciones1795000000009] }], operaciones: operacionesCategorias002 };
 }

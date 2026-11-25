@@ -75,7 +75,7 @@ El DTO del perfil público devuelve `avisos.calificaciones` con «Calificaciones
 | 401 | `NO_AUTENTICADO` o `SESION_NO_VALIDA` |
 | 403 | `SIN_PERMISO` para rol, perfil habilitado o permiso RF39 insuficiente y `ORIGEN_NO_ADMITIDO` para origen ajeno |
 | 404 | `RECURSO_NO_DISPONIBLE` para recurso que falta o no es visible. Se aplica a registros propios ajenos, fotos retiradas y oferta no visible |
-| 409 | `VERSION_DESACTUALIZADA`, `CLAVE_IDEMPOTENCIA_REUTILIZADA`, `CONFIRMACION_NO_VALIDA` o `IMPACTO_DESACTUALIZADO` |
+| 409 | `VERSION_DESACTUALIZADA`, `CLAVE_IDEMPOTENCIA_REUTILIZADA`, `CONFIRMACION_NO_VALIDA`, `IMPACTO_DESACTUALIZADO` o `NOMBRE_CLASIFICACION_EN_USO` (nombre equivalente en una clasificación hermana, activa o inactiva) |
 | 413 | `CUERPO_DEMASIADO_GRANDE` para el transporte o `ARCHIVO_DEMASIADO_GRANDE` para la foto decodificada |
 | 422 | Estado, jerarquía, clasificación, cuota, formato real o dimensiones incompatibles con las reglas de negocio |
 | 503 | `DEPENDENCIA_NO_DISPONIBLE` para una dependencia necesaria. Redis caído conserva una ruta de lectura válida por PostgreSQL |

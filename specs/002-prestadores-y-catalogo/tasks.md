@@ -127,6 +127,21 @@
 - [x] T064 [US4] Verificar activación, desactivación y conservación histórica con búsquedas calentadas en `tecnologia/backend/test/integration/prestadores-catalogo/visibilidad-categorias.spec.ts`. **Cierre.** Se ejecutan recuento, ocultación, reactivación y estado efectivo con Redis operativo y claves calentadas. CA-CAT-02, CA-CAT-04 y CA-CAT-07 a CA-CAT-09 conservan referencias. Para CA-CAT-10 queda probada la exclusión inmediata con caché caliente. T053 aporta el respaldo básico y T069 cubre desactivación durante la caída y la recuperación. **Dep.** T045, T049, T050, T063.
 - [x] T065 [US4] Validar HU25 con autorización real de prueba, auditoría y catálogo caliente en `specs/002-prestadores-y-catalogo/implementation-status.md`. **Cierre.** El arnés US4 ejecuta CA-CAT-01 a CA-CAT-09 con datos y permiso operativos. CA-CAT-10 registra exclusión inmediata con caché caliente y remite a T069 para desactivación durante caída y recuperación. **Dep.** T019, T054, T055, T056, T059, T060, T063, T064.
 
+## Fase 6 bis — Enmienda INC-002-01 · Unicidad de nombres de clasificaciones
+
+Enmienda controlada de HU25 sin renumerar tareas ni criterios existentes. Se verifica en una base descartable y no se aplica a `ayacucho_002_validacion` ni se carga el catálogo hasta su aprobación.
+
+- [x] T095 [US4] Documentar la regla, la normalización, el error 409 y la compatibilidad en `specs/002-prestadores-y-catalogo/spec.md`, `data-model.md`, `plan.md`, `contracts/openapi.json`, `contracts/README.md` y el espejo `tecnologia/backend/contracts/prestadores-catalogo.openapi.json`. **Cierre.** CA-CAT-11 a CA-CAT-14, código `NOMBRE_CLASIFICACION_EN_USO` en `C002Error409` y `nombre_normalizado` declarado dato heredado.
+- [x] T096 [US4] Implementar `catalogo_clave_nombre`, la columna generada `nombre_clave` y el índice único entre hermanas con una migración reproducible en `tecnologia/backend/src/modulos/catalogo/infraestructura/migraciones/nombres-unicos-de-clasificaciones.ts`. **Cierre.** La migración comprueba duplicados y se detiene sin modificar datos; tiene `down`; se registra en `oferta-002.ts` y `categorias-002.ts`.
+- [x] T097 [US4] Alinear la normalización de la aplicación y validar con 409 en `tecnologia/backend/src/modulos/catalogo/dominio/gestion-clasificaciones.ts`, `aplicacion/clasificaciones.ts`, `aplicacion/puertos/clasificaciones.ts` y `infraestructura/persistencia/clasificaciones.ts`. **Cierre.** La comprobación ocurre dentro del bloqueo exclusivo y la violación `23505` del índice se traduce al mismo 409.
+- [x] T098 [P] [US4] Pruebas unitarias de normalización (ñ y n, quechua, espacios y signos) y de la regla en `tecnologia/backend/test/unit/prestadores-catalogo/unicidad-nombres.spec.ts`. **Cierre.** Vectores compartidos con la prueba de paridad.
+- [x] T099 [US4] Pruebas de integración con PostgreSQL real en `tecnologia/backend/test/integration/prestadores-catalogo/nombres-unicos-clasificaciones.spec.ts`. **Cierre.** Inmutabilidad y dependencias de la función, paridad con la aplicación, índice, migración con duplicados y reversión.
+- [x] T100 [P] [US4] Pruebas de contrato y concurrencia en `tecnologia/backend/test/contract/prestadores-catalogo/unicidad-nombres.spec.ts` y `tecnologia/backend/test/integration/prestadores-catalogo/unicidad-concurrencia.spec.ts`. **Cierre.** 20 altas simultáneas equivalentes con claves distintas dan una creación y 19 conflictos; reintentos con la misma clave.
+- [x] T101 [US4] Registrar el ensayo en base descartable y la regresión en `specs/002-prestadores-y-catalogo/implementation-status.md`. **Cierre.** Resultados, limitaciones y la condición de no aplicar la migración a la base principal de validación sin autorización.
+
+- [x] T102 [US4] Revisión técnica independiente del diff de la enmienda, respaldo verificable de `ayacucho_002_validacion` y ensayo de la migración sobre una copia restaurada, en `specs/002-prestadores-y-catalogo/implementation-status.md`. **Cierre.** Informe de revisión, respaldo con suma de comprobación, copia restaurada con huellas idénticas y migración aplicada solo a la copia.
+- [x] T103 [US4] Aplicar la migración a `ayacucho_002_validacion` con respaldo previo y verificar el resultado, y generar un respaldo nuevo del portafolio con la lista de migraciones actual, en `specs/002-prestadores-y-catalogo/implementation-status.md`. **Cierre.** Aplicada el 2026-11-25 con autorización expresa del responsable y verificada (ver «T103» en `implementation-status.md`). **Dep.** T102.
+
 ## Fase 7 — Integración del monolito y regresión
 
 **Objetivo.** Entregar la aplicación compuesta, verificar los límites de módulos y comprobar recuperación, compatibilidad y despliegue.
@@ -210,6 +225,10 @@
 | CA-CAT-08 | RF39 y RF08 | T055, T061, T064 | Propagar inactividad efectiva conservando los estados propios. |
 | CA-CAT-09 | RF39, RF08 y RF10 | T055, T064, T069 | Restaurar solo la oferta elegible tras activar la clasificación. |
 | CA-CAT-10 | RF39, RF09 y RF10 | T049, T064, T069 | Verificar invalidación caliente en T064 e invalidación tras caída, repoblación y recuperación en T069. |
+| CA-CAT-11 | RF39 | T095 a T100 | Rechazar con 409 el nombre equivalente entre hermanas, activas o inactivas, sin almacenar ni auditar. |
+| CA-CAT-12 | RF39 | T098, T099, T100 | Aceptar el mismo nombre bajo padres distintos y distinguir ñ de n. |
+| CA-CAT-13 | RF39 | T100 | Una creación y 19 conflictos con 20 envíos simultáneos y claves distintas. |
+| CA-CAT-14 | RF39 | T099, T100 | Reintento idempotente, conflicto sin guardado idempotente y protección de PostgreSQL ante escrituras directas. |
 
 ### Contratos por historia
 

@@ -1183,7 +1183,7 @@
         ],
         "operationId": "crearCategoria002",
         "summary": "Crear una categoría o subcategoría inactiva",
-        "description": "Si se indica un padre debe ser una categoría raíz existente. La relación queda fija después del alta. Exige permiso vigente de RF39 y motivo auditable.",
+        "description": "Si se indica un padre debe ser una categoría raíz existente. La relación queda fija después del alta. El nombre no puede ser equivalente al de otra clasificación hermana, activa o inactiva (409 NOMBRE_CLASIFICACION_EN_USO); el mismo nombre bajo padres distintos es válido. Exige permiso vigente de RF39 y motivo auditable.",
         "security": [
           {
             "bearerAuth": []
@@ -1258,7 +1258,7 @@
         ],
         "operationId": "editarCategoria002",
         "summary": "Actualizar el nombre de una clasificación",
-        "description": "Exige permiso vigente de RF39 y motivo auditable. Los cambios de estado usan sus subrecursos.",
+        "description": "Exige permiso vigente de RF39 y motivo auditable. Los cambios de estado usan sus subrecursos. El nuevo nombre no puede ser equivalente al de otra clasificación hermana, activa o inactiva (409 NOMBRE_CLASIFICACION_EN_USO); cambiar solo tildes de vocales o mayúsculas del propio nombre es válido.",
         "security": [
           {
             "bearerAuth": []
@@ -2988,7 +2988,8 @@
               "VERSION_DESACTUALIZADA",
               "CLAVE_IDEMPOTENCIA_REUTILIZADA",
               "CONFIRMACION_NO_VALIDA",
-              "IMPACTO_DESACTUALIZADO"
+              "IMPACTO_DESACTUALIZADO",
+              "NOMBRE_CLASIFICACION_EN_USO"
             ]
           },
           "mensaje": {
@@ -3198,7 +3199,7 @@
         }
       },
       "C002Error409": {
-        "description": "Versión, clave idempotente o confirmación en conflicto.",
+        "description": "Versión, clave idempotente, confirmación o nombre en conflicto. NOMBRE_CLASIFICACION_EN_USO: ya existe, bajo la misma categoría padre (o entre categorías raíz), una clasificación activa o inactiva cuyo nombre normalizado es equivalente.",
         "headers": {
           "Cache-Control": {
             "$ref": "#/components/headers/C002CacheControl"
