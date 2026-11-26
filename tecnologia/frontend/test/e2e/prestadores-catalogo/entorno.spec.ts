@@ -24,7 +24,7 @@ test.describe('ejecutor de navegador 002', () => {
     if (seguridad?.subjectName) expect(seguridad.subjectName).toBe('localhost');
     if (seguridad?.issuer) expect(seguridad.issuer).toContain('Ayacucho Validacion Local 002 CA');
     if (seguridad?.protocol) expect(seguridad.protocol).toMatch(/^TLS ?1\.[23]$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Plataforma Ayacucho' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'WasiMaki' })).toBeVisible();
     const enlaceBuscar = page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Buscar servicios' }); await conMenu(page, enlaceBuscar);
     await expect(enlaceBuscar).toHaveAttribute('aria-current', 'page');
     expect(await page.evaluate(() => window.innerWidth)).toBe(registroDispositivo.anchoViewport);

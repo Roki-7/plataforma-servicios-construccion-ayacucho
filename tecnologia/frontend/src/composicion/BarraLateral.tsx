@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { Avatar } from '../compartido/Avatar.js';
+import { Marca } from '../compartido/Marca.js';
+import { LEMA_MARCA } from '../compartido/identidad-marca.js';
 import './barra-lateral.css';
 
 export type NombreIcono = 'buscar' | 'cuenta' | 'perfiles' | 'profesional' | 'servicios' | 'registro' | 'acceso';
@@ -36,7 +39,7 @@ function useEscritorio(): boolean {
  * un panel lateral (se cierra con el botón, la tecla Escape, tocando fuera o al elegir una opción, y no cubre el contenido de forma permanente).
  * Las rutas, la autenticación y el cierre de sesión los resuelve la composición: este componente solo presenta los enlaces que recibe.
  */
-export function BarraLateral({ enlaces, alNavegar, cierre, ruta }: { readonly enlaces: readonly EnlaceMenu[]; readonly alNavegar: (e: MouseEvent<HTMLAnchorElement>) => void; readonly cierre?: ReactNode; readonly ruta: string }) {
+export function BarraLateral({ enlaces, alNavegar, cierre, ruta, cuenta }: { readonly enlaces: readonly EnlaceMenu[]; readonly alNavegar: (e: MouseEvent<HTMLAnchorElement>) => void; readonly cierre?: ReactNode; readonly ruta: string; readonly cuenta?: { readonly nombre: string; readonly url: string } | undefined }) {
   const escritorio = useEscritorio(); const [abierto, setAbierto] = useState(false);
   const boton = useRef<HTMLButtonElement>(null); const nav = useRef<HTMLElement>(null);
   const visible = escritorio || abierto;
@@ -49,13 +52,15 @@ export function BarraLateral({ enlaces, alNavegar, cierre, ruta }: { readonly en
   }, [abierto]);
   return <div className="app-lateral">
     <div className="app-marca">
-      <h1>Plataforma Ayacucho</h1>
+      <div className="app-marca-texto"><h1><Marca /></h1><p className="app-lema">{LEMA_MARCA}</p></div>
+      {cuenta && <span className="app-avatar-barra"><Avatar nombre={cuenta.nombre} url={cuenta.url} tamano="pequeno" /></span>}
       <button type="button" ref={boton} className="app-menu-boton" aria-expanded={abierto} aria-controls="menu-principal" onClick={() => setAbierto(v => !v)}>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">{abierto ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</svg>
         <span>Menú</span>
       </button>
     </div>
     <nav id="menu-principal" ref={nav} className="app-nav" aria-label="Navegación principal" hidden={!visible}>
+      {cuenta && <div className="app-cuenta"><Avatar nombre={cuenta.nombre} url={cuenta.url} tamano="mediano" /><span className="app-cuenta-nombre">{cuenta.nombre}</span></div>}
       {enlaces.map(e => <a key={e.href} href={e.href} aria-current={e.actual ? 'page' : undefined} onClick={alNavegar}><Icono nombre={e.icono} /><span>{e.texto}</span></a>)}
       {cierre}
     </nav>

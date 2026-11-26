@@ -62,7 +62,7 @@ async function comprobarRechazo(pagina: Page, motor: keyof typeof rechazoPorMoto
 test('Fundación: aplicación base, salud técnica y confianza TLS', async ({ page, request, browser, browserName, correoApi }, info) => {
   info.annotations.push({ type: 'navegador', description: `${browserName} ${browser.version()}` });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Plataforma Ayacucho' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'WasiMaki' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Crear cuenta', exact: true })).toBeVisible();
   const salud = await request.get('/api/v1/salud');
   expect(salud.status()).toBe(200);

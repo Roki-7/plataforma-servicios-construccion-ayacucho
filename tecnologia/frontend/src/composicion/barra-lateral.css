@@ -9,7 +9,7 @@
   --app-lateral: #0c3a49;
   --app-lateral-suave: #164b5c;
   --app-ancho: 15rem;
-  --app-barra: 3.5rem;
+  --app-barra: 4.1rem;
   min-height: 100vh;
 }
 .app-saltar { position: absolute; top: .5rem; left: .5rem; z-index: 60; padding: .6rem 1rem; border-radius: .6rem; background: #fff; color: #0c3a49; font-weight: 700; transform: translateY(-200%); }
@@ -19,7 +19,6 @@
 .app-lateral { position: sticky; top: 0; z-index: 40; background: var(--app-lateral); color: #fff; }
 .app-lateral .app-marca { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: var(--app-barra); padding: .5rem clamp(1rem, 4vw, 1.5rem); border-top: 4px solid #a8502e; }
 .app-lateral .app-marca h1 { display: flex; align-items: center; gap: .6rem; margin: 0; color: #fff; font-size: 1.15rem; font-weight: 700; letter-spacing: -.005em; }
-.app-lateral .app-marca h1::before { width: .75rem; height: .75rem; flex: none; border-radius: 3px; background: #d9784f; content: ''; }
 .app-lateral .app-menu-boton { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .4rem .9rem; border: 1.5px solid rgb(255 255 255 / 55%); border-radius: .65rem; background: transparent; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 .app-lateral .app-menu-boton:hover { background: rgb(255 255 255 / 14%); box-shadow: none; }
 .app-lateral .app-menu-boton:focus-visible, .app-lateral .app-nav a:focus-visible, .app-lateral .app-nav button:focus-visible { outline: 3px solid #f4b48f; outline-offset: 2px; }
@@ -82,3 +81,38 @@
 }
 @media (min-width: 64rem) { .app { --app-ancho: 16.5rem; } }
 @media (prefers-reduced-motion: reduce) { .app-lateral .app-nav a { transition: none; } }
+
+
+/* ── Marca (emblema circular + nombre + lema) y avatar de la cuenta ── */
+.marca { display: inline-flex; align-items: center; gap: .65rem; min-width: 0; }
+.marca-emblema-circulo { display: inline-grid; flex: none; place-items: center; width: 2.5rem; height: 2.5rem; overflow: hidden; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgb(255 255 255 / 40%); }
+.marca-emblema-circulo img { display: block; width: 92%; height: 92%; object-fit: contain; }
+.marca-nombre { white-space: nowrap; }
+.portada-marca { display: flex; justify-content: center; margin: 0 0 1.25rem; }
+.portada-marca img { display: block; width: min(100%, 16rem); height: auto; }
+@media (min-width: 48rem) {
+  .app-lateral .app-marca h1 { display: block; }
+  .marca { display: grid; justify-items: start; gap: .75rem; }
+  .marca-emblema-circulo { width: 4.5rem; height: 4.5rem; box-shadow: 0 0 0 3px rgb(255 255 255 / 30%), 0 8px 20px rgb(0 0 0 / 25%); }
+  .marca-nombre { font-size: 1.6rem; line-height: 1.1; letter-spacing: -.01em; }
+  .portada-marca img { width: min(100%, 20rem); }
+  .portada-marca { margin-bottom: 1.5rem; }
+}
+.app-lateral .app-marca-texto { display: grid; gap: .1rem; min-width: 0; }
+.app-lateral .app-lema { margin: 0; color: #f4b48f; font-size: .75rem; font-weight: 600; letter-spacing: .01em; line-height: 1.25; }
+.app-lateral .app-avatar-barra { display: inline-flex; margin-left: auto; }
+.app-lateral .app-cuenta { display: flex; align-items: center; gap: .75rem; margin: .25rem 0 .75rem; padding: .6rem .9rem; border-radius: .65rem; background: rgb(255 255 255 / 8%); }
+.app-lateral .app-cuenta-nombre { min-width: 0; overflow: hidden; color: #fff; font-size: .95rem; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+@media (min-width: 48rem) { .app-lateral .app-avatar-barra { display: none; } .app-lateral .app-lema { font-size: .85rem; } }
+
+.avatar { display: inline-grid; flex: none; place-items: center; overflow: hidden; border-radius: 50%; background: var(--terracota-suave); color: var(--terracota-texto); font-weight: 700; line-height: 1; user-select: none; }
+.avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.avatar-pequeno { width: 2rem; height: 2rem; font-size: .8rem; }
+.avatar-mediano { width: 2.75rem; height: 2.75rem; font-size: 1rem; }
+.avatar-grande { width: 6.5rem; height: 6.5rem; font-size: 2.1rem; box-shadow: 0 0 0 3px #fff, 0 2px 10px rgb(18 78 96 / 18%); }
+.app-lateral .avatar-iniciales { background: #f4b48f; color: #0c3a49; }
+.app-lateral .avatar { box-shadow: 0 0 0 2px rgb(255 255 255 / 45%); }
+
+.cuenta-identidad { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+.cuenta-datos { min-width: 0; }
+.cuenta-nombre { margin: 0 0 .25rem; color: var(--texto-suave); font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }

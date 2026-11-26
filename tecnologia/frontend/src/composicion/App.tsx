@@ -18,12 +18,15 @@ import { mensajeDeError } from '../features/prestadores-catalogo/aplicacion/port
 import type { OpcionCategoria } from '../features/prestadores-catalogo/aplicacion/categorias.js';
 import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
 import { BarraLateral, type EnlaceMenu } from './BarraLateral.js';
+import { PortadaMarca } from '../compartido/Marca.js';
+import { useCuentaSesion } from '../features/usuarios-acceso/presentacion/useCuentaSesion.js';
 import './estilos.css';
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
   const [enlaceVersion, setEnlaceVersion] = useState(0);
   const [correoInicial, setCorreoInicial] = useState('');
   const [cierres, setCierres] = useState(0); const [trasCierre, setTrasCierre] = useState(false);
+  const { cuenta, refrescar: refrescarCuenta } = useCuentaSesion(perfilWeb, estado.autenticada);
   useEffect(()=>{const capturar=()=>{if(location.pathname!=='/confirmar-correo'||!location.hash)return;const fragmento=location.hash;history.replaceState(null,'','/confirmar-correo');correoWeb.cargarEnlace(fragmento);setRuta('/confirmar-correo');setEnlaceVersion(v=>v+1);};capturar();window.addEventListener('hashchange',capturar);return()=>window.removeEventListener('hashchange',capturar);},[]);
   useEffect(() => { let estabaAutenticada = sesion.estado().autenticada; const quitar = sesion.suscribir(() => { const siguiente=sesion.estado(); if(!siguiente.autenticada){perfilWeb.limpiar();correoWeb.limpiar();if(estabaAutenticada)setMensaje('');} estabaAutenticada=siguiente.autenticada; setEstado(siguiente); }); if (location.pathname === '/recuperar') setCargando(false); else void sesion.restaurar().catch(() => setMensaje('No fue posible recuperar la sesión. Inicie sesión de nuevo.')).finally(() => setCargando(false)); const navegar = () => setRuta(location.pathname); window.addEventListener('popstate', navegar); return () => { quitar(); window.removeEventListener('popstate', navegar); }; }, []);
   useEffect(() => { const capturar = () => { if (location.pathname !== '/recuperar' || !location.hash) return; const fragmento = location.hash; history.replaceState(null, '', '/recuperar'); recuperacion.cargarEnlace(fragmento); sesion.invalidar(); setCargando(false); setRuta('/recuperar'); setMensaje(''); setEnlaceVersion((v) => v + 1); }; capturar(); window.addEventListener('hashchange', capturar); return () => window.removeEventListener('hashchange', capturar); }, []);
@@ -65,11 +68,11 @@ export function App() {
     else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
     else if (ruta === '/prestador/perfil') contenido = <RequierePrestador><PantallaPerfilProfesional /></RequierePrestador>;
     else if (ruta === '/prestador/servicios') contenido = <RequierePrestador><PantallaServicios /></RequierePrestador>;
-    else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} />;
+    else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} alActualizar={refrescarCuenta} />;
   } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
-    contenido = <>{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
+    contenido = <><PortadaMarca />{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
   } else {
-    contenido = <Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} />;
+    contenido = <><PortadaMarca /><Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} /></>;
   }
 
   const enlaces: EnlaceMenu[] = estado.autenticada
@@ -80,7 +83,7 @@ export function App() {
       { href: '/acceso', texto: 'Acceder', icono: 'acceso', actual: ruta === '/acceso' }];
   return <div className="app">
     <a className="app-saltar" href="#contenido">Saltar al contenido</a>
-    <BarraLateral ruta={ruta} enlaces={enlaces} alNavegar={navegar} cierre={estado.autenticada ? <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
+    <BarraLateral ruta={ruta} enlaces={enlaces} alNavegar={navegar} cuenta={cuenta} cierre={estado.autenticada ? <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
       try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
       catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
     }} /> : undefined} />

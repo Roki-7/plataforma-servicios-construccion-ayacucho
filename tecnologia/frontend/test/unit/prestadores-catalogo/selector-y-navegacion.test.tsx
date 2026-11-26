@@ -82,7 +82,7 @@ describe('BarraLateral', () => {
     const nav = screen.getByRole('navigation', { name: 'Navegación principal' });
     expect(within(nav).getAllByRole('link').map(a => a.textContent)).toEqual(['Buscar servicios', 'Mi cuenta']);
     expect(within(nav).getByRole('link', { name: 'Buscar servicios' })).toHaveAttribute('aria-current', 'page'); expect(within(nav).getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Plataforma Ayacucho' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'WasiMaki' })).toBeInTheDocument();
   });
 
   test('en celular el menú se abre y se cierra con el botón, con Escape y al elegir una opción; cerrado no es alcanzable', () => {
