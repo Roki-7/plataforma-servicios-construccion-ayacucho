@@ -24,11 +24,11 @@ backend security:catalog:prepare -- --fixture
 backend test:seed
 
 export JEST_JUNIT_OUTPUT_DIR="$EVIDENCIA_001"
-JEST_JUNIT_OUTPUT_NAME=u.xml backend test:unit
-JEST_JUNIT_OUTPUT_NAME=i.xml backend test:integration -- --runInBand
-JEST_JUNIT_OUTPUT_NAME=c.xml backend test:contract
+JEST_JUNIT_OUTPUT_NAME=u.xml backend test:unit -- --testPathIgnorePatterns prestadores-catalogo
+JEST_JUNIT_OUTPUT_NAME=i.xml backend test:integration -- --runInBand --testPathIgnorePatterns prestadores-catalogo
+JEST_JUNIT_OUTPUT_NAME=c.xml backend test:contract -- --testPathIgnorePatterns prestadores-catalogo
 JEST_JUNIT_OUTPUT_NAME=arquitectura.xml backend test:architecture
-frontend test:unit -- --outputFile.junit="$EVIDENCIA_001/v.xml"
+frontend test:unit -- --exclude "test/unit/prestadores-catalogo/**" --outputFile.junit="$EVIDENCIA_001/v.xml"
 backend test:container
 
 # En Linux el proxy de Compose entra por la interfaz del puente Docker.
@@ -47,7 +47,7 @@ for intento in {1..30}; do
   sleep 1
 done
 backend test:proxy
-E2E_EVIDENCIA="$EVIDENCIA_001" frontend test:e2e:container
+E2E_EVIDENCIA="$EVIDENCIA_001" frontend test:e2e:container -- fundacion usuarios-acceso
 VALIDATION_MODE=true SSL_CERT_FILE="$NODE_EXTRA_CA_CERTS" backend test:performance -- --summary-export "$EVIDENCIA_001/k6.json"
 npm --silent --prefix tecnologia/backend run test:argon2:coste > "$EVIDENCIA_001/argon2.json"
 VALIDATION_MODE=true npm --silent --prefix tecnologia/backend run test:salud -- 2 "$EVIDENCIA_001/salud.jsonl" "$GITHUB_SHA" > "$EVIDENCIA_001/salud-resumen.json"

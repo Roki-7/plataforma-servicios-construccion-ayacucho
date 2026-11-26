@@ -8,12 +8,15 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:validation:002": "vite --host 127.0.0.1 --port 5175 --strictPort --mode validation",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:container": "node scripts/probar-navegadores.mjs",
+    "test:e2e:002": "node scripts/ejecutar-e2e-002.mjs",
+    "test:carga:002": "node scripts/ejecutar-e2e-002.mjs --carga",
     "test:e2e:windows": "node scripts/probar-navegadores-windows.mjs"
   },
   "dependencies": {

@@ -9,13 +9,24 @@ import { EstadoSesion } from '../features/usuarios-acceso/presentacion/EstadoSes
 import { EstadoAcceso } from '../features/usuarios-acceso/presentacion/EstadoAcceso.js';
 import { RecuperarAcceso } from '../features/usuarios-acceso/presentacion/RecuperarAcceso.js';
 import { EstablecerContrasena } from '../features/usuarios-acceso/presentacion/EstablecerContrasena.js';
+import { PerfilProfesional } from '../features/prestadores-catalogo/presentacion/PerfilProfesional.js';
+import { ServiciosPropios } from '../features/prestadores-catalogo/presentacion/ServiciosPropios.js';
+import { BuscarOferta } from '../features/prestadores-catalogo/presentacion/BuscarOferta.js';
+import { DetallePrestador, DetalleServicio } from '../features/prestadores-catalogo/presentacion/DetallePrestador.js';
+import { busquedaWeb, categoriasWeb, portafolioWeb, serviciosWeb } from './prestadores-catalogo.js';
+import { mensajeDeError } from '../features/prestadores-catalogo/aplicacion/portafolio.js';
+import type { OpcionCategoria } from '../features/prestadores-catalogo/aplicacion/categorias.js';
 import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioContrasena } from './usuarios-acceso.js';
+import { BarraLateral, type EnlaceMenu } from './BarraLateral.js';
+import { PortadaMarca } from '../compartido/Marca.js';
+import { useCuentaSesion } from '../features/usuarios-acceso/presentacion/useCuentaSesion.js';
 import './estilos.css';
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
   const [enlaceVersion, setEnlaceVersion] = useState(0);
   const [correoInicial, setCorreoInicial] = useState('');
   const [cierres, setCierres] = useState(0); const [trasCierre, setTrasCierre] = useState(false);
+  const { cuenta, refrescar: refrescarCuenta } = useCuentaSesion(perfilWeb, estado.autenticada);
   useEffect(()=>{const capturar=()=>{if(location.pathname!=='/confirmar-correo'||!location.hash)return;const fragmento=location.hash;history.replaceState(null,'','/confirmar-correo');correoWeb.cargarEnlace(fragmento);setRuta('/confirmar-correo');setEnlaceVersion(v=>v+1);};capturar();window.addEventListener('hashchange',capturar);return()=>window.removeEventListener('hashchange',capturar);},[]);
   useEffect(() => { let estabaAutenticada = sesion.estado().autenticada; const quitar = sesion.suscribir(() => { const siguiente=sesion.estado(); if(!siguiente.autenticada){perfilWeb.limpiar();correoWeb.limpiar();if(estabaAutenticada)setMensaje('');} estabaAutenticada=siguiente.autenticada; setEstado(siguiente); }); if (location.pathname === '/recuperar') setCargando(false); else void sesion.restaurar().catch(() => setMensaje('No fue posible recuperar la sesión. Inicie sesión de nuevo.')).finally(() => setCargando(false)); const navegar = () => setRuta(location.pathname); window.addEventListener('popstate', navegar); return () => { quitar(); window.removeEventListener('popstate', navegar); }; }, []);
   useEffect(() => { const capturar = () => { if (location.pathname !== '/recuperar' || !location.hash) return; const fragmento = location.hash; history.replaceState(null, '', '/recuperar'); recuperacion.cargarEnlace(fragmento); sesion.invalidar(); setCargando(false); setRuta('/recuperar'); setMensaje(''); setEnlaceVersion((v) => v + 1); }; capturar(); window.addEventListener('hashchange', capturar); return () => window.removeEventListener('hashchange', capturar); }, []);
@@ -39,45 +50,106 @@ export function App() {
     await sesion.entrar(datos);
     setCorreoInicial('');
     setTrasCierre(false);
-    if (location.pathname !== '/confirmar-correo' || !correoWeb.tieneEnlace()) ir('/cuenta');
+    // Las pantallas profesionales conservan su destino tras iniciar sesión (la URL no cambia mientras se muestra el acceso). El resto de los recorridos base no cambia.
+    if (location.pathname !== '/confirmar-correo' || !correoWeb.tieneEnlace()) ir(rutasProfesionales.includes(location.pathname) ? location.pathname : '/cuenta');
   }} />;
   const pantallaRecuperacion = recuperacion.tieneEnlace() ? <EstablecerContrasena key={enlaceVersion} establecer={(nueva, confirmacion) => recuperacion.consumir(nueva, confirmacion)} completada={() => { sesion.invalidar(); history.replaceState(null, '', '/acceso'); setRuta('/acceso'); setMensaje('Contraseña actualizada. Inicie sesión con su nueva contraseña.'); }} /> : recuperacion.enlaceInvalido ? <section><h2>Enlace no válido</h2><p>Solicite un enlace nuevo para recuperar el acceso.</p><a href="/recuperar">Solicitar un enlace nuevo</a></section> : <RecuperarAcceso solicitar={(correo) => recuperacion.solicitar(correo)} />;
   const rutaCuenta = ruta === '/cuenta' || ruta === '/habilitar-perfil';
   let contenido: ReactNode;
-  if (cargando) contenido = <p>Comprobando sesión…</p>;
+  const uuidRuta = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
+  const prestadorRuta = new RegExp('^/prestadores/' + uuidRuta + '$').exec(ruta)?.[1]; const servicioRuta = new RegExp('^/servicios/' + uuidRuta + '$').exec(ruta)?.[1];
+  if (cargando && ruta !== '/buscar' && !prestadorRuta && !servicioRuta) contenido = <p>Comprobando sesión…</p>;
+  else if (ruta === '/buscar') contenido = <PantallaBusqueda alVerPrestador={id => ir('/prestadores/' + id)} alVerServicio={id => ir('/servicios/' + id)} />;
+  else if (prestadorRuta) contenido = <DetallePrestador key={prestadorRuta} busqueda={busquedaWeb} prestadorId={prestadorRuta} alVerServicio={id => ir('/servicios/' + id)} />;
+  else if (servicioRuta) contenido = <DetalleServicio key={servicioRuta} busqueda={busquedaWeb} servicioId={servicioRuta} alVerPrestador={id => ir('/prestadores/' + id)} />;
   else if (ruta === '/recuperar') contenido = pantallaRecuperacion;
   else if (estado.autenticada) {
     if (ruta === '/confirmar-correo') contenido = <PantallaConfirmarCorreo key={enlaceVersion} />;
     else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
-    else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} />;
-  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena'].includes(ruta)) {
-    contenido = <>{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
+    else if (ruta === '/prestador/perfil') contenido = <RequierePrestador><PantallaPerfilProfesional /></RequierePrestador>;
+    else if (ruta === '/prestador/servicios') contenido = <RequierePrestador><PantallaServicios /></RequierePrestador>;
+    else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} alActualizar={refrescarCuenta} />;
+  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
+    contenido = <><PortadaMarca />{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
   } else {
-    contenido = <Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} />;
+    contenido = <><PortadaMarca /><Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} /></>;
   }
 
-  return <main>
-    <header>
-      <h1>Plataforma Ayacucho</h1>
-      <nav aria-label="Navegación principal">
-        {estado.autenticada ? <>
-          <a href="/cuenta" aria-current={ruta === '/cuenta' ? 'page' : undefined} onClick={navegar}>Mi cuenta</a>
-          <a href="/habilitar-perfil" aria-current={ruta === '/habilitar-perfil' ? 'page' : undefined} onClick={navegar}>Mis perfiles</a>
-          <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
-            try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
-            catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
-          }} />
-        </> : <>
-          <a href="/registro" aria-current={ruta === '/' || ruta === '/registro' ? 'page' : undefined} onClick={navegar}>Crear cuenta</a>
-          <a href="/acceso" aria-current={ruta === '/acceso' ? 'page' : undefined} onClick={navegar}>Acceder</a>
-        </>}
-      </nav>
-    </header>
+  const enlaces: EnlaceMenu[] = estado.autenticada
+    ? [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/cuenta', texto: 'Mi cuenta', icono: 'cuenta', actual: ruta === '/cuenta' },
+      { href: '/habilitar-perfil', texto: 'Mis perfiles', icono: 'perfiles', actual: ruta === '/habilitar-perfil' }, { href: '/prestador/perfil', texto: 'Mi perfil profesional', icono: 'profesional', actual: ruta === '/prestador/perfil' },
+      { href: '/prestador/servicios', texto: 'Mis servicios', icono: 'servicios', actual: ruta === '/prestador/servicios' }]
+    : [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/registro', texto: 'Crear cuenta', icono: 'registro', actual: ruta === '/' || ruta === '/registro' },
+      { href: '/acceso', texto: 'Acceder', icono: 'acceso', actual: ruta === '/acceso' }];
+  return <div className="app">
+    <a className="app-saltar" href="#contenido">Saltar al contenido</a>
+    <BarraLateral ruta={ruta} enlaces={enlaces} alNavegar={navegar} cuenta={cuenta} cierre={estado.autenticada ? <EstadoSesion ocupado={estado.cerrando} cerrar={async () => {
+      try { await sesion.cerrar(); setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'Sesión cerrada.'); }
+      catch { setCierres(v => v + 1); setTrasCierre(true); ir('/acceso', 'No se pudo confirmar el cierre en el servidor. Se retiró el acceso de esta pantalla.'); }
+    }} /> : undefined} />
+    <main id="contenido" className="app-contenido" tabIndex={-1}>
     <div className="superficie">
       {mensaje && <p className="aviso" role="status">{mensaje}</p>}
       {contenido}
     </div>
-  </main>;
+    </main>
+  </div>;
+}
+
+/** Rutas privadas de los flujos de Prestadores y Catálogo. Tras iniciar sesión desde una de ellas se vuelve a la misma pantalla. */
+const rutasProfesionales = ['/prestador/perfil', '/prestador/servicios'];
+
+type EstadoCategorias = { readonly opciones?: readonly OpcionCategoria[]; readonly error?: string };
+/** Categorías activas de la consulta pública (anónima). Se cargan una vez y se pueden reintentar. */
+function useCategorias(): EstadoCategorias & { readonly reintentar: () => void } {
+  const [estado, setEstado] = useState<EstadoCategorias>({}); const [intento, setIntento] = useState(0);
+  useEffect(() => {
+    let activo = true;
+    categoriasWeb.cargar().then(opciones => { if (activo) setEstado({ opciones }); }).catch(e => { if (activo) setEstado({ error: mensajeDeError(e) }); });
+    return () => { activo = false; };
+  }, [intento]);
+  return { ...estado, reintentar: () => { categoriasWeb.reiniciar(); setEstado({}); setIntento(n => n + 1); } };
+}
+
+/** La búsqueda pública no requiere sesión ni categorías: si estas no cargan, se busca sin el filtro de categoría. */
+function PantallaBusqueda({ alVerPrestador, alVerServicio }: { readonly alVerPrestador: (id: string) => void; readonly alVerServicio: (id: string) => void }) {
+  const { opciones } = useCategorias();
+  return <BuscarOferta busqueda={busquedaWeb} categorias={opciones ?? []} alVerPrestador={alVerPrestador} alVerServicio={alVerServicio} />;
+}
+
+/** Las pantallas profesionales requieren las categorías: sin ellas no se puede elegir una especialidad ni una categoría de servicio. */
+function ConCategorias({ children }: { readonly children: (opciones: readonly OpcionCategoria[]) => ReactNode }) {
+  const { opciones, error, reintentar } = useCategorias();
+  if (error) return <div role="alert"><p>{error}</p><p>No fue posible cargar las categorías disponibles.</p><button type="button" onClick={reintentar}>Reintentar</button></div>;
+  if (!opciones) return <p>Cargando categorías…</p>;
+  return <>{children(opciones)}</>;
+}
+
+function PantallaPerfilProfesional() {
+  return <ConCategorias>{opciones => <PerfilProfesional servicio={portafolioWeb} especialidades={opciones} />}</ConCategorias>;
+}
+
+function PantallaServicios() {
+  return <ConCategorias>{opciones => <ServiciosPropios servicio={serviciosWeb} categorias={opciones} />}</ConCategorias>;
+}
+
+/**
+ * El permiso de prestador se comprueba en el servidor en cada operación. Aquí solo se evita mostrar una pantalla que la cuenta no puede usar:
+ * se consulta el perfil de la cuenta (identidad de la sesión existente) y, si no tiene el perfil de prestador, se ofrece habilitarlo.
+ */
+function RequierePrestador({ children }: { readonly children: ReactNode }) {
+  const [estado, setEstado] = useState<{ readonly perfiles?: readonly string[]; readonly error?: string }>({}); const [intento, setIntento] = useState(0);
+  useEffect(() => {
+    let activo = true;
+    perfilWeb.consultar().then(p => { if (activo) setEstado({ perfiles: p.perfiles }); }).catch(e => { if (activo) setEstado({ error: mensajeDeError(e) }); });
+    return () => { activo = false; };
+  }, [intento]);
+  if (estado.error) return <div role="alert"><p>{estado.error}</p><button type="button" onClick={() => { setEstado({}); setIntento(n => n + 1); }}>Reintentar</button></div>;
+  if (!estado.perfiles) return <p>Comprobando su perfil…</p>;
+  if (!estado.perfiles.includes('prestador')) {
+    return <section><h2>Perfil de prestador requerido</h2><p>Su cuenta no tiene habilitado el perfil de prestador. Habilítelo para publicar su perfil profesional y sus servicios.</p><a href="/habilitar-perfil">Habilitar perfil de prestador</a></section>;
+  }
+  return <>{children}</>;
 }
 
 function PantallaCambiarContrasena() {

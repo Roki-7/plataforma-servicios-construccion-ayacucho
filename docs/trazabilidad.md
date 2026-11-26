@@ -235,13 +235,90 @@ Al cierre de US7 quedaban pendientes T110–T119, el incidente 503, los abortos 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
 | 001 | Usuarios y acceso | HU01, HU02 | 119/119 tareas completadas (T117–T119 cerradas con limitaciones documentadas). PR #1 fusionado en `main` (`b6c998a`) | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
-| 002 | Prestadores y catálogo | HU03–HU05, HU25 | Planificada | `specs/002-…` |
+| 002 | Prestadores y catálogo | HU03–HU05, HU25 | Implementada y verificada en la rama `002-prestadores-y-catalogo` (**no fusionada en `main`**); CI n.º 20 aprobada; T080 y T093 cerradas por excepción documentada (PR07 parcial, SC-04 no demostrado) y T094 pendiente | [Estado y pruebas](../specs/002-prestadores-y-catalogo/implementation-status.md) |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |
 | 005 | Seguimiento y cierre | HU18, HU19 | Planificada | `specs/005-…` |
 | 006 | Notificaciones | HU22 | Planificada | `specs/006-…` |
 
 Al implementar cada funcionalidad se agrega aquí la lista de componentes construidos y los archivos de prueba que la verifican.
+
+### Prestadores y catálogo (002): cadena de trazabilidad y pruebas reales
+
+Cadena **HU → RF → AC/EQ → DA → ADR → módulo → prueba → funcionalidad**, con rutas del repositorio. Los identificadores existentes no se renumeran. Evidencia y estados en [implementation-status.md](../specs/002-prestadores-y-catalogo/implementation-status.md).
+
+| HU | RF | AC / EQ | DA | ADR | Módulo | Pruebas (rutas) | Evidencia |
+|---|---|---|---|---|---|---|---|
+| HU03 | RF06 | AC04 / EQ-04 | DA03, DA11 | ADR-011 | Prestadores (`tecnologia/backend/src/modulos/prestadores/`) | `backend/test/unit/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `backend/test/contract/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `backend/test/integration/prestadores-catalogo/portafolio.spec.ts`, `frontend/test/e2e/prestadores-catalogo/perfil-y-portafolio.spec.ts` | CA-PRE-01 a 08 aprobados (fase 3) |
+| HU04 | RF08 | AC05 / EQ-05 | DA08 | ADR-002 | Catálogo y búsqueda (`…/modulos/catalogo/`) | `backend/test/unit/prestadores-catalogo/estados-servicio.spec.ts`, `backend/test/contract/prestadores-catalogo/servicios-propios.spec.ts`, `backend/test/integration/prestadores-catalogo/ciclo-servicios.spec.ts`, `frontend/test/e2e/prestadores-catalogo/servicios.spec.ts` | CA-SER-01 a 09 aprobados (fase 4) |
+| HU05 | RF09, RF10 | AC01, AC03 / EQ-01, EQ-03 | DA01, DA02 | ADR-010 | Catálogo y búsqueda | `backend/test/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `backend/test/integration/prestadores-catalogo/busqueda-publica.spec.ts`, `backend/test/integration/prestadores-catalogo/privacidad-publica.spec.ts`, `frontend/test/e2e/prestadores-catalogo/busqueda.spec.ts` | CA-BUS-01 a 08 aprobados (fase 5) |
+| HU25 | RF39 | AC05 / EQ-05, AC04 / EQ-04, AC01 / EQ-01 | DA08, DA03, DA02 | ADR-001, ADR-002, ADR-006, ADR-010 | Catálogo y Administración (`…/modulos/administracion/`) | `backend/test/contract/prestadores-catalogo/categorias.spec.ts`, `backend/test/integration/prestadores-catalogo/autorizacion-y-categorias.spec.ts`, `…/visibilidad-categorias.spec.ts`, `…/redis-revision.spec.ts`, `…/unicidad-concurrencia.spec.ts`, `frontend/test/e2e/prestadores-catalogo/categorias.spec.ts` | CA-CAT-01 a 14 (CA-CAT-11 a 14 por INC-002-01) |
+
+#### Escenarios de la 002 y sus pruebas (35 originales y CA-CAT-11 a 14)
+
+| Escenario | RF | Tareas | Pruebas reales (b = `tecnologia/backend/test/`, f = `tecnologia/frontend/test/e2e/`) |
+|---|---|---|---|
+| CA-BUS-01 | RF09 | T043, T045, T047, T078 | `b/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `b/integration/prestadores-catalogo/busqueda-publica.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-BUS-02 | RF09 | T043, T046, T078 | `b/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-BUS-03 | RF10 | T043, T048, T078 | `b/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-BUS-04 | RF09 y RF10 | T043, T044, T078 | `b/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `b/unit/prestadores-catalogo/filtros-y-avisos.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-BUS-05 | RF10 | T043, T044, T078 | `b/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `b/unit/prestadores-catalogo/filtros-y-avisos.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-BUS-06 | RF09 | T049, T053 | `b/integration/prestadores-catalogo/fundamentos-redis.spec.ts`, `b/integration/prestadores-catalogo/redis-revision.spec.ts` |
+| CA-BUS-07 | RF09 y RF10 | T044, T046, T073, T078 | `b/unit/prestadores-catalogo/filtros-y-avisos.spec.ts`, `b/integration/prestadores-catalogo/integraciones-futuras.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-BUS-08 | RF09 y RF10 | T043, T052, T079 | `b/contract/prestadores-catalogo/busqueda-publica.spec.ts`, `b/integration/prestadores-catalogo/ciclo-servicios.spec.ts`, `b/integration/prestadores-catalogo/privacidad-publica.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-CAT-01 | RF39 | T054, T061, T079 | `b/contract/prestadores-catalogo/categorias.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-CAT-02 | RF39, RF08 y RF10 | T056, T062, T064 | `b/integration/prestadores-catalogo/autorizacion-y-categorias.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts` |
+| CA-CAT-03 | RF39 | T054, T056, T058, T079 | `b/contract/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/autorizacion-y-categorias.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-CAT-04 | RF39 y RF08 | T056, T062, T064 | `b/integration/prestadores-catalogo/autorizacion-y-categorias.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts` |
+| CA-CAT-05 | RF39 | T056, T059, T060, T079 | `b/integration/prestadores-catalogo/autorizacion-y-categorias.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-CAT-06 | RF39 | T056, T060, T079 | `b/integration/prestadores-catalogo/autorizacion-y-categorias.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-CAT-07 | RF39 | T054, T062, T064, T079 | `b/contract/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-CAT-08 | RF39 y RF08 | T055, T061, T064 | `b/unit/prestadores-catalogo/clasificaciones.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts` |
+| CA-CAT-09 | RF39, RF08 y RF10 | T055, T064, T069 | `b/unit/prestadores-catalogo/clasificaciones.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts`, `b/integration/prestadores-catalogo/redis-revision.spec.ts` |
+| CA-CAT-10 | RF39, RF09 y RF10 | T049, T064, T069 | `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts`, `b/integration/prestadores-catalogo/redis-revision.spec.ts` |
+| CA-CAT-11 | RF39 | T095 a T100 | `b/unit/prestadores-catalogo/unicidad-nombres.spec.ts`, `b/integration/prestadores-catalogo/nombres-unicos-clasificaciones.spec.ts`, `b/contract/prestadores-catalogo/unicidad-nombres.spec.ts`, `b/integration/prestadores-catalogo/unicidad-concurrencia.spec.ts` |
+| CA-CAT-12 | RF39 | T098, T099, T100 | `b/unit/prestadores-catalogo/unicidad-nombres.spec.ts`, `b/integration/prestadores-catalogo/nombres-unicos-clasificaciones.spec.ts`, `b/contract/prestadores-catalogo/unicidad-nombres.spec.ts`, `b/integration/prestadores-catalogo/unicidad-concurrencia.spec.ts` |
+| CA-CAT-13 | RF39 | T100 | `b/contract/prestadores-catalogo/unicidad-nombres.spec.ts`, `b/integration/prestadores-catalogo/unicidad-concurrencia.spec.ts` |
+| CA-CAT-14 | RF39 | T099, T100 | `b/integration/prestadores-catalogo/nombres-unicos-clasificaciones.spec.ts`, `b/contract/prestadores-catalogo/unicidad-nombres.spec.ts`, `b/integration/prestadores-catalogo/unicidad-concurrencia.spec.ts` |
+| CA-PRE-01 | RF06 | T021, T027, T076 | `b/contract/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-PRE-02 | RF06 | T021, T027, T076 | `b/contract/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-PRE-03 | RF06 | T021, T023, T079 | `b/contract/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `b/integration/prestadores-catalogo/portafolio.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-PRE-04 | RF06 | T021, T022, T028, T076 | `b/contract/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `b/unit/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-PRE-05 | RF06 | T022, T023, T026, T076 | `b/unit/prestadores-catalogo/perfil-y-portafolio.spec.ts`, `b/integration/prestadores-catalogo/portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-PRE-06 | RF06 | T023, T028, T031, T076 | `b/integration/prestadores-catalogo/portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-PRE-07 | RF06 | T023, T029, T076 | `b/integration/prestadores-catalogo/portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-PRE-08 | RF06 | T023, T030, T031, T076 | `b/integration/prestadores-catalogo/portafolio.spec.ts`, `f/prestadores-catalogo/perfil-y-portafolio.spec.ts` |
+| CA-SER-01 | RF08 | T034, T038, T077 | `b/contract/prestadores-catalogo/servicios-propios.spec.ts`, `f/prestadores-catalogo/servicios.spec.ts` |
+| CA-SER-02 | RF08 | T035, T036, T077 | `b/unit/prestadores-catalogo/estados-servicio.spec.ts`, `b/integration/prestadores-catalogo/ciclo-servicios.spec.ts`, `f/prestadores-catalogo/servicios.spec.ts` |
+| CA-SER-03 | RF08 | T034, T036, T079 | `b/contract/prestadores-catalogo/servicios-propios.spec.ts`, `b/integration/prestadores-catalogo/ciclo-servicios.spec.ts`, `f/prestadores-catalogo/categorias.spec.ts`, `b/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` |
+| CA-SER-04 | RF08 y RF39 | T035, T038, T064 | `b/unit/prestadores-catalogo/estados-servicio.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts` |
+| CA-SER-05 | RF08 | T035, T038, T077 | `b/unit/prestadores-catalogo/estados-servicio.spec.ts`, `f/prestadores-catalogo/servicios.spec.ts` |
+| CA-SER-06 | RF08 | T035, T038, T064 | `b/unit/prestadores-catalogo/estados-servicio.spec.ts`, `b/integration/prestadores-catalogo/visibilidad-categorias.spec.ts` |
+| CA-SER-07 | RF08 | T035, T039, T077 | `b/unit/prestadores-catalogo/estados-servicio.spec.ts`, `f/prestadores-catalogo/servicios.spec.ts` |
+| CA-SER-08 | RF08 y RF10 | T045, T052, T078 | `b/integration/prestadores-catalogo/busqueda-publica.spec.ts`, `b/integration/prestadores-catalogo/ciclo-servicios.spec.ts`, `b/integration/prestadores-catalogo/privacidad-publica.spec.ts`, `f/prestadores-catalogo/busqueda.spec.ts` |
+| CA-SER-09 | RF08 | T036, T039, T073 | `b/integration/prestadores-catalogo/ciclo-servicios.spec.ts`, `b/integration/prestadores-catalogo/integraciones-futuras.spec.ts` |
+
+Los 35 escenarios originales son CA-PRE-01 a 08, CA-SER-01 a 09, CA-BUS-01 a 08 y CA-CAT-01 a 10. CA-CAT-11 a CA-CAT-14 los añade la enmienda INC-002-01 (unicidad de nombres de clasificaciones) y no renumeran a los demás. CA-BUS-06 (respaldo con Redis vacío o caído) se verifica en `b/integration/prestadores-catalogo/fundamentos-redis.spec.ts` y `redis-revision.spec.ts`, y en la serie PR01 con Redis detenido.
+
+#### Pruebas de calidad transversales
+
+| Prueba | Alcance en la 002 | Ejecución y archivos | Estado |
+|---|---|---|---|
+| PR04 / EQ-04 | Matriz de accesos no autorizados de 002 | `backend/test/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` (T079) | **Aprobada.** La prueba de integración se ejecuta y aprueba en GitHub Actions (n.º 20); la matriz E2E de T079 se ejecutó en local |
+| PR07 / EQ-07 | Navegadores a 360, 768 y 1366 px y recorridos manuales | `frontend/test/e2e/prestadores-catalogo/accesibilidad-responsive.spec.ts`: 54 de 54 en 9 proyectos; manual en laptop observado y celular físico sin ejecutar | **Parcial** (EJECUTADA parcial; SC-04 no demostrado). Los 54 de 54 son locales y anteriores a los últimos ajustes visuales; sobre el diseño final de WasiMaki se ejecutaron 30 de 30 pruebas de accesibilidad seleccionadas (no se repitió la matriz completa). La CI no ejecuta Playwright. T080 y T093 cerradas por excepción con riesgo residual aceptado el 2026-11-25 ([informe](../specs/002-prestadores-y-catalogo/evidencia/t080/informe-t080-usabilidad-accesibilidad.md)) |
+| PR01 / EQ-01 | 50 usuarios virtuales, 15 min, 1 000 prestadores y 5 000 servicios, con Redis disponible y detenido | `backend/test/performance/prestadores-catalogo.k6.js` (T081, T082) | Medida en local con k6: p95 de 57 a 83 ms, 0 % de errores. La CI no ejecuta k6, así que no hay evidencia de CI de esta medición |
+| PR03 / EQ-03 | Una réplica a 25 y 50 usuarios frente a dos réplicas a 50 con el doble de CPU y memoria | mismo escenario k6 y `frontend/scripts/replicas-002.mjs` (T083) | Medida: p95 equivalente (51 ms) y reparto 50/50; no demuestra escalabilidad bajo saturación |
+| PR12 (precedente de arquitectura) | Dirección de dependencias y contratos entre módulos | `backend/test/architecture/dependencias.spec.ts` y `prestadores-catalogo.spec.ts` | Aprobadas en local y en GitHub Actions n.º 20 (2 suites, 4 pruebas) |
+| Regresión 001 | Composición base de 17 operaciones intacta y regresión de las suites de 001 tras el menú y las enmiendas | `backend/test/contract/prestadores-catalogo/regresion-001-002.spec.ts` y las suites `usuarios-acceso` | Aprobadas (E2E de 001: 8 de 8 en Chromium 360 y 1366; 16 de 16 tras la enmienda de validaciones) |
+| Respaldo y restauración | Pareja PostgreSQL y bucket, puerta de restauración y espacio de Redis nuevo | `backend/test/integration/prestadores-catalogo/respaldo-portafolio.spec.ts`, `restauracion-portafolio.spec.ts` (opt-in) | Aprobadas en local y en GitHub Actions n.º 20 (4 suites de infraestructura, 35 pruebas) |
+
+#### Dependencias posteriores a la 002
+
+- **011:** calificaciones; habilita el filtro por calificación (hoy rechazado con 400) y reemplaza el aviso «Calificaciones aún no disponibles».
+- **012:** verificación de prestadores y alcance completo de RF45; reemplaza «Verificaciones aún no disponibles».
+- **003:** consumirá la elegibilidad de servicios que expone la API interna de Catálogo.
+- **008:** el contacto del prestador; la proyección de la 002 omite el teléfono.
+
 
 ### Usuarios y acceso, controles transversales 001
 

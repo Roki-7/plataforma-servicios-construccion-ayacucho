@@ -8,7 +8,7 @@ let e: Awaited<ReturnType<typeof entornoRegistro>>;
 beforeAll(async () => { e = await entornoRegistro(); }); afterAll(async () => { await e?.cerrar(); });
 test('CA-REG-01 privacidad persistida, opcionales y foto propia real', async () => {
   const foto = (await sharp({ create: { width: 2, height: 2, channels: 3, background: 'red' } }).png().toBuffer()).toString('base64');
-  const entrada = { ...registroValido(), telefono: '+51 libre', distrito: 'Distrito de cuenta', fotografia: { tipoContenido: 'image/png', contenidoBase64: foto } };
+  const entrada = { ...registroValido(), telefono: '+51 984 123 456', distrito: 'Distrito de cuenta', fotografia: { tipoContenido: 'image/png', contenidoBase64: foto } };
   const r = await e.post('/cuentas', entrada).expect(201); const filas = await e.db.query('SELECT * FROM usuarios WHERE id=$1', [r.body.cuentaId]);
   expect(filas[0]).toMatchObject({ telefono: entrada.telefono, distrito: entrada.distrito, politica_privacidad_version: entrada.politicaPrivacidadVersion }); expect(filas[0].privacidad_aceptada_en).toBeInstanceOf(Date);
   expect(await e.hash.verificar(entrada.contrasena, filas[0].contrasena_hash)).toBe(true); expect(await e.fotos.leerPropia(r.body.cuentaId, filas[0].fotografia_id)).toEqual({ contenidoBase64: foto, tipoContenido: 'image/png' });

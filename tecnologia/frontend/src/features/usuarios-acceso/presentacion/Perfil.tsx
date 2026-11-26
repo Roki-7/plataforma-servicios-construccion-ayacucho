@@ -8,12 +8,13 @@ import type { HabilitarPerfil as DatosHabilitar } from '../modelos/contratos.js'
 import { EditarPerfil } from './EditarPerfil.js';
 import { HabilitarPerfil } from './HabilitarPerfil.js';
 import { mensajeAcceso } from './EstadoAcceso.js';
-export function FotoPerfil({id,leer}:{id:string;leer:(id:string)=>Promise<FotografiaLectura>}){
- const [url,setUrl]=useState(''),[error,setError]=useState('');
- useEffect(()=>{let viva=true;let creada:string|undefined;setUrl('');setError('');void leer(id).then(f=>{if(!viva)return;const bytes=Uint8Array.from(atob(f.contenidoBase64),c=>c.charCodeAt(0));creada=URL.createObjectURL(new Blob([bytes],{type:f.tipoContenido}));setUrl(creada)}).catch(()=>{if(viva)setError('No fue posible cargar la fotografía.')});return()=>{viva=false;if(creada)URL.revokeObjectURL(creada)}},[id,leer]);
- return error?<p role="status">{error}</p>:url?<img src={url} alt="Fotografía de mi cuenta" style={{maxWidth:'100%',width:160}}/>:<p>Cargando fotografía…</p>;
+import { Avatar } from '../../../compartido/Avatar.js';
+import { useFotoUrl } from './useFotoUrl.js';
+export function FotoPerfil({id,leer,nombre=''}:{id:string;leer:(id:string)=>Promise<FotografiaLectura>;nombre?:string}){
+ const {url,error}=useFotoUrl(id,leer);
+ return error?<p role="status">No fue posible cargar la fotografía.</p>:url?<Avatar nombre={nombre} url={url} tamano="grande" alt="Fotografía de mi cuenta"/>:<p>Cargando fotografía…</p>;
 }
-export function Perfil({vista,servicio,habilitar,correo}:{vista:'cuenta'|'perfiles';servicio:PerfilWeb;correo?:CorreoWeb;habilitar:(d:DatosHabilitar)=>Promise<DatosPerfil>}){
+export function Perfil({vista,servicio,habilitar,correo,alActualizar}:{vista:'cuenta'|'perfiles';servicio:PerfilWeb;correo?:CorreoWeb;habilitar:(d:DatosHabilitar)=>Promise<DatosPerfil>;alActualizar?:(p:DatosPerfil)=>void}){
  const [perfil,setPerfil]=useState<DatosPerfil>(),[error,setError]=useState(''),[mensaje,setMensaje]=useState(''),[revision,setRevision]=useState(0);
  const consultar=servicio.consultar;
  const recargar=useCallback(()=>{setError('');setMensaje('');setPerfil(undefined);setRevision(v=>v+1)},[]);
@@ -23,15 +24,17 @@ export function Perfil({vista,servicio,habilitar,correo}:{vista:'cuenta'|'perfil
  if (vista === 'perfiles') return <HabilitarPerfil perfilInicial={perfil} habilitar={async datos => {
   const actualizado = await habilitar(datos);
   setPerfil(actualizado);
+  alActualizar?.(actualizado);
   return actualizado;
  }} />;
  return <section className="pagina-cuenta">
-  <div className="cabecera-pagina"><p className="sobretitulo">Tu espacio</p><h2>Mi cuenta</h2>
+  <div className="cabecera-pagina"><p className="sobretitulo">Tu espacio</p>
+  <div className="cuenta-identidad">{perfil.fotografiaId ? <FotoPerfil id={perfil.fotografiaId} leer={servicio.leer} nombre={perfil.nombreMostrar} /> : <Avatar nombre={perfil.nombreMostrar} tamano="grande" />}
+  <div className="cuenta-datos"><h2>Mi cuenta</h2><p className="cuenta-nombre">{perfil.nombreMostrar}</p>
   <p className="intro">{perfil.correo}</p>
-  <p><span className="etiqueta-estado">{perfil.telefonoCompartible ? 'El teléfono está autorizado para compartir.' : 'El teléfono es privado.'}</span></p></div>
+  <p><span className="etiqueta-estado">{perfil.telefonoCompartible ? 'El teléfono está autorizado para compartir.' : 'El teléfono es privado.'}</span></p></div></div></div>
   <div className="columnas-cuenta"><div className="columna-cuenta">
-  {perfil.fotografiaId && <FotoPerfil id={perfil.fotografiaId} leer={servicio.leer} />}
-  <EditarPerfil key={`${perfil.cuentaId}:${perfil.version}`} perfil={perfil} guardar={servicio.guardar} subir={servicio.subir} actualizado={p => { setPerfil(p); setMensaje('Perfil actualizado.'); }} recargar={recargar} />
+  <EditarPerfil key={`${perfil.cuentaId}:${perfil.version}`} perfil={perfil} guardar={servicio.guardar} subir={servicio.subir} actualizado={p => { setPerfil(p); setMensaje('Perfil actualizado.'); alActualizar?.(p); }} recargar={recargar} />
   {mensaje && <p className="aviso" aria-live="polite">{mensaje}</p>}
   </div><div className="columna-cuenta">
   <section className="acciones-cuenta">

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '../../soporte/validacion.js';
 import { verificarVisibilidadContrasenas } from '../../soporte/visibilidad-contrasena.js';
+import { cerrarMenu, conMenu } from '../../soporte/menu-principal.js';
 
 test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesión nueva puede continuar', async ({page, request, correoApi, browserName, browser}, info) => {
   info.annotations.push({type: 'navegador', description: browserName + ' ' + browser.version()});
@@ -23,7 +24,7 @@ test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesi
   const editar = (headers: typeof sesion, data: object) => request.patch('/api/v1/perfil', {
     headers: {...headers, ...origen, 'Idempotency-Key': randomUUID()}, data,
   });
-  const datos = {nombreMostrar: 'Perfil editado', telefono: '123', distrito: 'Ayacucho'};
+  const datos = {nombreMostrar: 'Perfil editado', telefono: '123456', distrito: 'Ayacucho'};
   const guardado = await editar(sesion, {version: 1, ...datos});
   expect(guardado.status()).toBe(200);
   const perfil = await guardado.json();
@@ -52,7 +53,7 @@ test('CA-REC-08 CA-PER-02 CA-AUT-01 se conserva el perfil editado y solo la sesi
   await page.getByLabel('Correo', {exact: true}).fill(correo);
   await page.getByLabel('Contraseña', {exact: true}).fill(nueva);
   await page.getByRole('button', {name: 'Iniciar sesión', exact: true}).click();
-  await page.getByRole('button', {name: 'Cerrar sesión'}).waitFor();
+  await conMenu(page, page.getByRole('button', {name: 'Cerrar sesión'})); await cerrarMenu(page);
   await expect(page).toHaveURL(/\/cuenta$/);
   await expect(page.getByLabel('Nombre para mostrar')).toHaveValue(datos.nombreMostrar);
   await expect(page.getByLabel('Teléfono (opcional)')).toHaveValue(datos.telefono);

@@ -1,0 +1,47 @@
+# Proyecto DESCARTABLE para ensayar el respaldo y la restauración del portafolio de la 002 (T071).
+# Es independiente de ayacucho-001-validacion y ayacucho-002-validacion: contenedores, redes, volúmenes, puertos y credenciales propios.
+# Los secretos llegan por --env-file (generado por scripts/preparar-ensayo-restauracion-002.ts en tecnologia/.local, ignorado por Git).
+name: ayacucho-ensayo-restauracion
+services:
+  postgres:
+    image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ensayo_restauracion
+      POSTGRES_PASSWORD: ${ENSAYO_PG_PASSWORD:?Ejecute preparar-ensayo-restauracion-002 antes}
+    ports: ["127.0.0.1:54341:5432"]
+    volumes: ["ensayo-postgres-datos:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ensayo_restauracion -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:63851:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  objetos:
+    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
+    command: ["/garage", "server", "--single-node"]
+    environment:
+      GARAGE_RPC_SECRET: ${ENSAYO_GARAGE_RPC_SECRET:?Ejecute preparar-ensayo-restauracion-002 antes}
+      RUST_LOG: warn
+    ports: ["127.0.0.1:3930:3900"]
+    volumes:
+      - ./infra/garage.toml:/etc/garage.toml:ro
+      - ensayo-objetos-meta:/var/lib/garage/meta
+      - ensayo-objetos-datos:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+volumes:
+  ensayo-postgres-datos:
+  ensayo-objetos-meta:
+  ensayo-objetos-datos:

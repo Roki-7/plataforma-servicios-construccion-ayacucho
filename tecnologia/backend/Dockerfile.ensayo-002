@@ -1,0 +1,14 @@
+# T083 · Imagen de ENSAYO de la API de la 002 para medir EQ-03/PR03 (réplicas con límites de CPU y memoria). No es la imagen de producción: incluye `tsx` y el arnés
+# `scripts/servir-replica-002.ts`, pero el código de la aplicación (`src/`, `contracts/`) es el mismo que mide T081/T082. Base y versión de Node idénticas a `Dockerfile`.
+#   docker build -f tecnologia/backend/Dockerfile.ensayo-002 -t ayacucho-backend-ensayo-002:t083 tecnologia/backend
+FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d
+WORKDIR /tecnologia/backend
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund && npm cache clean --force
+COPY tsconfig.json tsconfig.build.json ./
+COPY src ./src
+COPY contracts ./contracts
+COPY scripts ./scripts
+ENV NODE_ENV=validation
+USER node
+CMD ["node", "--import", "tsx", "scripts/servir-replica-002.ts"]

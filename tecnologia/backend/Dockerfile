@@ -10,6 +10,7 @@ COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 COPY contracts ./contracts
 RUN npm run build
+RUN node --input-type=module -e "import {readFileSync} from 'node:fs'; import {componerOpenApi,inventarioOpenApi} from './dist/src/composicion/componer-openapi.js'; const leer = nombre => JSON.parse(readFileSync('./contracts/'+nombre,'utf8')); const base=leer('openapi.json'); const oferta=leer('prestadores-catalogo.openapi.json'); if (inventarioOpenApi(base).length!==17 || inventarioOpenApi(oferta).length!==23 || inventarioOpenApi(componerOpenApi(base,oferta)).length!==40) process.exit(1)"
 
 FROM base AS produccion-dependencias
 COPY package.json package-lock.json ./

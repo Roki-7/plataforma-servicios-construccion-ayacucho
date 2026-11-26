@@ -7,6 +7,21 @@ export interface SolicitudIdempotente {
   readonly autorizar?: () => Promise<string>;
 }
 export interface ResultadoIdempotente { readonly http: number; readonly cuerpo: ValorJson }
+export interface SolicitudIdempotente002 {
+  readonly actor: string;
+  readonly metodo: 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+  readonly rutaLogica: string;
+  readonly clave: string;
+  readonly ids: Readonly<Record<string, string>>;
+  readonly version?: number;
+  readonly cuerpo: ValorJson;
+  readonly fotografia?: Uint8Array;
+  /** Comprueba el actor y la autorización vigente. Puede bloquear el permiso RF39 en esta unidad de trabajo. */
+  readonly autorizar: (tx: ContextoTransaccion) => Promise<string>;
+}
+export interface Idempotencia002 {
+  ejecutar002(solicitud: SolicitudIdempotente002, trabajo: (tx: ContextoTransaccion) => Promise<ResultadoIdempotente>): Promise<ResultadoIdempotente>;
+}
 export interface Idempotencia {
   ejecutar(solicitud: SolicitudIdempotente, trabajo: (tx: ContextoTransaccion) => Promise<ResultadoIdempotente>): Promise<ResultadoIdempotente>;
 }

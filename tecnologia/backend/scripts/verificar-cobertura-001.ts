@@ -31,7 +31,7 @@ const proyectos = ['chromium','firefox','webkit'].flatMap(n=>[360,768,1366].map(
 
 export function leerMatriz(spec: string, texto: string): Matriz {
   const ids = [...spec.matchAll(/\*\*(CA-[A-Z]{3}-\d{2})\s+—\s+Given\*\*/g)].map(m=>m[1]!);
-  assert.equal(ids.length,53,'La spec debe contener 53 casos');
+  assert.equal(ids.length,57,'La spec debe contener 57 casos (53 originales y CA-PER-07 a CA-PER-10 de la enmienda del 2026-11-25)');
   assert.equal(new Set(ids).size,ids.length,'Casos duplicados en spec');
   const matriz: Matriz = new Map();
   for (const linea of texto.split(/\r?\n/)) {

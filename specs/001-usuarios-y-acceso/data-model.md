@@ -40,8 +40,25 @@ determinista empleada. Cambiar esa regla requiere revisar duplicados existentes.
 Límites de transporte para texto no secreto: nombre hasta 200 puntos de código,
 correo hasta 320, teléfono hasta 32 y distrito hasta 100; validar ausencia de vacío
 en nombre/correo. Son límites técnicos del contrato, no nuevos campos obligatorios
-ni restricciones a nombres de empresa. No imponer formatos nacionales al teléfono
-ni restringir el distrito de cuenta a un distrito profesional de RF06.
+ni restricciones a nombres de empresa. No restringir el distrito de cuenta a un
+distrito profesional de RF06.
+
+**Enmienda controlada 2026-11-25 (validación de contacto, FR-033).** Nombre, teléfono
+y distrito se validan en el servidor, independientemente del navegador:
+- Ninguno admite caracteres de control (categoría Unicode Cc: NUL, saltos de línea,
+  tabuladores, DEL y controles C1) ni los separadores Unicode de línea y de párrafo
+  (U+2028, U+2029). PostgreSQL no puede almacenar NUL en `text`.
+- Teléfono: solo dígitos, espacios y `+ - . ( )`; entre 6 y 15 dígitos; hasta 32
+  caracteres en total. No se impone un formato nacional.
+- Distrito: texto libre, sin lista cerrada.
+- Teléfono y distrito vacíos o con solo espacios se almacenan como null; el nombre
+  vacío o de solo espacios se rechaza.
+- Se conserva el valor tal como se envió (sin recorte ni cambio de formato) salvo la
+  normalización a null; el consentimiento del teléfono se vincula a ese valor exacto.
+- Las restricciones de la tabla (`CHECK` de longitud) no cambian: las reglas de
+  caracteres y de cantidad de dígitos se aplican en el dominio y en el contrato. No se
+  añade un `CHECK` ni se migran los valores almacenados antes de la enmienda, que se
+  revalidan solo si el titular los modifica.
 
 ## 1. usuarios
 
@@ -50,11 +67,11 @@ ni restringir el distrito de cuenta a un distrito profesional de RF06.
 | id | uuid, PK | Identificador interno inmutable; no aceptarlo como campo editable. |
 | correo | text, no nulo | Formato válido; presentación privada. |
 | correo_canonico | text generado, no nulo | `lower(correo)`, índice único; actualizaciones simultáneas se protegen en DB. |
-| nombre_mostrar | text, no nulo | Persona o empresa; no exigir nombres/apellidos separados. |
+| nombre_mostrar | text, no nulo | Persona o empresa; no exigir nombres/apellidos separados. Sin caracteres de control (FR-033). |
 | contrasena_hash | text, no nulo | PHC Argon2id con parámetros y sal; nunca texto plano. |
 | version_credencial | bigint, no nulo, inicial 1 | Incrementa al cambiar contraseña; evita carreras con login/reautenticación. |
-| telefono | text, nulo | Opcional y privado por defecto. |
-| distrito | text, nulo | Dato opcional de cuenta, no zona profesional. |
+| telefono | text, nulo | Opcional y privado por defecto. Solo dígitos, espacios y `+ - . ( )`, 6 a 15 dígitos, hasta 32 caracteres; vacío se guarda como null (FR-033). |
+| distrito | text, nulo | Dato opcional de cuenta, no zona profesional. Texto libre de hasta 100 caracteres sin caracteres de control; vacío se guarda como null (FR-033). |
 | fotografia_id | uuid, nulo | Referencia a fotografía propia, validada y utilizable. |
 | politica_privacidad_version | text, no nulo | Versión presentada y aceptada al registrarse. |
 | privacidad_aceptada_en | timestamptz, no nulo | Consentimiento explícito; no aceptar falso/ausente. |
