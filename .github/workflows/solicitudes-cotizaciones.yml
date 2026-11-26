@@ -9,9 +9,10 @@ name: 003 Solicitudes y cotizaciones
 # la configuración y los secretos se generan en cada ejecución (aleatorios y enmascarados).
 #
 # Este flujo ejecuta hoy solo lo que ya existe. Los pasos que dependen de tareas posteriores se añaden con ellas:
-#   validar-003:  migraciones y almacenamiento (T029, T031 y T041), semilla (T042), contratos, arquitectura e integración
-#                 (T009, T011, T022 y las suites de las historias), respaldo y restauración (Fase 8) y la comprobación de bases residuales.
-#   regresion:    la parte de 002 (suites de 002 con la composición de la 003) se añade en T024 y T089.
+#   validar-003:  migraciones y almacenamiento (T029, T031 y T041), semilla (T042), las suites de las historias, respaldo y restauración (Fase 8)
+#                 y la comprobación de bases residuales. Ya incluye los contratos, la arquitectura y la integración de la composición (T009, T011, T022).
+#   regresion:    la regresión de 002 con las 58 operaciones se añade en T089. La de 002 sobre la composición actual la ejecuta su propio flujo
+#                 (prestadores-catalogo.yml), que se activa con los mismos cambios en tecnologia/** y cuyos filtros ya excluyen las suites de la 003.
 # Este flujo NO ejecuta k6 ni Playwright de 003. Esa evidencia es local o del entorno de demostración y así se declara.
 
 on:
@@ -92,6 +93,12 @@ jobs:
           npm --prefix tecnologia/backend run start:validation:003 -- --verificar-config
       - name: Pruebas unitarias de 003
         run: EVIDENCIA_JEST="$EVIDENCIA_003/unitarias" npm --prefix tecnologia/backend run test:unit -- --testPathPatterns solicitudes-cotizaciones
+      - name: Pruebas de contrato de 003 (composición de los tres contratos)
+        run: EVIDENCIA_JEST="$EVIDENCIA_003/contratos" npm --prefix tecnologia/backend run test:contract -- --testPathPatterns solicitudes-cotizaciones
+      - name: Pruebas de arquitectura de 003
+        run: EVIDENCIA_JEST="$EVIDENCIA_003/arquitectura" npm --prefix tecnologia/backend run test:architecture -- --testPathPatterns solicitudes-cotizaciones
+      - name: Integración 003 con PostgreSQL real
+        run: EVIDENCIA_JEST="$EVIDENCIA_003/integracion" npm --prefix tecnologia/backend run test:integration:003
       - name: Estado de los contenedores
         if: always()
         shell: bash

@@ -39,6 +39,15 @@ export interface ElegibilidadServicio {
   registro(servicioId: string, tx?: ContextoTransaccion): Promise<RegistroServicio | null>;
 }
 
+/**
+ * Categorías que cubre la oferta de un prestador, para la compatibilidad de Solicitudes (003). Solo lectura. Con `tx` participa en la transacción del
+ * llamador. Un servicio en una subcategoría aporta la subcategoría y su categoría; un servicio en una categoría aporta solo la categoría.
+ * Cuentan únicamente los servicios PUBLICADO con su clasificación (y la del padre) activas, igual que la búsqueda pública. No concede acceso por sí sola.
+ */
+export interface CategoriasDeOferta {
+  categoriasDeOferta(prestadorId: string, tx?: ContextoTransaccion): Promise<ReadonlySet<string>>;
+}
+
 export type { ServicioPublicoDto, PaginaDto } from './aplicacion/puertos/consultas-publicas.js';
 /** Oferta visible de un prestador para su perfil público. Solo servicios PUBLICADO con clasificación efectivamente activa. */
 /** Clasificación vista por la gestión autorizada (RF39). Nunca incluye datos de cuentas. */

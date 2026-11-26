@@ -22,6 +22,7 @@ describe('ContadorSentencias', () => {
     const r = await contador.contar(async () => {
       const q = fuente.createQueryRunner();
       await q.query('BEGIN');
+      await q.query("SELECT set_config('lock_timeout', '5000ms', true)");
       await q.query('SELECT   1\n  FROM  solicitudes');
       await q.query('SELECT 2');
       await q.query('COMMIT');
@@ -29,7 +30,7 @@ describe('ContadorSentencias', () => {
     });
     expect(r.resultado).toBe('listo');
     expect(r.total).toBe(2);
-    expect(r.control).toBe(2);
+    expect(r.control).toBe(3);
     expect(r.sentencias).toEqual(['SELECT 1 FROM solicitudes', 'SELECT 2']);
     contador.liberar();
   });

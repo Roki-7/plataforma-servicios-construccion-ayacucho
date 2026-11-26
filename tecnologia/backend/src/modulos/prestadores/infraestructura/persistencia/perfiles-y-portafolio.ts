@@ -2,7 +2,7 @@ import type { QueryRunner } from 'typeorm';
 import { filasDe } from './filas.js';
 import type { ContextoTransaccion } from '../../../../compartido/aplicacion/transaccion.js';
 import type { UnidadDeTrabajoPostgres } from '../../../../compartido/infraestructura/postgres/unidad-de-trabajo.js';
-import type { NuevaFotografia, RepositorioPrestadores } from '../../aplicacion/puertos/puertos.js';
+import { maximoNombresPublicos, type NuevaFotografia, type PerfilBasico, type RepositorioPrestadores } from '../../aplicacion/puertos/puertos.js';
 import type { DatosPerfil, PerfilProfesional } from '../../dominio/perfil-profesional.js';
 import type { DatosTrabajo, FotografiaPortafolio, TrabajoAnterior } from '../../dominio/portafolio.js';
 
@@ -11,6 +11,7 @@ interface FilaTrabajo { id: string; prestador_id: string; titulo: string; descri
 interface FilaFoto { id: string; trabajo_id: string; objeto_clave: string; ancho: number; alto: number; bytes: number; checksum: Buffer }
 type Ejecutor = Pick<QueryRunner, 'query'> | { query(sql: string, parametros?: unknown[]): Promise<unknown> };
 
+const esUuid = (valor: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor);
 const aFoto = (f: FilaFoto): FotografiaPortafolio => ({ id: f.id, trabajoId: f.trabajo_id, objetoClave: f.objeto_clave, ancho: f.ancho, alto: f.alto, bytes: f.bytes, checksum: new Uint8Array(f.checksum) });
 
 export class RepositorioPrestadoresPostgres implements RepositorioPrestadores {
@@ -32,6 +33,33 @@ export class RepositorioPrestadoresPostgres implements RepositorioPrestadores {
   async perfilPublicoPorId(prestadorId: string): Promise<PerfilProfesional | null> {
     const filas = await this.consultar<FilaPerfil>(undefined, 'SELECT id,cuenta_id,nombre_publico,tipo,experiencia,disponibilidad_declarada,version FROM prestadores_perfiles WHERE id=$1::uuid AND publicable', [prestadorId]);
     return filas[0] ? this.completar(filas[0]) : null;
+  }
+
+  async perfilPorId(prestadorId: string, tx?: ContextoTransaccion): Promise<PerfilBasico | null> {
+    if (!esUuid(prestadorId)) return null;
+    const filas = await this.consultar<{ id: string; cuenta_id: string; publicable: boolean }>(tx, 'SELECT id,cuenta_id,publicable FROM prestadores_perfiles WHERE id=$1::uuid', [prestadorId]);
+    return filas[0] ? { prestadorId: filas[0].id, cuentaId: filas[0].cuenta_id, publicable: filas[0].publicable } : null;
+  }
+
+  async distritosDe(prestadorId: string, tx?: ContextoTransaccion): Promise<readonly string[]> {
+    if (!esUuid(prestadorId)) return [];
+    const filas = await this.consultar<{ distrito_codigo: string }>(tx, 'SELECT distrito_codigo FROM prestadores_zonas WHERE prestador_id=$1::uuid ORDER BY distrito_codigo', [prestadorId]);
+    return filas.map(f => f.distrito_codigo);
+  }
+
+  async especialidadesDe(prestadorId: string, tx?: ContextoTransaccion): Promise<readonly string[]> {
+    if (!esUuid(prestadorId)) return [];
+    const filas = await this.consultar<{ categoria_id: string }>(tx, 'SELECT categoria_id FROM prestadores_especialidades WHERE prestador_id=$1::uuid ORDER BY categoria_id', [prestadorId]);
+    return filas.map(f => f.categoria_id);
+  }
+
+  async nombresPublicos(prestadorIds: readonly string[], tx?: ContextoTransaccion): Promise<ReadonlyMap<string, string>> {
+    const ids = [...new Set(prestadorIds)];
+    if (ids.length > maximoNombresPublicos) throw new RangeError(`Se admiten como máximo ${maximoNombresPublicos} identificadores por consulta.`);
+    if (ids.some(id => !esUuid(id))) throw new TypeError('Cada identificador de prestador debe ser un UUID.');
+    if (ids.length === 0) return new Map();
+    const filas = await this.consultar<{ id: string; nombre_publico: string }>(tx, 'SELECT id,nombre_publico FROM prestadores_perfiles WHERE id = ANY($1::uuid[])', [ids]);
+    return new Map(filas.map(f => [f.id, f.nombre_publico]));
   }
 
   private async completar(p: FilaPerfil, tx?: ContextoTransaccion): Promise<PerfilProfesional> {

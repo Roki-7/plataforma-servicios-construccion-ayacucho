@@ -32,11 +32,22 @@ export interface NuevaFotografia {
   readonly bytes: number; readonly checksum: Uint8Array;
 }
 
+/** Datos mínimos de un perfil para otros módulos. No incluye contacto, experiencia ni objetos privados. */
+export interface PerfilBasico { readonly prestadorId: string; readonly cuentaId: string; readonly publicable: boolean }
+/** Máximo de identificadores por consulta de nombres: el tamaño máximo de página de las funcionalidades que la usan. */
+export const maximoNombresPublicos = 50;
+
 /** Persistencia de Prestadores. Con `tx` participa en la unidad de trabajo. Sin `tx` lee del primario. */
 export interface RepositorioPrestadores {
   perfilPorCuenta(cuentaId: string, tx?: ContextoTransaccion, bloquear?: boolean): Promise<PerfilProfesional | null>;
   /** Perfil publicable por su identificador público. `null` si no existe o no es publicable. */
   perfilPublicoPorId(prestadorId: string): Promise<PerfilProfesional | null>;
+  /** Lecturas aditivas para la 003. Solo lectura sobre tablas de Prestadores. Un identificador que no es UUID equivale a «no existe». */
+  perfilPorId(prestadorId: string, tx?: ContextoTransaccion): Promise<PerfilBasico | null>;
+  distritosDe(prestadorId: string, tx?: ContextoTransaccion): Promise<readonly string[]>;
+  especialidadesDe(prestadorId: string, tx?: ContextoTransaccion): Promise<readonly string[]>;
+  /** Una sola consulta para toda la página. Omite los identificadores que no existen. Máximo `maximoNombresPublicos`. */
+  nombresPublicos(prestadorIds: readonly string[], tx?: ContextoTransaccion): Promise<ReadonlyMap<string, string>>;
   trabajos(prestadorId: string, tx?: ContextoTransaccion): Promise<TrabajoAnterior[]>;
   trabajoDe(prestadorId: string, trabajoId: string, tx?: ContextoTransaccion, bloquear?: boolean): Promise<TrabajoAnterior | null>;
   contarTrabajos(prestadorId: string, tx?: ContextoTransaccion): Promise<number>;

@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$EVIDENCIA_002/frontend"
-          npm --prefix tecnologia/frontend run test:unit -- --reporter=default --reporter=junit --outputFile.junit="$EVIDENCIA_002/frontend/frontend-unit-junit.xml"
+          npm --prefix tecnologia/frontend run test:unit -- --exclude "test/unit/solicitudes-cotizaciones/**" --reporter=default --reporter=junit --outputFile.junit="$EVIDENCIA_002/frontend/frontend-unit-junit.xml"
       - name: Conservar evidencia de calidad
         if: always()
         uses: actions/upload-artifact@v7
@@ -161,9 +161,9 @@ jobs:
           npm --prefix tecnologia/backend run dev:prepare -- --validation
           npm --prefix tecnologia/backend run security:catalog:prepare -- --fixture
       - name: Pruebas unitarias
-        run: EVIDENCIA_JEST="$EVIDENCIA_002/unitarias" npm --prefix tecnologia/backend run test:unit
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/unitarias" npm --prefix tecnologia/backend run test:unit -- --testPathIgnorePatterns solicitudes-cotizaciones
       - name: Pruebas de arquitectura
-        run: EVIDENCIA_JEST="$EVIDENCIA_002/arquitectura" npm --prefix tecnologia/backend run test:architecture
+        run: EVIDENCIA_JEST="$EVIDENCIA_002/arquitectura" npm --prefix tecnologia/backend run test:architecture -- --testPathIgnorePatterns solicitudes-cotizaciones
       # Los contratos de 001 (incluido X-08) exigen la infraestructura de 001 y se ejecutan en el trabajo regresion-001.
       - name: Pruebas de contratos de 002
         run: EVIDENCIA_JEST="$EVIDENCIA_002/contratos" npm --prefix tecnologia/backend run test:contract -- --testPathPatterns prestadores-catalogo

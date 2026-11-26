@@ -82,3 +82,13 @@ export function componerOpenApi(base: DocumentoOpenApi, oferta: DocumentoOpenApi
   comprobarReferencias(resultado, resultado);
   return resultado;
 }
+
+/**
+ * Compone el documento base con varias extensiones, en el orden dado. Cada paso conserva las reglas de `componerOpenApi`
+ * (sin colisión de ruta, sin ruta ambigua, sin `operationId` repetido y con componentes compartidos equivalentes).
+ * El resultado intermedio se copia por serialización JSON: así la comparación estructural del paso siguiente no depende del origen del objeto
+ * (`structuredClone` crea prototipos que `isDeepStrictEqual` distingue de los de `JSON.parse` en entornos con varios contextos, como Jest).
+ */
+export function componerExtensiones(base: DocumentoOpenApi, extensiones: readonly DocumentoOpenApi[]): DocumentoOpenApi {
+  return extensiones.reduce<DocumentoOpenApi>((acumulado, extension) => JSON.parse(JSON.stringify(componerOpenApi(acumulado, extension))) as DocumentoOpenApi, base);
+}

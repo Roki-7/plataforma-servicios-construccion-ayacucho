@@ -24,11 +24,11 @@ backend security:catalog:prepare -- --fixture
 backend test:seed
 
 export JEST_JUNIT_OUTPUT_DIR="$EVIDENCIA_001"
-JEST_JUNIT_OUTPUT_NAME=u.xml backend test:unit -- --testPathIgnorePatterns prestadores-catalogo
-JEST_JUNIT_OUTPUT_NAME=i.xml backend test:integration -- --runInBand --testPathIgnorePatterns prestadores-catalogo
-JEST_JUNIT_OUTPUT_NAME=c.xml backend test:contract -- --testPathIgnorePatterns prestadores-catalogo
-JEST_JUNIT_OUTPUT_NAME=arquitectura.xml backend test:architecture
-frontend test:unit -- --exclude "test/unit/prestadores-catalogo/**" --outputFile.junit="$EVIDENCIA_001/v.xml"
+JEST_JUNIT_OUTPUT_NAME=u.xml backend test:unit -- --testPathIgnorePatterns "prestadores-catalogo|solicitudes-cotizaciones"
+JEST_JUNIT_OUTPUT_NAME=i.xml backend test:integration -- --runInBand --testPathIgnorePatterns "prestadores-catalogo|solicitudes-cotizaciones"
+JEST_JUNIT_OUTPUT_NAME=c.xml backend test:contract -- --testPathIgnorePatterns "prestadores-catalogo|solicitudes-cotizaciones"
+JEST_JUNIT_OUTPUT_NAME=arquitectura.xml backend test:architecture -- --testPathIgnorePatterns solicitudes-cotizaciones
+frontend test:unit -- --exclude "test/unit/prestadores-catalogo/**" --exclude "test/unit/solicitudes-cotizaciones/**" --outputFile.junit="$EVIDENCIA_001/v.xml"
 backend test:container
 
 # En Linux el proxy de Compose entra por la interfaz del puente Docker.

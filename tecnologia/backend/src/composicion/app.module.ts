@@ -5,8 +5,8 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Configuracion } from './configuracion.js';
-import { persistencia002, persistenciaFundacional, type RegistroPersistencia002 } from './persistencia.js';
-import { componerOpenApi, inventarioOpenApi, type DocumentoOpenApi } from './componer-openapi.js';
+import { persistencia002, persistencia003, persistenciaFundacional, type RegistroPersistencia002 } from './persistencia.js';
+import { componerExtensiones, inventarioOpenApi, type DocumentoOpenApi } from './componer-openapi.js';
 import { GuardIdentidad002 } from './identidad-002.js';
 import { RevisionDeOfertaPostgres } from '../modulos/catalogo/infraestructura/persistencia/revision-de-oferta.js';
 import { ProyeccionPublicaPostgres } from '../modulos/catalogo/infraestructura/persistencia/proyeccion-publica.js';
@@ -66,7 +66,9 @@ interface RegistroHttp002 {
   readonly persistencia?: readonly RegistroPersistencia002[];
 }
 type Composicion002 = RegistroHttp002 & ({ modo: 'completa' } | { modo: 'prueba'; operaciones: readonly string[] });
-type Opciones = { worker?: boolean; registrarDiagnostico?: (linea: string) => void; registrar?: (linea: string) => void; oferta002?: Composicion002 };
+/** Misma forma que la extensión de la 002: una extensión de la 003 solo se admite sobre la composición de la 002. */
+type Composicion003 = Composicion002;
+type Opciones = { worker?: boolean; registrarDiagnostico?: (linea: string) => void; registrar?: (linea: string) => void; oferta002?: Composicion002; oferta003?: Composicion003 };
 export const USUARIOS_ACCESO_002 = Symbol('UsuariosAcceso público para 002');
 export const UNIDAD_DE_TRABAJO_002 = Symbol('Unidad de trabajo compartida de 002');
 export const REVISION_OFERTA_002 = Symbol('Revisión de oferta de Catálogo');
@@ -74,17 +76,31 @@ export const PROYECCION_PUBLICA_002 = Symbol('Proyección pública de Catálogo'
 export const IDEMPOTENCIA_002 = Symbol('Idempotencia transaccional de 002');
 export const CLASIFICACIONES_EFECTIVAS_002 = Symbol('Clasificaciones efectivamente activas de Catálogo');
 
-async function contratoDeOferta(contrato001: string, registro: Composicion002) {
+/** Extensiones de contrato admitidas, en el orden de composición. El inventario esperado protege contra un activo OpenAPI cambiado por error. */
+const extensionesDeContrato = [
+  { etiqueta: '002', archivo: 'prestadores-catalogo.openapi.json', esperadas: 23 },
+  { etiqueta: '003', archivo: 'solicitudes-cotizaciones.openapi.json', esperadas: 18 },
+] as const;
+
+async function contratoDeOferta(contrato001: string, registros: readonly [Composicion002, Composicion003 | undefined]) {
   const base: DocumentoOpenApi = JSON.parse(await readFile(contrato001, 'utf8'));
-  const oferta: DocumentoOpenApi = JSON.parse(await readFile(resolve(contrato001, '../prestadores-catalogo.openapi.json'), 'utf8'));
-  const inventario = inventarioOpenApi(oferta);
-  if (inventarioOpenApi(base).length !== 17 || inventario.length !== 23) throw new Error('Inventario de los activos OpenAPI incompatible.');
-  const seleccionadas = registro.modo === 'completa' ? inventario.map(({ operacion }) => operacion.operationId) : registro.operaciones;
-  const ids = new Set(seleccionadas);
-  const seleccion = inventario.filter(({ operacion }) => ids.has(operacion.operationId));
-  if (!ids.size || seleccion.length !== seleccionadas.length) throw new Error('Subconjunto 002 vacío, duplicado o desconocido.');
-  const contrato = componerOpenApi(base, oferta);
-  const propias = new Set(inventario.map(({ operacion }) => operacion.operationId));
+  if (inventarioOpenApi(base).length !== 17) throw new Error('Inventario de los activos OpenAPI incompatible.');
+  const documentos: DocumentoOpenApi[] = []; const propias = new Set<string>(); const ids = new Set<string>();
+  for (const [indice, extension] of extensionesDeContrato.entries()) {
+    const registro = registros[indice];
+    if (!registro) continue;
+    const documento: DocumentoOpenApi = JSON.parse(await readFile(resolve(contrato001, '..', extension.archivo), 'utf8'));
+    const inventario = inventarioOpenApi(documento);
+    if (inventario.length !== extension.esperadas) throw new Error('Inventario de los activos OpenAPI incompatible.');
+    const seleccionadas = registro.modo === 'completa' ? inventario.map(({ operacion }) => operacion.operationId) : registro.operaciones;
+    const propios = new Set(inventario.map(({ operacion }) => operacion.operationId));
+    const elegidas = new Set(seleccionadas);
+    if (!elegidas.size || elegidas.size !== seleccionadas.length || seleccionadas.some(id => !propios.has(id))) throw new Error(`Subconjunto ${extension.etiqueta} vacío, duplicado o desconocido.`);
+    documentos.push(documento);
+    for (const id of propios) propias.add(id);
+    for (const id of elegidas) ids.add(id);
+  }
+  const contrato = componerExtensiones(base, documentos);
   const paths = new Map<string, DocumentoOpenApi['paths'][string]>();
   for (const { metodo, ruta, operacion } of inventarioOpenApi(contrato)) {
     if (propias.has(operacion.operationId) && !ids.has(operacion.operationId)) continue;
@@ -113,9 +129,11 @@ function verificarRouter(app: INestApplication, contrato: DocumentoOpenApi): voi
 }
 
 export async function crearAplicacion(config: Configuracion, opciones: Opciones = {}) {
-  const registro = opciones.oferta002;
-  const oferta = registro ? await contratoDeOferta(config.contrato, registro) : undefined;
-  const db = registro ? persistencia002(config.databaseUrl, registro.persistencia) : persistenciaFundacional(config.databaseUrl);
+  const registro = opciones.oferta002; const registro003 = opciones.oferta003;
+  if (registro003 && !registro) throw new Error('La extensión 003 requiere la composición de la 002.');
+  const oferta = registro ? await contratoDeOferta(config.contrato, [registro, registro003]) : undefined;
+  const db = !registro ? persistenciaFundacional(config.databaseUrl)
+    : registro003 ? persistencia003(config.databaseUrl, registro.persistencia, registro003.persistencia) : persistencia002(config.databaseUrl, registro.persistencia);
   const catalogo = new CatalogoLocal(config.catalogo, config.validacion);
   let conexion: Promise<void> | undefined;
   const conectar = async () => {
@@ -170,7 +188,7 @@ export async function crearAplicacion(config: Configuracion, opciones: Opciones 
   limpieza?.unref();
   const cerrar = async () => { if (limpieza) clearInterval(limpieza); await worker.detener(); smtp.cerrar(); cliente.destroy(); if (db.isInitialized) await db.destroy(); };
   const proveedores002: Provider[] = registro ? [
-    ...(registro.proveedores ?? []),
+    ...(registro.proveedores ?? []), ...(registro003?.proveedores ?? []),
     { provide: USUARIOS_ACCESO_002, useValue: usuariosAcceso },
     { provide: UNIDAD_DE_TRABAJO_002, useValue: uow },
     { provide: REVISION_OFERTA_002, useValue: new RevisionDeOfertaPostgres(uow) },
@@ -178,7 +196,7 @@ export async function crearAplicacion(config: Configuracion, opciones: Opciones 
     { provide: IDEMPOTENCIA_002, useValue: idempotencia },
     { provide: CLASIFICACIONES_EFECTIVAS_002, useValue: new ClasificacionesEfectivasPostgres(uow) },
   ] : [];
-  @Module({ controllers: [ContrasenaController, CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController, ...(registro?.controladores ?? [])], providers: [{ provide: CAMBIAR_CONTRASENA, useValue: cambiarContrasena }, {provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }, ...proveedores002] })
+  @Module({ controllers: [ContrasenaController, CorreoController,ReautenticacionController,SaludController, RegistroController, SesionesController, RecuperacionController, PerfilController, FotografiasController, ...(registro?.controladores ?? []), ...(registro003?.controladores ?? [])], providers: [{ provide: CAMBIAR_CONTRASENA, useValue: cambiarContrasena }, {provide:SERVICIOS_CORREO,useValue:serviciosCorreo},{provide:REAUTENTICAR,useValue:reautenticar},{ provide: SERVICIOS_PERFIL, useValue: serviciosPerfil }, { provide: SERVICIO_FOTOGRAFIAS, useValue: servicioFotografias }, { provide: SERVICIOS_RECUPERACION, useValue: serviciosRecuperacion }, { provide: SERVICIOS_SESION, useValue: serviciosSesion }, { provide: REGISTRAR_CUENTA, useValue: registrar }, { provide: HABILITAR_PERFIL, useValue: habilitar }, { provide: ESTADO_SALUD, useValue: salud }, { provide: 'cierre-fundacion', useValue: { onModuleDestroy: cerrar } }, ...proveedores002] })
   class AppModule {}
   let creada: INestApplication | undefined;
   const app = await (async () => {

@@ -11,6 +11,12 @@ module.exports = {
     { name: 'puertos-002-sin-persistencia', severity: 'error', from: { path: '/modulos/(?:prestadores|catalogo|administracion)/aplicacion/puertos/' }, to: { path: 'node_modules/(?:typeorm|pg|redis|@redis)(/|$)|/infraestructura/' } },
     { name: 'modulos-002-consumen-apis-publicas', severity: 'error', from: { path: '(^|/)modulos/(prestadores|catalogo|administracion)/' }, to: { path: '(^|/)modulos/[^/]+/', pathNot: '(^|/)modulos/(?:$2/|[^/]+/api-publica\\.)' } },
     { name: 'modulos-002-exponen-solo-apis-publicas', severity: 'error', from: { path: '(^|/)modulos/([^/]+)/' }, to: { path: '(^|/)modulos/(?:prestadores|catalogo|administracion)/(?!api-publica\\.)', pathNot: '(^|/)modulos/$2/' } },
+    // 003: Solicitudes y Cotizaciones consumen a otros módulos solo mediante su api-publica y se exponen solo mediante la suya. Las reglas genéricas de
+    // dominio y aplicación (dominio-sin-otro-modulo, dominio-sin-detalles, aplicacion-sin-implementaciones) ya los cubren. Solicitudes no conoce a Cotizaciones:
+    // los interesados de una solicitud llegan por un puerto de salida cuyo adaptador vive en composicion.
+    { name: 'modulos-003-consumen-apis-publicas', severity: 'error', from: { path: '(^|/)modulos/(solicitudes|cotizaciones)/' }, to: { path: '(^|/)modulos/[^/]+/', pathNot: '(^|/)modulos/(?:$2/|[^/]+/api-publica\\.)' } },
+    { name: 'modulos-003-exponen-solo-apis-publicas', severity: 'error', from: { path: '(^|/)modulos/([^/]+)/' }, to: { path: '(^|/)modulos/(?:solicitudes|cotizaciones)/(?!api-publica\\.)', pathNot: '(^|/)modulos/$2/' } },
+    { name: 'solicitudes-sin-cotizaciones', severity: 'error', from: { path: '(^|/)modulos/solicitudes/' }, to: { path: '(^|/)modulos/cotizaciones/' } },
     { name: 'sin-ciclos', severity: 'error', from: {}, to: { circular: true } },
   ],
   options: { doNotFollow: { path: 'node_modules' }, tsPreCompilationDeps: true, tsConfig: { fileName: 'tsconfig.json' }, enhancedResolveOptions: { conditionNames: ['import', 'node', 'default'], exportsFields: ['exports'] } },

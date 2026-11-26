@@ -33,17 +33,45 @@ export function persistenciaFundacional(url: string) {
   return crearDataSource(url, { migrations: [...migracionesBase], entities: [...entidadesBase] });
 }
 
+/** Última migración de la base común (001). Toda migración aditiva de la 002 o de la 003 debe ser posterior. */
+export const ultimaMigracion001 = 1794830400008;
+/** Última migración de la 002. Toda migración de la 003 debe ser posterior. */
+export const ultimaMigracion002 = 1795000000009;
+
+interface Fechada { readonly fecha: number; readonly migracion: Migracion }
+
+/** Fecha de orden de una migración (sufijo de 13 dígitos del nombre). Exige que sea única entre `usadas` y mayor que `minimo`. */
+function fechar(migracion: Migracion, usadas: Set<number>, minimo: number, mensaje: string): Fechada {
+  const sufijo = /\d{13}$/.exec(migracion.name)?.[0];
+  const fecha = Number(sufijo);
+  if (!sufijo || fecha <= minimo || usadas.has(fecha)) throw new Error(mensaje);
+  usadas.add(fecha);
+  return { fecha, migracion };
+}
+const enOrden = (fechadas: readonly Fechada[]) => [...fechadas].sort((a, b) => a.fecha - b.fecha).map(m => m.migracion);
+
 export function persistencia002(url: string, registros: readonly RegistroPersistencia002[] = []) {
   const fechas = new Set<number>();
-  const migraciones = [...migracionesComunes002, ...registros.flatMap(r => r.migraciones ?? [])].map(migracion => {
-    const sufijo = /\d{13}$/.exec(migracion.name)?.[0];
-    const fecha = Number(sufijo);
-    if (!sufijo || fecha <= 1794830400008 || fechas.has(fecha)) throw new Error('La migración 002 requiere un orden aditivo único.');
-    fechas.add(fecha);
-    return { fecha, migracion };
-  }).sort((a, b) => a.fecha - b.fecha);
+  const migraciones = [...migracionesComunes002, ...registros.flatMap(r => r.migraciones ?? [])]
+    .map(migracion => fechar(migracion, fechas, ultimaMigracion001, 'La migración 002 requiere un orden aditivo único.'));
   return crearDataSource(url, {
-    migrations: [...migracionesBase, ...migraciones.map(m => m.migracion)],
+    migrations: [...migracionesBase, ...enOrden(migraciones)],
     entities: [...entidadesBase, ...registros.flatMap(r => r.entidades ?? [])],
+  });
+}
+
+/**
+ * Persistencia de la composición con la 003. Conserva las reglas de la 002 para sus migraciones y exige que las de la 003 tengan un orden único,
+ * distinto del de cualquier migración anterior y posterior a la última de la 002 (`1795000000009`).
+ */
+export function persistencia003(url: string, registros002: readonly RegistroPersistencia002[] = [], registros003: readonly RegistroPersistencia002[] = []) {
+  const fechas = new Set<number>();
+  const de002 = [...migracionesComunes002, ...registros002.flatMap(r => r.migraciones ?? [])]
+    .map(migracion => fechar(migracion, fechas, ultimaMigracion001, 'La migración 002 requiere un orden aditivo único.'));
+  const de003 = registros003.flatMap(r => r.migraciones ?? [])
+    .map(migracion => fechar(migracion, fechas, ultimaMigracion002, 'La migración 003 requiere un orden aditivo único y posterior a la última de la 002.'));
+  return crearDataSource(url, {
+    migrations: [...migracionesBase, ...enOrden([...de002, ...de003])],
+    entities: [...entidadesBase, ...registros002.flatMap(r => r.entidades ?? []), ...registros003.flatMap(r => r.entidades ?? [])],
   });
 }

@@ -5,7 +5,8 @@
 interface EjecutorConsulta { query: (consulta: string, parametros?: unknown[]) => Promise<unknown>; [clave: string]: unknown }
 interface FuenteDeDatos { createQueryRunner: (...argumentos: unknown[]) => EjecutorConsulta }
 
-const esControl = (sql: string): boolean => /^\s*(BEGIN|START TRANSACTION|COMMIT|ROLLBACK|SAVEPOINT|RELEASE SAVEPOINT|SET\s+TRANSACTION)\b/i.test(sql);
+/** Control de transacción: abrirla, cerrarla y la configuración del tiempo de espera de bloqueos que la unidad de trabajo hace al abrirla. No es negocio. */
+const esControl = (sql: string): boolean => /^\s*(BEGIN|START TRANSACTION|COMMIT|ROLLBACK|SAVEPOINT|RELEASE SAVEPOINT|SET\s+TRANSACTION|SELECT\s+set_config\(\s*'lock_timeout')/i.test(sql);
 
 export interface ResultadoConteo<T> { readonly resultado: T; readonly total: number; readonly control: number; readonly sentencias: readonly string[] }
 
