@@ -10,7 +10,7 @@ Documento vivo de la funcionalidad 003. Se actualiza con cada fase. Datos fictic
 | Commit documental base de la implementación | `d078263` (docs(003): especificacion plan y tareas) |
 | Línea base de 001 y 002 en `main` | `c32f2c8` |
 | Runtime | Node.js 24.15.0 (toolchain local del proyecto) |
-| Alcance autorizado hasta ahora | Fase 1 (T001 a T008, cerrada) y Fase 2A (T009 a T024) |
+| Alcance autorizado hasta ahora | Fases 1 (T001–T008), 2A (T009–T024) y 2B (T025–T042) |
 | Commit de la Fase 1 | `b6e67bd` (CI #1 «003 Solicitudes y cotizaciones»: SUCCESS, 2 min 27 s, según informó el PO) |
 
 ## 2. Contratos fuente e inventario de operaciones
@@ -130,3 +130,47 @@ Evidencia local (ignorada por Git): `tecnologia/.local/evidencia/003/fase2a/`.
 - T001–T024 siguen marcadas `[x]`; T025 y siguientes, sin marcar.
 - Las 4 suites de `test:integration:002:infra` (35 pruebas) siguen **omitidas por Jest y no verificadas**.
 - Nuevas pruebas de esta revisión: 4 unitarias y 4 de integración. Integración 003: 5 suites, 61 pruebas, en verde.
+
+## 8. Fase 2B (T025–T042): fundamentos propios de la 003
+
+Commit base: `9afa0be` (CI #2 de la Fase 2A: SUCCESS, 2 min 37 s, informado por el PO). Evidencia local: `tecnologia/.local/evidencia/003/fase2b/`.
+
+### 8.1 Qué se entregó
+| Tarea | Resultado |
+|---|---|
+| T025 | `solicitudes/dominio/errores.ts` y `cotizaciones/dominio/errores.ts` con los códigos y estados del contrato; `compartido/dominio/condicion-bd.ts` y `compartido/infraestructura/postgres/traduccion-errores.ts` (`condicionDe`, `traducirErrorBd`, `conTraduccionBd`). 23505 sobre el índice único → `COTIZACION_EXISTENTE`; 23514 sobre un contador → `LIMITE_ARCHIVOS`; 55P03 → `CONFLICTO_CONCURRENTE`; 40P01 y 40001 → conflicto reintentable; todo lo demás se devuelve intacto. |
+| T026, T027 | Esqueletos de `solicitudes` y `cotizaciones` con `api-publica.ts` y puertos. Solicitudes no importa otros módulos; Cotizaciones solo importa `solicitudes/api-publica`. |
+| T028, T029 | Migración `1796000000001` (cinco tablas, disparadores, contadores). |
+| T030, T031 | Migración `1796000000002` (tres tablas). |
+| T032, T033 | `ApiCotizaciones` con `autoresNoRetirados`, `solicitudesConCotizacionNoRetirada` y `tieneNoRetirada`, una sentencia por llamada. |
+| T034, T035 | `solicitudes/dominio/politica-acceso.ts`: política única de acceso y fotografías. |
+| T036, T037 | `SolicitudesS3` sobre el bucket único, clave estricta, sin enlaces firmados. |
+| T038, T039 | `SaneadorSharpSolicitudes` propio. |
+| T040, T041 | Aislamiento con Garage real y `storage:init:003` (`scripts/inicializar-storage-003.ts`). |
+| T042 | `test/soporte/solicitudes-cotizaciones/datos.ts` y `test:seed:003` (`scripts/seed-solicitudes-cotizaciones.ts`). Además `db:migrate:003` (`scripts/migrar-003.ts`). |
+
+### 8.2 Resultados (2026-11-26, Node 24.15.0)
+| Verificación | Resultado |
+|---|---|
+| Integración 003 completa | 11 suites, 157 pruebas |
+| Unitarias del backend completo | 35 suites, 514 pruebas |
+| Arquitectura | 3 suites, 8 pruebas |
+| Contratos del backend (001, 002 y 003) | 19 suites, 219 pruebas |
+| **Regresión 001, integración** | 12 suites, 129 pruebas |
+| **Regresión 002, integración** (`test:integration:002`) | 17 suites, 165 pruebas |
+| lint, typecheck, build | sin errores |
+| Comandos reales sobre la base dedicada | `db:migrate:003` (20 migraciones, luego 0), `storage:init:003` (dos veces), `test:seed:003` (dos veces; la segunda no cambia nada) |
+
+**No ejecutado:** `test:integration:002:infra` (4 suites, 35 pruebas, omitidas por Jest). El flujo de GitHub con estos cambios. La API HTTP de la 003 no existe aún (sin controladores). Ninguna prueba de navegador ni de rendimiento. No se tocó ningún archivo de 001 ni de 002 en esta fase.
+
+### 8.3 Decisiones, incidencias y deuda
+1. **T041 y «no crea bucket ni identidad».** En la composición real la 003 usa el bucket único existente con el prefijo `solicitudes/`, sin recursos nuevos, y este comando no se ejecuta allí. La Garage aislada de validación arranca vacía, así que `storage:init:003` aprovisiona **una vez** el equivalente del bucket único (`plataforma-003-validacion`) y una identidad de aplicación RW sin permiso de propietario, y comprueba el acceso al prefijo y la ausencia de acceso anónimo. Es idempotente y solo actúa sobre el contenedor 003. Duplica ~20 líneas de `inicializar-storage-002.ts` para no modificarlo. **Conviene que el PO confirme esta lectura.**
+2. **T040: el aislamiento por aplicación se sostiene**, así que no se reabre la decisión de un bucket propio: acceso anónimo rechazado (401/403) en listar, leer, escribir y borrar; el adaptador rechaza claves ajenas; los adaptadores de 001 y 002 no leen, listan ni borran `solicitudes/`; la limpieza de 001, la limpieza de 002 (incluida una entrada hostil que nombra una clave de `solicitudes/`) y el respaldo de 002 dejan esos objetos intactos. Un inventario de respaldo que nombrara uno acaba INCOMPLETO. El respaldo se ejercitó con un origen PostgreSQL simulado, no con `pg_dump` real sobre Garage 003.
+3. **Deuda técnica (T039):** `SaneadorSharpSolicitudes` duplica a propósito la lógica de `SaneadorSharp` de Prestadores (la constitución impide importar sus internos). Si cambia la política de imágenes, hay que cambiar ambos.
+4. **Orden «pruebas primero».** Las pruebas de T028, T034, T036, T038 y T040 se escribieron antes de su implementación, pero solo se vio en rojo la de T030 (20 fallos sin la migración). Las demás pasaron en la primera ejecución con la implementación ya escrita, así que su valor probatorio se apoya en lo que verifican y no en haberlas visto fallar.
+5. **Nombres de restricciones como contrato:** `solicitudes_archivos_cantidad_rango`, `solicitudes_archivos_bytes_rango`, `cotizaciones_unica_no_retirada`, `cotizaciones_aclaraciones_numero_unico` y `cotizaciones_aclaraciones_numero_rango` los usa el dominio para traducir errores; las migraciones y las pruebas los fijan.
+6. **Reglas de modelo añadidas más allá del texto de las tareas** (a validar con el PO): transiciones de estado de solicitudes y archivos como disparadores; identidad de archivos inmutable; claves de objeto con los identificadores de la solicitud y del archivo; `ultimo_error` limitado a un código en mayúsculas; versiones consecutivas por disparador; `alcance` no vacío.
+7. **Contratos de 002 con infraestructura:** una primera ejecución de `test:contract` falló en 14 pruebas porque no estaba levantada la infraestructura de 002; con ella arriba pasan las 219.
+8. **Esperas de lectura/escritura:** `SolicitudesS3` fija 8 s por llamada y 10 000 000 bytes de lectura máxima.
+9. **Workflow de 003:** ahora ejecuta `db:migrate:003`, `storage:init:003` y `test:seed:003` antes de las pruebas. No se ha ejecutado en GitHub.
+10. **Pendiente para fases posteriores:** casos de uso, repositorios de escritura, controladores y frontend (Fase 3 en adelante). El ensamblador definitivo de 58 operaciones sigue pendiente (T088).
