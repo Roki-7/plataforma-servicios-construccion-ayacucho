@@ -1,0 +1,31 @@
+name: ayacucho-003-validacion
+# Entorno aislado de la 003. Se usa como capa sobre `compose.yaml`, igual que `compose.002.yaml`:
+#   docker compose -p ayacucho-003-validacion --env-file tecnologia/.local/003/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.003.yaml up -d --wait postgres redis correo objetos
+# Proyecto, volúmenes, base, usuario y puertos propios, distintos de los de 001 y 002 (identidad en backend/scripts/entorno-003.ts).
+# Redis se incluye porque la composición de la 002 lo requiere. La 003 no lo usa.
+# No crea bucket ni identidad de almacenamiento: `storage:init:003` (T041) prepara el equivalente del bucket único de la composición
+# real con una identidad de aplicación, y la Garage arranca sin bucket ni clave predeterminados.
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ayacucho_003_validacion
+      POSTGRES_USER: ayacucho_validacion_003
+    ports: !override ["127.0.0.1:54331:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ayacucho_validacion_003 -d ayacucho_003_validacion"]
+  redis:
+    ports: !override ["127.0.0.1:63801:6379"]
+  correo:
+    ports: !override ["127.0.0.1:1027:1025", "127.0.0.1:8027:8025"]
+  objetos:
+    command: ["/garage", "server", "--single-node"]
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: !reset null
+      GARAGE_DEFAULT_SECRET_KEY: !reset null
+      GARAGE_DEFAULT_BUCKET: !reset null
+    ports: !override ["127.0.0.1:3911:3900"]
+  proxy:
+    ports: !override ["127.0.0.1:8447:8447"]
+    volumes: !override
+      - ./.local/003/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.local/003/tls:/certs:ro

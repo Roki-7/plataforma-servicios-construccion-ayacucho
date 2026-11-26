@@ -1,0 +1,162 @@
+name: 003 Solicitudes y cotizaciones
+
+# CI propia de la funcionalidad 003. No reemplaza ni modifica .github/workflows/usuarios-acceso.yml ni prestadores-catalogo.yml.
+# Esqueleto (T007). Tres trabajos, cada uno en su propio ejecutor efímero (nunca comparten anfitrión, Compose, puertos ni evidencias):
+#   calidad               lint, typecheck, build y pruebas unitarias del frontend.
+#   validar-003           proyecto Compose propio de la 003 (ayacucho-003-validacion; puertos 54331, 63801, 1027 y 3911).
+#   regresion-001-002     compatibilidad de 001 y de 002 en su propia infraestructura efímera, con evidencia separada bajo 003.
+# Toda la evidencia de 003 va a tecnologia/.local/evidencia/003/ci. Ningún paso depende de archivos locales ignorados por Git:
+# la configuración y los secretos se generan en cada ejecución (aleatorios y enmascarados).
+#
+# Este flujo ejecuta hoy solo lo que ya existe. Los pasos que dependen de tareas posteriores se añaden con ellas:
+#   validar-003:  migraciones y almacenamiento (T029, T031 y T041), semilla (T042), contratos, arquitectura e integración
+#                 (T009, T011, T022 y las suites de las historias), respaldo y restauración (Fase 8) y la comprobación de bases residuales.
+#   regresion:    la parte de 002 (suites de 002 con la composición de la 003) se añade en T024 y T089.
+# Este flujo NO ejecuta k6 ni Playwright de 003. Esa evidencia es local o del entorno de demostración y así se declara.
+
+on:
+  pull_request:
+    paths: ['tecnologia/**', 'specs/003-solicitudes-y-cotizaciones/**', '.github/workflows/solicitudes-cotizaciones.yml']
+  push:
+    branches: [main, 003-solicitudes-y-cotizaciones]
+    paths: ['tecnologia/**', 'specs/003-solicitudes-y-cotizaciones/**', '.github/workflows/solicitudes-cotizaciones.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: solicitudes-cotizaciones-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EVIDENCIA_003: ${{ github.workspace }}/tecnologia/.local/evidencia/003/ci
+
+jobs:
+  calidad:
+    name: Calidad (lint, typecheck, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - name: Instalar, comprobar y compilar con los lockfiles
+        shell: bash
+        run: |
+          for app in backend frontend; do
+            npm --prefix "tecnologia/$app" ci
+            npm --prefix "tecnologia/$app" run lint
+            npm --prefix "tecnologia/$app" run typecheck
+            npm --prefix "tecnologia/$app" run build
+          done
+      - name: Pruebas unitarias del frontend
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCIA_003/frontend"
+          npm --prefix tecnologia/frontend run test:unit -- --reporter=default --reporter=junit --outputFile.junit="$EVIDENCIA_003/frontend/frontend-unit-junit.xml"
+      - name: Conservar evidencia de calidad
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: solicitudes-cotizaciones-003-calidad-${{ github.sha }}-${{ github.run_attempt }}
+          path: tecnologia/.local/evidencia/003/ci/frontend/**/*.xml
+          if-no-files-found: warn
+          include-hidden-files: true
+
+  validar-003:
+    name: Validación 003 (infraestructura propia y pruebas unitarias)
+    needs: calidad
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - name: Instalar el backend con el lockfile
+        run: npm --prefix tecnologia/backend ci
+
+      # --- Infraestructura propia de 003 (proyecto ayacucho-003-validacion; puertos 54331, 63801, 1027 y 3911) ---
+      - name: Preparar la configuración 003 y levantar su infraestructura
+        shell: bash
+        run: |
+          compose003=(docker compose -p ayacucho-003-validacion --env-file tecnologia/.local/003/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.003.yaml)
+          npm --prefix tecnologia/backend run dev:prepare:003 -- --validation
+          "${compose003[@]}" up -d --wait postgres redis correo objetos
+          npm --prefix tecnologia/backend run start:validation:003 -- --verificar-config
+      - name: Pruebas unitarias de 003
+        run: EVIDENCIA_JEST="$EVIDENCIA_003/unitarias" npm --prefix tecnologia/backend run test:unit -- --testPathPatterns solicitudes-cotizaciones
+      - name: Estado de los contenedores
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCIA_003"
+          docker ps -a --format '{{.Names}} {{.Status}}' > "$EVIDENCIA_003/contenedores.txt" || true
+      - name: Conservar evidencia de 003
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: solicitudes-cotizaciones-003-validacion-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            tecnologia/.local/evidencia/003/ci/**/*.xml
+            tecnologia/.local/evidencia/003/ci/**/*.txt
+          if-no-files-found: warn
+          include-hidden-files: true
+      - name: Liberar la infraestructura propia
+        if: always()
+        shell: bash
+        run: |
+          compose003=(docker compose -p ayacucho-003-validacion --env-file tecnologia/.local/003/compose.env -f tecnologia/compose.yaml -f tecnologia/compose.003.yaml)
+          "${compose003[@]}" down -v || true
+
+  regresion-001-002:
+    name: Regresión de compatibilidad con 001 y 002
+    needs: calidad
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.15.0'
+          cache: npm
+          cache-dependency-path: tecnologia/*/package-lock.json
+      - name: Instalar el backend con el lockfile
+        run: npm --prefix tecnologia/backend ci
+      # Ejecutor efímero propio: la infraestructura de 001 se crea aquí y se descarta, sin tocar la de los flujos de 001 y 002.
+      - name: Preparar la infraestructura de 001 de esta ejecución
+        shell: bash
+        run: |
+          npm --prefix tecnologia/backend run dev:prepare -- --validation
+          docker compose -f tecnologia/compose.yaml up -d --wait postgres redis correo objetos
+          npm --prefix tecnologia/backend run db:migrate
+          npm --prefix tecnologia/backend run storage:init
+          npm --prefix tecnologia/backend run security:catalog:prepare -- --fixture
+          npm --prefix tecnologia/backend run test:seed
+      - name: Pruebas de 001 (unitarias, contratos, integración)
+        shell: bash
+        env:
+          NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/tecnologia/.local/tls/ca.crt
+        run: |
+          patron='usuarios-acceso|fundacion'
+          EVIDENCIA_JEST="$EVIDENCIA_003/regresion-001/unitarias" npm --prefix tecnologia/backend run test:unit -- --testPathPatterns "$patron"
+          EVIDENCIA_JEST="$EVIDENCIA_003/regresion-001/contratos" npm --prefix tecnologia/backend run test:contract -- --testPathPatterns "$patron"
+          EVIDENCIA_JEST="$EVIDENCIA_003/regresion-001/integracion" npm --prefix tecnologia/backend run test:integration -- --runInBand --testPathPatterns "$patron"
+      # La regresión de 002 con la composición de la 003 (suites de integración de 002 y arranque de las 40 operaciones) se añade en T024 y T089.
+      - name: Conservar evidencia de la regresión
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: solicitudes-cotizaciones-003-regresion-${{ github.sha }}-${{ github.run_attempt }}
+          path: tecnologia/.local/evidencia/003/ci/regresion-001/**/*.xml
+          if-no-files-found: warn
+          include-hidden-files: true
+      - name: Liberar la infraestructura
+        if: always()
+        run: docker compose -f tecnologia/compose.yaml --profile web down -v || true
