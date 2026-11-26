@@ -4,21 +4,21 @@
 
 Redis es **solo una caché de lectura**, y desde la funcionalidad 002 está **activo desde la entrega**. PostgreSQL es siempre la fuente de verdad: si Redis falla, se vacía o devuelve datos inválidos, la plataforma sigue funcionando y consulta la base de datos (ADR-010, ADR-013).
 
-La frescura no depende de borrar claves ni del tiempo de vida (TTL), sino de una **revisión durable** de la oferta guardada en PostgreSQL. La revisión manda sobre el TTL. Las mediciones de EQ-01 (T082) orientan los ajustes de TTL y capacidad; no deciden si la caché existe.
+La frescura no depende de borrar claves ni del tiempo de vida (TTL), sino de una **revisión durable** de la oferta guardada en PostgreSQL. La revisión manda sobre el TTL. Las mediciones de EQ-01 (T082) calibraron el TTL de 60 segundos y orientan los ajustes de capacidad; no deciden si la caché existe.
 
 ## 2. Qué se guarda en caché y qué no
 
 | Dato | ¿Caché? | Duración | Motivo |
 |---|---|---|---|
-| Categorías efectivamente activas | Sí | TTL inicial de 1 hora, con variación | Cambian poco y se consultan en cada búsqueda. |
-| Resultados de búsqueda de servicios y de prestadores por filtros y página | Sí | TTL inicial de 60 segundos, con variación | Son la consulta más frecuente (EQ-01). |
+| Categorías efectivamente activas | Sí | TTL calibrado de 60 segundos por defecto (configurable de 1 a 3 600 s) | Cambian poco y se consultan en cada búsqueda. |
+| Resultados de búsqueda de servicios y de prestadores por filtros y página | Sí | TTL calibrado de 60 segundos por defecto (configurable de 1 a 3 600 s) | Son la consulta más frecuente (EQ-01). |
 | Detalle de un servicio y servicios publicados de un prestador | **No** | — | Se leen siempre de PostgreSQL para respetar de inmediato las revocaciones de visibilidad (clasificación desactivada, pausa o retiro). |
 | Fotografías y datos del portafolio | **No** | — | Se sirven con las políticas de acceso vigentes y la propiedad del módulo Prestadores. |
 | Solicitudes, cotizaciones y contrataciones | **No** | — | Deben estar siempre al día; un dato viejo podría permitir aceptar una cotización vencida. |
 | Permisos y sesiones, incluido el permiso de gestión de categorías | **No** | — | Un permiso retirado debe aplicarse de inmediato. |
 | Datos privados (correo, teléfono, documentos) | **No** | — | Protección de datos personales (RC14). Solo se guardan datos públicos. |
 
-**Estado de la implementación (002).** Hay tres diferencias respecto del plan, registradas en la incidencia INC-002-02 de `specs/002-prestadores-y-catalogo/implementation-status.md`. El TTL es configurable de 1 a 3 600 segundos y, si no se indica, la composición usa 60 segundos para ambas consultas; el valor de 1 hora de las categorías se obtiene configurándolo. La variación aleatoria del TTL, prevista para repartir las expiraciones, **todavía no está implementada**. La corrección de la frescura no se ve afectada porque la revisión manda sobre el TTL; solo podría haber expiraciones simultáneas. La tercera diferencia son las métricas de caché (sección 6). Son ajustes pendientes que EQ-01 permite evaluar.
+**Decisión aprobada (INC-002-02, 2026-11-25).** El plan se enmendó para reflejar lo implementado y medido. (1) **TTL calibrado:** 60 segundos por defecto para categorías y búsquedas, configurable de 1 a 3 600 segundos; EQ-01 y EQ-03 se cumplieron con ese valor. (2) **Variación del TTL diferida:** no se implementa ahora; se incorporará si una medición de EQ-01 muestra expiraciones simultáneas que degraden el p95. (3) **Métricas de caché diferidas** a una funcionalidad posterior de observabilidad (sección 6). La corrección de la frescura no depende de estas decisiones: la revisión durable manda sobre el TTL y los mecanismos de protección de Redis (respaldo en PostgreSQL, cortacircuitos, nuevo espacio de claves tras restaurar) se conservan sin cambios. Justificación y trazabilidad en la incidencia INC-002-02 de `specs/002-prestadores-y-catalogo/implementation-status.md`.
 
 ## 3. Patrón de lectura
 
@@ -61,9 +61,10 @@ Cada clave lleva además el prefijo del espacio de claves del despliegue que añ
 
 ## 6. TTL, ocupación y observabilidad
 
-- **TTL y ocupación.** El TTL acota la memoria ocupada porque toda clave expira; con la revisión en la clave, las de revisiones anteriores no se vuelven a leer y solo ocupan espacio hasta que vencen. Por eso el TTL es corto y el tamaño del espacio se acota por cardinalidad de filtros y páginas.
-- **Observabilidad (prevista).** El plan de la 002 prevé medir aciertos, fallos, uso del respaldo en PostgreSQL, tiempo de Redis, lectura y espera de la revisión, tiempos SQL, conexiones y evicciones, y registrar solo operación y resultado agregado, sin filtros personales, cuerpos ni identificadores protegidos. **Estas métricas de caché todavía no están implementadas**: hoy el comportamiento se verifica con las pruebas de integración (T064, T069) y con las mediciones externas de latencia y fallos de EQ-01/EQ-03 (T082, T083).
-- **Mediciones.** EQ-01/PR01 se midió con y sin Redis (T082); EQ-03/PR03, con una y dos réplicas (T083). Sus resultados están en `specs/002-prestadores-y-catalogo/implementation-status.md` y orientan el ajuste de TTL y recursos.
+- **TTL y ocupación.** El TTL acota la memoria ocupada porque toda clave expira; con la revisión en la clave, las de revisiones anteriores no se vuelven a leer y solo ocupan espacio hasta que vencen. Por eso el TTL es corto (60 segundos por defecto) y el tamaño del espacio se acota por cardinalidad de filtros y páginas.
+- **Observabilidad (métricas diferidas).** Se registran solo operación y resultado agregado, sin filtros personales, cuerpos ni identificadores protegidos. Las métricas de caché previstas (aciertos, fallos, uso del respaldo en PostgreSQL, tiempo de Redis, lectura y espera de la revisión, tiempos SQL, conexiones y evicciones) **quedan diferidas a una funcionalidad posterior de observabilidad**. Hoy el comportamiento se verifica con las pruebas de integración (T064, T069) y con las mediciones externas de latencia y fallos de EQ-01/EQ-03 (T082, T083).
+- **Mediciones.** EQ-01/PR01 se midió con y sin Redis (T082); EQ-03/PR03, con una y dos réplicas (T083). Sus resultados están en `specs/002-prestadores-y-catalogo/implementation-status.md`.
+- **Seguimiento futuro.** (a) Variación del TTL: se activa si una medición de EQ-01 muestra expiraciones simultáneas que degraden el p95. (b) Métricas de caché: se incorporan con la funcionalidad de observabilidad. (c) Si se quisiera un TTL mayor para categorías, basta configurarlo (hasta 3 600 s) y volver a medir EQ-01.
 
 ## 7. Riesgos y mitigaciones
 
@@ -71,7 +72,7 @@ Cada clave lleva además el prefijo del espacio de claves del despliegue que añ
 |---|---|
 | Mostrar un perfil o servicio desactualizado | Revisión durable en la clave y en cada acierto; detalle sin caché. |
 | Reutilizar claves viejas tras restaurar PostgreSQL | Nuevo espacio de claves en todas las réplicas antes de reabrir el tráfico. |
-| Muchas consultas a la vez cuando expiran varias claves | TTL con variación (prevista; pendiente de implementar) y respaldo en PostgreSQL. |
+| Muchas consultas a la vez cuando expiran varias claves | TTL corto con respaldo en PostgreSQL; la variación del TTL queda diferida con un disparador medible en EQ-01. |
 | Redis lento o lleno | Tiempo de espera acotado, cardinalidad limitada y medición de evicciones. |
 | Exponer datos privados | Solo se guardan datos públicos. |
 

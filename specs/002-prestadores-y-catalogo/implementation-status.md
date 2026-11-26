@@ -14,17 +14,17 @@
 | 002 · Servicios (6) | `GET` y `POST /servicios`, `GET /servicios/mios`, `GET` y `PATCH /servicios/{servicioId}`, `POST /servicios/{servicioId}/transiciones` |
 | 002 · Categorías (7) | `GET /categorias`, `GET` y `POST /admin/categorias`, `PATCH /admin/categorias/{categoriaId}`, `POST /admin/categorias/{categoriaId}/previsualizaciones-desactivacion`, `POST /admin/categorias/{categoriaId}/desactivaciones`, `POST /admin/categorias/{categoriaId}/activaciones` |
 
-## Estado inicial de las verificaciones
+## Estado de las verificaciones (la columna «Estado inicial» conserva el histórico; «Estado vigente» se actualizó en T093)
 
-| Grupo | Estado inicial | Alcance y evidencia esperada |
-|---|---|---|
-| T001–T006 | PENDIENTE | Inventario estático, preparación local, Compose, controles del iniciador, PostgreSQL real y selectores e informes de prueba. |
-| HU03 / RF06 | APROBADA | CA-PRE-01 a 08 con el arnés US1 (ver «Resultados de la fase 3»). La integración conjunta de 40 operaciones sigue pendiente. |
-| HU04 / RF08 | APROBADA | CA-SER-01 a 07 y 09 con el arnés US2 y CA-SER-08 con las consultas públicas de US3 (fase 5). |
-| HU05 / RF09, RF10 | APROBADA | CA-BUS-01 a 08 con el arnés US3 (ver «Resultados de la fase 5»). Los avisos de 011 y 012 usan dobles de fuentes. |
-| HU25 / RF39 | PENDIENTE | CA-CAT-01 a 10 y, por la enmienda INC-002-01 (cerrada), CA-CAT-11 a 14 (verificados; migración aplicada a la base local de validación el 2026-11-25). |
-| Integración y calidad | PENDIENTE | Unión de contratos y regresión de 001, Redis, seguridad, arquitectura, restauración, CI, accesibilidad, responsive, EQ-01 y EQ-03 según [tareas](tasks.md) y [guía de validación](quickstart.md). |
-| Integraciones futuras | PENDIENTE | Solicitudes en 003, referencias posteriores, calificaciones en 011 y verificaciones en 012. |
+| Grupo | Estado inicial | Estado vigente (T093) | Alcance y evidencia |
+|---|---|---|---|
+| T001–T006 | PENDIENTE | APROBADA | Inventario, preparación local, Compose, controles del iniciador, PostgreSQL real, selectores e informes (fases 1 y 2). |
+| HU03 / RF06 | APROBADA | APROBADA | CA-PRE-01 a 08 (fase 3, T076). Integración conjunta de 40 operaciones: T066 a T068. |
+| HU04 / RF08 | APROBADA | APROBADA | CA-SER-01 a 09 (fase 4, T077) y CA-SER-08 con las consultas públicas (fase 5). |
+| HU05 / RF09, RF10 | APROBADA | APROBADA | CA-BUS-01 a 08 (fase 5, T078). Los avisos de 011 y 012 usan dobles de fuentes. |
+| HU25 / RF39 | PENDIENTE | APROBADA | CA-CAT-01 a 14 aprobados, incluido CA-CAT-10 (aprobado en local y en CI n.º 19, tras sincronizar la prueba con el cortacircuitos de Redis). |
+| Integración y calidad | PENDIENTE | **PARCIAL** | Contratos, regresión de 001, arquitectura, restauración, EQ-01, EQ-03 y EQ-04 aprobados; CI vigente (n.º 19) aprobada; accesibilidad y diseño adaptable automatizados aprobados; PR07 manual en celular no ejecutado (excepción de T080). |
+| Integraciones futuras | PENDIENTE | PENDIENTE | Solicitudes en 003, referencias posteriores, calificaciones en 011 y verificaciones en 012 (fuera de 002). |
 
 Las verificaciones se registran como `PENDIENTE` cuando falta la ejecución aplicable, `EJECUTADA` cuando hay una ejecución por evaluar, `APROBADA` cuando la evidencia cumple el criterio o `FALLIDA` cuando una ejecución válida incumple el criterio. Los resultados de preparación se registran por separado de los escenarios de aceptación.
 
@@ -1292,11 +1292,11 @@ El responsable del producto aprobó las cuatro decisiones: teléfono opcional co
 **Documentado conforme a la regla aprobada de la 002.** Redis activo desde la entrega; revisión durable en PostgreSQL como autoridad de frescura (en la clave y comprobada de nuevo al aceptar un acierto); respaldo en PostgreSQL ante Redis vacío, corrupto o caído, y 503 si PostgreSQL no puede comprobar la revisión; recuperación con espacio de claves nuevo en todas las réplicas al restaurar PostgreSQL; TTL inicial de 1 h para categorías y 60 s para búsquedas, que acota la ocupación (la revisión manda sobre el TTL); lo que no se guarda (detalle de servicio, servicios de un perfil, fotografías, permisos y sesiones, datos privados); EQ-01 mide y orienta ajustes.
 **Diferencias entre el plan y la implementación, registradas sin ocultarlas (INC-002-02).** (1) El TTL por defecto de la composición es de 60 s para categorías y búsquedas; el valor de 1 h previsto para categorías se obtiene configurándolo (rango admitido de 1 a 3 600 s). (2) La variación aleatoria del TTL no está implementada. (3) Las métricas de caché previstas por el plan (aciertos, fallos, uso del respaldo, tiempo de Redis, evicciones) no están implementadas. Cada diferencia se contrastó con `spec.md`, los criterios CA-CAT y CA-BUS, EQ-01/EQ-03 y `data-model.md`: ninguna es un requisito funcional ni un criterio de aceptación obligatorio (la frescura se prueba por revisión y no por TTL, T064 y T069), pero **sí son desviaciones del `plan.md`** (sección «Redis, proyección y consistencia», puntos 3 y 4), que la constitución obliga a identificar, justificar y aprobar. No se declara conformidad técnica completa del plan de caché.
 
-### INC-002-02 — Desviaciones del plan de caché de la 002 (ABIERTA, severidad baja)
+### INC-002-02 — Desviaciones del plan de caché de la 002 (CERRADA por enmienda aprobada el 2026-11-25; severidad baja)
 
 **Descripción.** TTL por defecto de 60 s también para categorías, sin variación aleatoria del TTL y sin métricas de caché, frente al plan (TTL inicial de 1 h para categorías y 60 s para búsquedas con variación; observabilidad de aciertos, fallos, respaldo, tiempo de Redis y evicciones).
 **Impacto.** Sin efecto en la corrección: la revisión durable manda sobre el TTL. Posible aumento de lecturas a PostgreSQL en categorías, expiraciones simultáneas de claves y menor visibilidad operativa de la caché.
-**Resolución pendiente (a decidir por el responsable).** A) Implementar: TTL por defecto de 3 600 s en categorías, variación aleatoria acotada del TTL de búsquedas y métricas agregadas de caché, con pruebas. B) Enmendar el plan para aceptar los valores actuales con su justificación. EQ-01 (T082) puede orientar la decisión. Hasta resolverla, las diferencias permanecen documentadas en `estrategia-de-cache.md`.
+**Resolución (aprobada por el responsable el 2026-11-25): alternativa de enmienda del plan (antes «B»).** Se enmendaron `plan.md` y `estrategia-de-cache.md`; la implementación de Redis no se modificó. Ver «INC-002-02 · Decisión aprobada y enmienda aplicada».
 **Corregido respecto al documento anterior.** Ya no describe la caché como «se activa cuando las mediciones lo muestren», ni el borrado de claves como mecanismo de invalidación, ni una caché de perfil público de 5 minutos (en la 002 el detalle y los servicios de un perfil se leen siempre de PostgreSQL).
 **Sin versionar.** Los cambios de T084 permanecen en el árbol de trabajo a la espera de aprobación para commit.
 
@@ -1320,4 +1320,121 @@ El responsable del producto aprobó las cuatro decisiones: teléfono opcional co
 - **T091:** la asignación de pruebas por escenario se derivó de las tareas de `tasks.md`; no se volvieron a ejecutar las pruebas en esta tarea.
 - **T092:** el recorrido manual completo desde una base limpia no se repitió aquí; lo respaldan los scripts existentes y las corridas efímeras (que migran y siembran una base nueva por corrida) de T075 a T083.
 - Los estados de PR01, PR03, PR04 y PR07 se describen como «medidas en validación local; pendientes de CI», sin declarar ejecución en CI.
-- Las diferencias del plan de caché (INC-002-02) siguen abiertas.
+- Las diferencias del plan de caché (INC-002-02) se cerraron después por enmienda aprobada (2026-11-25).
+
+
+## T093 · Consolidación de resultados para el cierre (completada por excepción administrativa)
+
+**Fecha:** 2026-11-25. Estado final: ver «T093 · Cierre administrativo por excepción» al final. **Commit evaluado en la primera consolidación:** `c3684e4`. **Actualización con la CI n.º 19 (commit `b740034`, aprobada):** ver «CI vigente». T094 no se ha iniciado. Esta sección consolida el estado real; **no declara satisfecho ningún criterio sin evidencia** y no sustituye la revisión de T094.
+
+### Por qué T093 no cumple el criterio literal de aprobación total
+El criterio de T093 exige todas las pruebas aplicables APROBADAS, evidencia de CI y EQ-01 y EQ-03 con sus umbrales. **Resuelto:** la CI vigente (n.º 19) está aprobada y CA-CAT-10 quedó aprobado en local y en CI. **Pendiente:** (1) PR07/SC-04, cuya parte manual en celular real no se ejecutó (excepción de T080, que T094 debe confirmar); (2) la decisión sobre INC-002-02 (aplazable, no bloquea por el texto de los requisitos); (3) la comprobación manual de los diagramas de T089 en Draw.io.
+
+### CI vigente: ejecución n.º 19 (commit `b740034`): APROBADA
+- **Resultado:** `Calidad`, `Validación 002` y `Regresión de compatibilidad con 001` terminaron con éxito. Comprobado en el registro completo del trabajo (no solo en la conclusión): unitarias y arquitectura aprobadas, **contratos 76/76**, **integración 002 165/165** y el paso «Integración 002 que altera infraestructura» aprobado, con las cuatro suites (`restauracion-portafolio`, `procedimiento-rf39-aislado`, **`redis-revision`**, `fotos-cuenta-composicion`) y **35 de 35 pruebas aprobadas, 0 omitidas** (las 5 de `redis-revision` incluidas). El paso tardó unos 36 s (la ejecución verde n.º 12 tardó 43 s).
+- **Qué cambió respecto de la n.º 18:** únicamente `redis-revision.spec.ts` (+3 líneas, commit `b740034`): tras reiniciar Redis espera una recuperación verificable. El producto no cambió.
+- **Alcance:** la CI no ejecuta Playwright ni k6: los E2E de navegador y las mediciones EQ-01 y EQ-03 siguen siendo evidencia local.
+- **Historia conservada:** las ejecuciones n.º 13 a 18 fallaron por la sincronización de esa prueba con el cortacircuitos (T082); se mantienen abajo como diagnóstico histórico.
+
+### Histórico: diagnóstico de la ejecución n.º 18 (commit `c3684e4`, fallida; superada por la n.º 19)
+- **Resultado:** ejecuciones n.º 13 a 18 fallidas; la última exitosa es la n.º 12 (`cb84b07`). En la n.º 18 aprobaron `Calidad`, `Regresión de compatibilidad con 001`, y en `Validación 002` las unitarias, la arquitectura, los **contratos (7 suites, 76/76)** y la **integración 002 (17 suites, 165/165, con las pruebas de INC-002-01)**. Falló únicamente el paso «Integración 002 que altera infraestructura»: 3 suites aprobadas (`restauracion-portafolio`, `procedimiento-rf39-aislado`, `fotos-cuenta-composicion`) y 1 fallida, **`redis-revision.spec.ts`**, con 2 de sus 5 pruebas (33 de 35 en el paso).
+- **Prueba 1 (CA-CAT-10, con Redis detenido):** tras recuperar Redis, `expect(nuevas.length).toBeGreaterThanOrEqual(3)` recibe 0: las lecturas posteriores no repoblaron la caché.
+- **Prueba 2 (rotación del espacio Redis):** esperaba que la copia sirviera el listado de la otra línea de tiempo desde Redis («Solo en la original») y recibió el listado propio de la base: no se usó la caché.
+- **Causa confirmada experimentalmente:** el cortacircuitos de `ClienteRedis002` (T082): tras un fallo no consulta Redis durante `REDIS_REINTENTO_MS` (1 s por defecto), y la prueba asumía que Redis se usa de inmediato al recuperarse. Evidencia (suite `redis-revision.spec.ts` en la laptop, con una copia temporal de la suite que solo cambia ese parámetro del cliente): enfriamiento normal de 1 s, 5 de 5 aprobadas (la laptop es lenta y el segundo ya pasó antes de la siguiente lectura); **enfriamiento de 5 s, 2 de 5 fallidas, exactamente las mismas dos pruebas y con los mismos valores que en la CI** («Expected: >= 3 / Received: 0» y el listado «Solo en la copia» sin «Solo en la original»); enfriamiento de 0, 5 de 5 aprobadas. La segunda prueba fallaba en cascada por el estado que dejaba la primera. No hay defecto del producto: el cortacircuitos se comporta como se diseñó (T082).
+- **Acceso:** el registro del trabajo se descargó con la credencial almacenada de Git (sin mostrarla ni enviarla a otro destino que `api.github.com`); el XML de evidencia no se descargó.
+- **Corrección aplicada (solo sincronización de la prueba, sin cambiar el producto ni debilitar aserciones):** en `redis-revision.spec.ts`, tras detener y reiniciar Redis, se espera una **recuperación verificable**: una lectura real de cada réplica (`cacheA` y `cacheB`) hasta que responde sin error, es decir, hasta que termina el enfriamiento del cortacircuitos y Redis contesta. No se desactiva el cortacircuitos ni se usa una espera fija. Verificación: suite real con el enfriamiento normal, 5 de 5; con la corrección y enfriamiento de 5 s (que antes fallaba), 5 de 5; con enfriamiento de 0, 5 de 5. `eslint` y `tsc` sin errores. **Resultado:** la corrección se versionó (`b740034`) y la CI n.º 19 aprobó, incluido `redis-revision.spec.ts` (ver «CI vigente»).
+
+### Criterios de aceptación (CA)
+Leyenda: configuración local = Node 24, base y recursos descartables; «CI» = ejecución n.º 18. Las suites E2E de navegador (T075 a T080) no forman parte de la CI.
+
+| Criterios | Estado | Evidencia y configuración |
+|---|---|---|
+| CA-PRE-01 a 08 | APROBADA | Unitarias, contrato e integración (CI n.º 18 en verde) y E2E de T076 en 9 proyectos de navegador (local). |
+| CA-SER-01 a 09 | APROBADA | Ídem; E2E de T077 (local). |
+| CA-BUS-01 a 08 | APROBADA | Ídem; E2E de T078 (local). CA-BUS-06 con Redis vacío o caído: `fundamentos-redis` (CI verde) y serie de carga con Redis detenido (local). |
+| CA-CAT-01 a 09 | APROBADA | Contrato, integración y matriz de T079 (CI verde); E2E de RF39 (local). |
+| **CA-CAT-10** | **APROBADA (local y CI n.º 19)** | `visibilidad-categorias` (exclusión inmediata con caché caliente) y `redis-revision.spec.ts` (Redis detenido, recuperación, repoblación tardía y rotación del espacio): 5 de 5 en la CI n.º 19 y en local con enfriamientos de 0, 1 y 5 s. Histórico: fallida en CI n.º 13 a 18 por la sincronización de la prueba con el cortacircuitos. |
+| CA-CAT-11 a 14 (INC-002-01) | APROBADA | Pruebas nuevas unitarias, de contrato, de integración y de concurrencia (CI verde); migración aplicada en la base de validación (T103). |
+
+### Pruebas de calidad (EQ/PR) y criterios de éxito
+| Elemento | Estado | Evidencia y configuración |
+|---|---|---|
+| EQ-01 / PR01 / SC-02 | APROBADA (local) | 50 usuarios virtuales, 15 min, 1 000 prestadores y 5 000 servicios: p95 de 63 ms con Redis y de 57 a 83 ms con Redis detenido; 0 % de errores. Riesgo residual: caídas 0xC0000409 previas al cortacircuitos sin causa raíz. Sin ejecución en CI. |
+| EQ-03 / PR03 / SC-03 | APROBADA (local) | Una réplica a 25 y 50 usuarios y dos réplicas a 50 con CPU y memoria dobles: p95 ≤ 2 s y errores < 1 %; no demuestra escalabilidad bajo saturación. Sin ejecución en CI. |
+| EQ-04 / PR04 (matriz de 002) | APROBADA | `seguridad-end-to-end.spec.ts` (CI verde) y matriz de T079 (local). |
+| EQ-07 / PR07 / SC-04 | **EJECUTADA parcial; excepción de T080** (SC-04 es independiente de SC-01) | Automatizado aprobado (54 de 54 en 9 proyectos; subconjunto de 30 de 30 con el diseño final); manual en laptop observado sin capturas verificables; **celular físico no ejecutado**. T080 se cerró administrativamente por excepción; SC-04 («recorridos en celular, tableta y computadora») no está demostrado. |
+| PR12 (precedente de arquitectura) | APROBADA | `dependencias.spec.ts` y `prestadores-catalogo.spec.ts` (CI verde). |
+| Ensayo coordinado de restauración (T071) | APROBADA | `restauracion-portafolio.spec.ts` aprobado en las CI n.º 18 y n.º 19 y en local (35 de 35 de la serie de infraestructura el 2026-11-25). |
+| Regresión de 001 | APROBADA | Job `regresion-001` de CI en verde; E2E de 001 en Chromium 360 y 1366 tras las enmiendas (local). No se ejecutó la matriz completa de 001 (Firefox, WebKit y 768 px). |
+| SC-01 | **Satisfecho** (con la evidencia vigente) | Todos los escenarios funcionales (CA-PRE, CA-SER, CA-BUS y CA-CAT-01 a 14) y la matriz EQ-04/PR04 están aprobados, con CI n.º 19 aprobada. Es independiente de SC-04. La confirmación formal corresponde a T094. |
+
+### Pendientes, responsables y decisiones
+| Pendiente | Responsable | Tipo |
+|---|---|---|
+| ~~Versionar la corrección de `redis-revision.spec.ts` y obtener una CI verde~~ | Desarrollo | **Resuelto:** commit `b740034`, CI n.º 19 aprobada |
+| PR07 manual en celular real y capturas de la laptop | Product Owner | Excepción de T080 **ratificada el 2026-11-25** (ver «Ratificación de la excepción de T080»); T094 la verifica al cerrar |
+| ~~INC-002-02: decidir la enmienda del plan~~ | Product Owner | **Resuelto:** enmienda aprobada y aplicada el 2026-11-25 |
+| ~~Abrir los `.drawio` de T089 en Draw.io~~ | Product Owner | **Atendido el 2026-11-25:** no es criterio obligatorio de T089 (ver «T089 · Evidencia y aceptación de la omisión de la apertura en Draw.io») |
+| Contrastar el número de pruebas por grupo en los XML de CI (requieren artefactos con autenticación) | Desarrollo | Mejora de evidencia |
+| Revisión independiente en sesión nueva, PR revisado y fusionado | Product Owner | T094 (no iniciada) |
+
+Las pruebas de 003, 004, 007, 008, 011 y 012 quedan fuera de 002 y se registran por separado.
+
+
+### INC-002-02 · Obligatoriedad para T093 y propuesta de enmienda (histórico; aprobada y aplicada abajo)
+**Texto exacto revisado.**
+- `spec.md` (supuestos y decisiones, línea 192): «la 002 debe usar Redis como caché de categorías y búsquedas frecuentes. PostgreSQL es la fuente de verdad y el respaldo cuando Redis no responde… La medición de EQ-01 sirve para evaluar y ajustar la caché». No fija valores de TTL, variación ni métricas. Tampoco los fijan CA-BUS-06 y CA-CAT-10 (comportamiento observable) ni SC-02 y SC-03 (p95 y errores).
+- `plan.md`, párrafo introductorio (línea 23): «Los parámetros de operación como límites de conexión, tiempos de espera y **TTL se calibrarán con los ensayos de aceptación** de esta entrega». Punto 3 de «Redis, proyección y consistencia»: «Emplear **TTL inicial** de 1 h para categorías y 60 s para búsquedas con variación para distribuir expiraciones. La revisión manda sobre el TTL». Punto 4: la observabilidad (aciertos, fallos, respaldo, tiempos, evicciones) es una medida de diseño.
+- Criterio de T093: exige estados de CA y EQ/PR, CI, EQ-01 y EQ-03 con sus umbrales; **no menciona** TTL, variación ni métricas de caché.
+**Conclusión.** Ninguna de las tres diferencias es un requisito de la especificación, un criterio de aceptación ni un criterio de T093. Son decisiones de diseño del plan: el TTL se declaró «inicial» y calibrable (EQ-01 se cumplió con 60 s), y la variación y las métricas son mejoras de operación. Por tanto **no bloquean T093**, pero la constitución exige que la desviación del plan se identifique, justifique y apruebe; INC-002-02 permanece abierta hasta esa decisión.
+**Propuesta de enmienda al plan (para aprobación; no se ha modificado `plan.md`).**
+1. **TTL.** Sustituir «TTL inicial de 1 h para categorías y 60 s para búsquedas» por «TTL calibrado con EQ-01: 60 s para categorías y búsquedas por defecto; configurable de 1 a 3 600 s». Justificación: EQ-01 y EQ-03 se cumplieron con 60 s; la revisión durable, no el TTL, garantiza la frescura; un TTL corto limita la ocupación.
+2. **Variación del TTL.** Pasar a «mejora diferida»: se implementa si una medición muestra expiraciones simultáneas con impacto en p95 (disparador explícito). Justificación: sin el síntoma, añade complejidad (principio XII).
+3. **Métricas de caché.** Diferir a una funcionalidad de observabilidad (post-002). Mientras, el comportamiento se verifica con las pruebas de integración y con las mediciones externas de EQ-01/EQ-03. Justificación: no es requisito de 002 y exigiría decidir un sistema de métricas fuera de su alcance.
+4. **Alternativa B (si el Product Owner prefiere cumplir el plan literal):** implementar TTL de 3 600 s para categorías, variación acotada y métricas agregadas, con pruebas y nuevas mediciones de EQ-01. Es una funcionalidad nueva; requiere ampliar el alcance de 002.
+**Responsable de decidir:** Product Owner. **Efecto en T093:** ninguno si se aprueba la enmienda (1 a 3); con la alternativa B habría trabajo adicional antes del cierre.
+
+
+### INC-002-02 · Texto propuesto de la enmienda controlada al plan (histórico: APROBADO y aplicado el 2026-11-25)
+**Motivo.** La implementación usa un TTL de 60 s por defecto (configurable de 1 a 3 600 s), sin variación del TTL y sin métricas de caché. La especificación no exige estos valores y EQ-01 y EQ-03 se cumplieron con ellos; la desviación respecto del texto del plan debe quedar aprobada o corregida (constitución: las excepciones se documentan y aprueban).
+**Trazabilidad con los criterios.** Sin efecto en CA-BUS-06 y CA-CAT-10 (la frescura la garantiza la revisión durable, no el TTL); SC-02 y SC-03 (p95 y errores) se cumplieron con 60 s; PR01 y PR03 aprobados. Documentos que se ajustarían si se aprueba: `plan.md` (3 pasajes), `docs/02-arquitectura-software/estrategia-de-cache.md` (secciones 2 y 6) y el cierre de INC-002-02 en este archivo.
+
+**Pasaje 1 · `plan.md`, párrafo introductorio (línea 23).** Sin cambio: ya dice «los parámetros de operación como límites de conexión, tiempos de espera y TTL se calibrarán con los ensayos de aceptación».
+
+**Pasaje 2 · `plan.md`, «Redis, proyección y consistencia», punto 3 «Respaldo». Texto actual (última parte):** «Emplear TTL inicial de 1 h para categorías y 60 s para búsquedas con variación para distribuir expiraciones. La revisión manda sobre el TTL.»
+**Texto propuesto:** «El TTL queda calibrado con los ensayos de aceptación: **60 s por defecto para categorías y búsquedas**, configurable de 1 a 3 600 s (`ttlSegundos`). La revisión manda sobre el TTL; este solo acota la ocupación. **La variación aleatoria del TTL queda diferida**: se incorporará si una medición de EQ-01 muestra expiraciones simultáneas que degraden el p95 (disparador explícito).»
+
+**Pasaje 3 · `plan.md`, mismo apartado, punto 4 «Observabilidad». Texto actual:** «Medir aciertos, fallos, respaldo, tiempo de Redis, lectura y espera de la revisión, tiempos SQL, número de conexiones y evicciones. Acotar cardinalidad, memoria y espera de Redis. Los logs registran operación y resultado agregado, con filtros personales, cuerpos e identificadores protegidos excluidos de los registros.»
+**Texto propuesto:** «Los logs registran operación y resultado agregado, con filtros personales, cuerpos e identificadores protegidos excluidos de los registros, y se acota la cardinalidad, la memoria y la espera de Redis. **Las métricas de caché (aciertos, fallos, uso del respaldo, tiempo de Redis, lectura y espera de la revisión, tiempos SQL, conexiones y evicciones) quedan diferidas a una funcionalidad posterior de observabilidad.** Mientras tanto, el comportamiento de la caché se verifica con las pruebas de integración (CA-BUS-06, CA-CAT-10) y con las mediciones externas de EQ-01 y EQ-03.»
+
+**Efectos si se aprueba:** INC-002-02 pasa a cerrada con esa decisión; `estrategia-de-cache.md` deja de describir tres «diferencias» y recoge el TTL calibrado, la variación diferida y las métricas diferidas. **Alternativa B (no recomendada para este cierre):** implementar TTL de 3 600 s para categorías, variación acotada y métricas agregadas, con pruebas y una nueva medición de EQ-01; amplía el alcance de 002.
+
+### INC-002-02 · Decisión aprobada y enmienda aplicada (2026-11-25)
+**Decisión del Product Owner.** Se aprueba la enmienda propuesta (alternativa de enmienda del plan): TTL calibrado de 60 s por defecto, configurable de 1 a 3 600 s; variación del TTL diferida con disparador medible de EQ-01; métricas de caché diferidas a una funcionalidad posterior de observabilidad. Se conservan la revisión durable, el respaldo en PostgreSQL, el cortacircuitos y el espacio de claves nuevo tras restaurar. **No se modificó la implementación de Redis ni ningún código.**
+**Justificación.** La frescura la garantiza la revisión durable y no el TTL. EQ-01 (p95 de 63 ms con Redis y de 57 a 83 ms sin él, 0 % de errores) y EQ-03 se cumplieron con 60 s. La variación y las métricas no son requisito de la especificación ni de los criterios de aceptación; añadirlas sin síntoma medido ampliaría el alcance (principio XII).
+**Diferencias respecto del plan anterior.**
+| Aspecto | Plan anterior | Plan enmendado |
+|---|---|---|
+| TTL de categorías | 1 h inicial | 60 s por defecto, configurable de 1 a 3 600 s |
+| TTL de búsquedas | 60 s con variación | 60 s por defecto, configurable; sin variación |
+| Variación del TTL | Prevista en la entrega | Diferida; se activa si EQ-01 muestra expiraciones simultáneas que degraden el p95 |
+| Métricas de caché | Previstas en la entrega | Diferidas a una funcionalidad de observabilidad; mientras tanto, pruebas de integración (CA-BUS-06, CA-CAT-10) y mediciones externas de EQ-01 y EQ-03 |
+**Trazabilidad.** Sin efecto en CA-BUS-06, CA-CAT-10, SC-02 ni SC-03 (todos aprobados). Archivos modificados: `specs/002-prestadores-y-catalogo/plan.md` (punto 3 y punto 4 de «Redis, proyección y consistencia»), `docs/02-arquitectura-software/estrategia-de-cache.md` (secciones 1, 2, 6 y 7) y este archivo. **Seguimiento futuro:** (a) revisar la variación del TTL ante el disparador de EQ-01; (b) incluir las métricas de caché en la futura funcionalidad de observabilidad. Estado: INC-002-02 **cerrada**.
+
+### Ratificación de la excepción de T080 (2026-11-25)
+**Aceptada por el Product Owner.** Se mantiene la excepción autorizada para la validación manual en celular físico (T080 cerrada administrativamente, no aprobación técnica completa).
+- **Estado de los criterios:** **EQ-07/PR07: EJECUTADA parcial** (automatizado aprobado, 54 de 54 en 9 proyectos; manual en laptop observado sin capturas verificables). **SC-04: no demostrado** («recorridos en celular, tableta y computadora»). No se declaran aprobados por pruebas que no se ejecutaron.
+- **Riesgo residual:** posibles defectos de usabilidad o de visualización propios de un celular real (teclado en pantalla, gestos táctiles, rendimiento del navegador móvil) que los 9 proyectos emuladores y la revisión en laptop no detectan. Mitigación: cobertura automatizada de accesibilidad y diseño adaptable; la matriz de pendientes mínimos de T080 (`evidencia/t080/`) deja listos los recorridos si se desean ejecutar después.
+- **Aceptación:** registrada por el responsable el 2026-11-25. T094 debe verificar esta excepción y su riesgo al registrar el cierre.
+
+### T089 · Evidencia y aceptación de la omisión de la apertura en Draw.io (2026-11-25)
+**¿Es obligatoria la apertura en Draw.io?** No. El cierre de T089 en `tasks.md` exige que los vínculos dibujados muestren dependencias, almacenamiento y caché del monolito vigente y que las versiones PNG y SVG coincidan con sus fuentes Draw.io y los documentos enlazados. Ni T089, ni T093, ni la especificación, el plan o la constitución exigen abrir los `.drawio` en la aplicación. T089 permanece `[x]`.
+**Evidencia disponible (verificación técnica, no visual en Draw.io).** (1) Los tres `.drawio` son XML bien formado, sin compresión, con identificadores únicos y todas las flechas con origen y destino (72, 96 y 52 celdas). (2) Todos los rótulos de cada `.drawio` aparecen en su `.svg` (el SVG se derivó de los mismos cambios y geometría). (3) Los PNG son válidos y se regeneraron del SVG con Chromium a 2 600 px de ancho (2 600 x 1 931, 2 600 x 2 229 y 2 600 x 1 501). (4) Las cuatro vistas se revisaron a simple vista en T089. (5) Los rótulos y flechas nuevos (caché Redis, bucket privado) están contrastados con `estrategia-de-cache.md` y la arquitectura documentada.
+**Limitación declarada.** Los `.drawio` **no se abrieron en Draw.io** (no está instalado). No se afirma esa comprobación. El Product Owner aceptó el 2026-11-25 omitir esa revisión visual adicional; riesgo residual bajo: que la aplicación muestre alguna diferencia menor de maquetación respecto del SVG, corregible al editar el diagrama.
+
+## T093 · Cierre administrativo por excepción (2026-11-25)
+**Estado.** T093 **COMPLETADA ADMINISTRATIVAMENTE POR EXCEPCIÓN** (`[x]` en `tasks.md`): la consolidación documental está hecha, pero **contiene una excepción al criterio literal de aprobación total**. No es una aprobación técnica completa.
+**Criterio literal y excepción.** T093 indica que la marca de éxito exige todas las pruebas aplicables APROBADAS. No lo están: **EQ-07/PR07 queda «EJECUTADA parcial»** y **SC-04 «no demostrado»**, porque la parte manual en celular físico no se ejecutó. No se presentan como pruebas aprobadas.
+**Base de la excepción.** La constitución (línea 305) admite excepciones: «DEBEN documentarse y aprobarse antes de aplicarse». Esta se documenta aquí y la aprobó expresamente el Product Owner el 2026-11-25 (opción A), en continuidad con la excepción de T080 que ratificó el mismo día, con el mismo riesgo residual. Ni T093 ni la constitución prohíben completar la tarea por excepción formal; T093 consolida y registra estados, y es T094 la que declara el cierre de la funcionalidad.
+**Evidencia conservada.** CI n.º 19 aprobada (commit `b740034`, con el historial de las n.º 13 a 18 como histórico); INC-002-02 cerrada por enmienda aprobada; comprobaciones técnicas de T089 y aceptación de omitir la apertura en Draw.io (no obligatoria).
+**Lo que T094 debe verificar.** Revisión independiente en sesión nueva; PR revisado y fusionado; la excepción de PR07/SC-04 y su riesgo; que ninguna prueba aplicable figure PENDIENTE, EJECUTADA sin evaluar o FALLIDA sin una excepción aprobada. T094 no se ha iniciado.

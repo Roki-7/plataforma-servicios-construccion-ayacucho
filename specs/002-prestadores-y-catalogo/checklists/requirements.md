@@ -32,4 +32,5 @@ Una casilla marcada indica que el borrador satisface ese criterio de calidad. La
 ## Notes
 
 - Borrador pendiente de revisión. Las preguntas para la siguiente etapa están en [Pending Clarifications](../spec.md#pending-clarifications).
+- **T093 (2026-11-25).** La evidencia de ejecución está consolidada en [implementation-status.md](../implementation-status.md#t093--consolidación-de-resultados-para-el-cierre-completada-por-excepción-administrativa). T093 se completó administrativamente **por excepción** al criterio literal de aprobación total (PR07/SC-04: parte manual en celular no ejecutada; excepción de T080 ratificada). La casilla «Los criterios de éxito se han verificado con evidencia de ejecución» **permanece sin marcar** por esa razón; su resolución corresponde a T094. La CI n.º 19 está aprobada, INC-002-02 está cerrada por enmienda aprobada y la apertura de los `.drawio` de T089 no era obligatoria (omisión aceptada con evidencia técnica).
 - La falta de evidencia de ejecución se mantiene registrada como pendiente de la verificación futura.
