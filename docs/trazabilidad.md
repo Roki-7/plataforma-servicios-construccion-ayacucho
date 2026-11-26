@@ -235,7 +235,7 @@ Al cierre de US7 quedaban pendientes T110–T119, el incidente 503, los abortos 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
 | 001 | Usuarios y acceso | HU01, HU02 | 119/119 tareas completadas (T117–T119 cerradas con limitaciones documentadas). PR #1 fusionado en `main` (`b6c998a`) | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
-| 002 | Prestadores y catálogo | HU03–HU05, HU25 | Implementada y verificada en la rama `002-prestadores-y-catalogo` (**no fusionada en `main`**); CI n.º 20 aprobada; T080 y T093 cerradas por excepción documentada (PR07 parcial, SC-04 no demostrado) y T094 pendiente | [Estado y pruebas](../specs/002-prestadores-y-catalogo/implementation-status.md) |
+| 002 | Prestadores y catálogo | HU03–HU05, HU25 | Implementada y fusionada en `main` (PR #3, `84d637e`; PR #4 de cierre, `354de88`); CI aprobadas (002 n.º 27 y 28, 001 n.º 17 y 18); T080, T093 y T094 cerradas **por excepción documentada** (no es aprobación técnica completa): PR07 parcial, SC-04 no demostrado, y k6 y Playwright de 002 solo locales | [Estado y pruebas](../specs/002-prestadores-y-catalogo/implementation-status.md) |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |
 | 005 | Seguimiento y cierre | HU18, HU19 | Planificada | `specs/005-…` |

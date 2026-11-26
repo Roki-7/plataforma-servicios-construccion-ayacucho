@@ -204,7 +204,7 @@ Primero se escribe la especificación y después el código. Cada funcionalidad 
 | N.º | Funcionalidad | Requisitos | Prioridad | Estado |
 |---|---|---|---|---|
 | 001 | Usuarios y acceso | RF01–RF05 | MVP | Siete historias implementadas; 119/119 tareas completadas; T117–T119 cerradas con limitaciones; PR #1 fusionado en `main` (`b6c998a`) |
-| 002 | Prestadores y catálogo | RF06, RF08–RF10, RF39 | MVP | Implementada y verificada en la rama `002-prestadores-y-catalogo`, **aún no fusionada en `main`**; 102 de 103 tareas completadas (T080 y T093 por excepción documentada; T094, el cierre, pendiente); CI de GitHub Actions n.º 20 aprobada; PR07 parcial y SC-04 no demostrado (parte manual en celular físico sin ejecutar; riesgo residual aceptado) |
+| 002 | Prestadores y catálogo | RF06, RF08–RF10, RF39 | MVP | Implementada y fusionada en `main`: PR #3 (`84d637e`) y PR #4 de cierre (`354de88`); CI aprobadas (002 n.º 27 y 28, 001 n.º 17 y 18). T080, T093 y T094 cerradas **administrativamente por excepción** (no es aprobación técnica completa); PR07 «EJECUTADA parcial» y SC-04 «no demostrado» (parte manual en celular físico sin ejecutar; riesgo residual aceptado); EQ-01, EQ-03 y Playwright de 002 con evidencia solo local |
 | 003 | Solicitudes y cotizaciones | RF12–RF14, RF17–RF19 | MVP | Planificada |
 | 004 | Contratación | RF20–RF22, RF26 | MVP | Planificada |
 | 005 | Seguimiento y cierre | RF30–RF32 | MVP | Planificada |
