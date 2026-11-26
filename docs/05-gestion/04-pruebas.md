@@ -16,13 +16,13 @@
 
 | Prueba | Descripción | Escenario | Funcionalidad | Estado |
 |---|---|---|---|---|
-| PR01 | El 95 % de las búsquedas responde en 2 s o menos con menos del 1 % de errores | EQ-01 | 002 | Medida en validación local (T082); pendiente de CI |
+| PR01 | El 95 % de las búsquedas responde en 2 s o menos con menos del 1 % de errores | EQ-01 | 002 | Medida en validación local con k6 (T082): p95 de 57 a 83 ms, 0 % de errores. **La CI no ejecuta k6**, por lo que no hay evidencia de CI para esta medición |
 | PR02 | Comprobación de salud cada minuto durante el periodo de servicio | EQ-02 | 001 | Planificada |
-| PR03 | Con dos réplicas de la API, la carga aumenta sin cambiar las reglas del negocio | EQ-03 | 002 | Medida en validación local (T083); pendiente de CI |
-| PR04 | Matriz de accesos no autorizados: 100 % rechazados sin exponer ni modificar datos | EQ-04 | 001–006 | 002: matriz ejecutada en validación local (T079); pendiente de CI. El estado de 001 consta en su evidencia |
+| PR03 | Con dos réplicas de la API, la carga aumenta sin cambiar las reglas del negocio | EQ-03 | 002 | Medida en validación local con k6 (T083): p95 equivalente con una y dos réplicas. **La CI no ejecuta k6**, por lo que no hay evidencia de CI para esta medición |
+| PR04 | Matriz de accesos no autorizados: 100 % rechazados sin exponer ni modificar datos | EQ-04 | 001–006 | 002: **aprobada**; la prueba de integración `seguridad-end-to-end.spec.ts` se ejecuta y aprueba en GitHub Actions (n.º 20) y la matriz E2E de T079 se ejecutó en local. El estado de 001 consta en su evidencia |
 | PR05 | Sustituir el adaptador de IA sin modificar los casos de uso | EQ-05 | 007 | Planificada |
 | PR06 | Cuatro de cinco participantes completan una solicitud en 5 minutos o menos | EQ-06 | 003 | Planificada |
-| PR07 | Recorridos principales en celular, tableta y computadora sin errores visuales | EQ-07 | 001–006 | 002: parcial (automatizada aprobada; manual en celular sin ejecutar; T080 cerrada por excepción) |
+| PR07 | Recorridos principales en celular, tableta y computadora sin errores visuales | EQ-07 | 001–006 | 002: **EJECUTADA parcial**; SC-04 no demostrado. Automatizada aprobada en local con Playwright (54 de 54 en 9 proyectos **antes de los últimos ajustes visuales**; 30 de 30 pruebas de accesibilidad seleccionadas sobre el diseño final de WasiMaki; no se repitió la matriz completa; **la CI no ejecuta Playwright**); manual en celular físico sin ejecutar. T080 cerrada por excepción y T093 completada por excepción, con riesgo residual aceptado por el Product Owner el 2026-11-25 |
 | PR08 | Si la IA o los mapas no responden, se ofrece la alternativa en 8 s o menos | EQ-08 | 007 | Planificada |
 | PR09 | 100 repeticiones con 10 aceptaciones simultáneas: exactamente una contratación activa | EQ-09 | 004 | Planificada |
 | PR10 | Repetir una aceptación con la misma clave no crea otra contratación | EQ-09 | 004 | Planificada |

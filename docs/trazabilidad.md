@@ -235,7 +235,7 @@ Al cierre de US7 quedaban pendientes T110–T119, el incidente 503, los abortos 
 | Func. | Nombre | Historias | Estado | Evidencia |
 |---|---|---|---|---|
 | 001 | Usuarios y acceso | HU01, HU02 | 119/119 tareas completadas (T117–T119 cerradas con limitaciones documentadas). PR #1 fusionado en `main` (`b6c998a`) | [Estado y pruebas](../specs/001-usuarios-y-acceso/implementation-status.md) |
-| 002 | Prestadores y catálogo | HU03–HU05, HU25 | Implementada y verificada en la rama `002-prestadores-y-catalogo` (no fusionada en `main`); T080 cerrada por excepción y T093–T094 pendientes | [Estado y pruebas](../specs/002-prestadores-y-catalogo/implementation-status.md) |
+| 002 | Prestadores y catálogo | HU03–HU05, HU25 | Implementada y verificada en la rama `002-prestadores-y-catalogo` (**no fusionada en `main`**); CI n.º 20 aprobada; T080 y T093 cerradas por excepción documentada (PR07 parcial, SC-04 no demostrado) y T094 pendiente | [Estado y pruebas](../specs/002-prestadores-y-catalogo/implementation-status.md) |
 | 003 | Solicitudes y cotizaciones | HU07, HU08, HU10, HU11 | Planificada | `specs/003-…` |
 | 004 | Contratación | HU12, HU13, HU16 | Planificada | `specs/004-…` |
 | 005 | Seguimiento y cierre | HU18, HU19 | Planificada | `specs/005-…` |
@@ -304,13 +304,13 @@ Los 35 escenarios originales son CA-PRE-01 a 08, CA-SER-01 a 09, CA-BUS-01 a 08 
 
 | Prueba | Alcance en la 002 | Ejecución y archivos | Estado |
 |---|---|---|---|
-| PR04 / EQ-04 | Matriz de accesos no autorizados de 002 | `backend/test/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` (T079) | Ejecutada en validación local; pendiente de CI |
-| PR07 / EQ-07 | Navegadores a 360, 768 y 1366 px y recorridos manuales | `frontend/test/e2e/prestadores-catalogo/accesibilidad-responsive.spec.ts`: 54 de 54 en 9 proyectos; manual en laptop observado y celular físico sin ejecutar | **Parcial**; T080 cerrada administrativamente por excepción ([informe](../specs/002-prestadores-y-catalogo/evidencia/t080/informe-t080-usabilidad-accesibilidad.md)) |
-| PR01 / EQ-01 | 50 usuarios virtuales, 15 min, 1 000 prestadores y 5 000 servicios, con Redis disponible y detenido | `backend/test/performance/prestadores-catalogo.k6.js` (T081, T082) | Medida: p95 de 57 a 83 ms, 0 % de errores; pendiente de CI |
+| PR04 / EQ-04 | Matriz de accesos no autorizados de 002 | `backend/test/integration/prestadores-catalogo/seguridad-end-to-end.spec.ts` (T079) | **Aprobada.** La prueba de integración se ejecuta y aprueba en GitHub Actions (n.º 20); la matriz E2E de T079 se ejecutó en local |
+| PR07 / EQ-07 | Navegadores a 360, 768 y 1366 px y recorridos manuales | `frontend/test/e2e/prestadores-catalogo/accesibilidad-responsive.spec.ts`: 54 de 54 en 9 proyectos; manual en laptop observado y celular físico sin ejecutar | **Parcial** (EJECUTADA parcial; SC-04 no demostrado). Los 54 de 54 son locales y anteriores a los últimos ajustes visuales; sobre el diseño final de WasiMaki se ejecutaron 30 de 30 pruebas de accesibilidad seleccionadas (no se repitió la matriz completa). La CI no ejecuta Playwright. T080 y T093 cerradas por excepción con riesgo residual aceptado el 2026-11-25 ([informe](../specs/002-prestadores-y-catalogo/evidencia/t080/informe-t080-usabilidad-accesibilidad.md)) |
+| PR01 / EQ-01 | 50 usuarios virtuales, 15 min, 1 000 prestadores y 5 000 servicios, con Redis disponible y detenido | `backend/test/performance/prestadores-catalogo.k6.js` (T081, T082) | Medida en local con k6: p95 de 57 a 83 ms, 0 % de errores. La CI no ejecuta k6, así que no hay evidencia de CI de esta medición |
 | PR03 / EQ-03 | Una réplica a 25 y 50 usuarios frente a dos réplicas a 50 con el doble de CPU y memoria | mismo escenario k6 y `frontend/scripts/replicas-002.mjs` (T083) | Medida: p95 equivalente (51 ms) y reparto 50/50; no demuestra escalabilidad bajo saturación |
-| PR12 (precedente de arquitectura) | Dirección de dependencias y contratos entre módulos | `backend/test/architecture/dependencias.spec.ts` y `prestadores-catalogo.spec.ts` | Aprobadas (2 suites, 4 pruebas) |
+| PR12 (precedente de arquitectura) | Dirección de dependencias y contratos entre módulos | `backend/test/architecture/dependencias.spec.ts` y `prestadores-catalogo.spec.ts` | Aprobadas en local y en GitHub Actions n.º 20 (2 suites, 4 pruebas) |
 | Regresión 001 | Composición base de 17 operaciones intacta y regresión de las suites de 001 tras el menú y las enmiendas | `backend/test/contract/prestadores-catalogo/regresion-001-002.spec.ts` y las suites `usuarios-acceso` | Aprobadas (E2E de 001: 8 de 8 en Chromium 360 y 1366; 16 de 16 tras la enmienda de validaciones) |
-| Respaldo y restauración | Pareja PostgreSQL y bucket, puerta de restauración y espacio de Redis nuevo | `backend/test/integration/prestadores-catalogo/respaldo-portafolio.spec.ts`, `restauracion-portafolio.spec.ts` (opt-in) | Aprobadas (4 suites de infraestructura, 35 pruebas) |
+| Respaldo y restauración | Pareja PostgreSQL y bucket, puerta de restauración y espacio de Redis nuevo | `backend/test/integration/prestadores-catalogo/respaldo-portafolio.spec.ts`, `restauracion-portafolio.spec.ts` (opt-in) | Aprobadas en local y en GitHub Actions n.º 20 (4 suites de infraestructura, 35 pruebas) |
 
 #### Dependencias posteriores a la 002
 
