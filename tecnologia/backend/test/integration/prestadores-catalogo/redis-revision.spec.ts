@@ -94,6 +94,9 @@ suite('revisión de Catálogo, Redis y dos réplicas', () => {
       await e.servicio(serv.s6).expect(404);
     } finally { docker('start', contenedor); }
     await esperar(() => { try { return cli('ping') === 'PONG'; } catch { return false; } });
+    // Recuperación verificable: el cortacircuitos de cada réplica deja de omitir Redis solo al terminar su enfriamiento (REDIS_REINTENTO_MS) y con Redis respondiendo.
+    // Se comprueba con una lectura real de cada cliente, sin depender de una espera fija ni desactivar el cortacircuitos.
+    await esperar(async () => { try { await cacheA.obtener('sonda-recuperacion'); await cacheB.obtener('sonda-recuperacion'); return true; } catch { return false; } }, 20000);
     // Un Redis recuperado con entradas antiguas (restauración de una instantánea previa a la desactivación).
     for (const [k, v] of Object.entries(antes)) cli('set', k, v, 'EX', '60');
     expect(claves()).toEqual(Object.keys(antes).sort());
