@@ -23,7 +23,7 @@
 | HU04 / RF08 | APROBADA | APROBADA | CA-SER-01 a 09 (fase 4, T077) y CA-SER-08 con las consultas públicas (fase 5). |
 | HU05 / RF09, RF10 | APROBADA | APROBADA | CA-BUS-01 a 08 (fase 5, T078). Los avisos de 011 y 012 usan dobles de fuentes. |
 | HU25 / RF39 | PENDIENTE | APROBADA | CA-CAT-01 a 14 aprobados, incluido CA-CAT-10 (aprobado en local y en CI n.º 19, tras sincronizar la prueba con el cortacircuitos de Redis). |
-| Integración y calidad | PENDIENTE | **PARCIAL** | Contratos, regresión de 001, arquitectura, restauración, EQ-01, EQ-03 y EQ-04 aprobados; CI vigente (n.º 19) aprobada; accesibilidad y diseño adaptable automatizados aprobados; PR07 manual en celular no ejecutado (excepción de T080). |
+| Integración y calidad | PENDIENTE | **PARCIAL** | Contratos, regresión de 001, arquitectura, restauración, EQ-01, EQ-03 y EQ-04 aprobados; CI vigente: n.º 27 (002) y n.º 17 (001) aprobadas sobre `a0fd655` (la n.º 19 sobre `b740034` es antecedente; ver «T094»); accesibilidad y diseño adaptable automatizados aprobados; PR07 manual en celular no ejecutado (excepción de T080). |
 | Integraciones futuras | PENDIENTE | PENDIENTE | Solicitudes en 003, referencias posteriores, calificaciones en 011 y verificaciones en 012 (fuera de 002). |
 
 Las verificaciones se registran como `PENDIENTE` cuando falta la ejecución aplicable, `EJECUTADA` cuando hay una ejecución por evaluar, `APROBADA` cuando la evidencia cumple el criterio o `FALLIDA` cuando una ejecución válida incumple el criterio. Los resultados de preparación se registran por separado de los escenarios de aceptación.
@@ -925,6 +925,8 @@ Las primeras ejecuciones fallaron por supuestos míos, no por defectos de seguri
 
 ## T080 · Accesibilidad, adaptabilidad y usabilidad (EQ-07/PR07): parte automatizada ejecutada, **PENDIENTE** de los recorridos manuales
 
+> **Nota de lectura (T094): texto histórico.** Los apartados de T080 anteriores a «T080 · Cierre administrativo por excepción (2026-11-25)» describen el estado en su momento («PENDIENTE», «`[ ]`»). Quedan **superados** por ese cierre: T080 es `[x]` solo por excepción aprobada, PR07 es «EJECUTADA parcial» y SC-04 «no demostrado». No significa que los recorridos en celular físico se hayan hecho.
+
 Estado: **pendiente** (79 de 94; `tasks.md` mantiene `[ ]`). El cierre de T080 exige, además de las comprobaciones automatizadas, «recorridos manuales en celular y computadora reales» y la documentación de PR07 con ellos. Esa parte **no se ha podido ejecutar** (no hay dispositivos físicos disponibles para esta sesión) y una emulación de navegador no la sustituye, por lo que T080 no se marca como verificada. Lo automatizado se ejecutó completo y queda aprobado.
 
 ### Implementación
@@ -1129,6 +1131,8 @@ Backend `tsc` y `eslint` sin errores; 259 de 259 pruebas unitarias; `fundamentos
 - **Búsqueda por texto libre (nombres y palabras clave) de servicios y prestadores — pendiente de especificar.** Decisión del responsable del producto: se desarrollará en otra especificación, con la metodología SDD de Spec Kit, cuando corresponda; aún no tiene número ni especificación. La 002 conserva su alcance aprobado: RF09 y CA-BUS-01 a CA-BUS-08 no cambian, el contrato no incorpora ningún parámetro `q` y los filtros vigentes siguen siendo categoría, especialidad, distrito (zona de atención) y disponibilidad declarada, con paginación. Solicitada durante la revisión de T080; no afecta T080 ni T082.
 
 ## T080 · Situación tras la revisión en laptop (T080 sigue PENDIENTE)
+
+> **Nota de lectura (T094): texto histórico, superado** por «T080 · Cierre administrativo por excepción (2026-11-25)». «T080 sigue PENDIENTE» y «T080 conserva `[ ]`» ya no son el estado vigente; el celular físico sigue sin ejecutarse.
 
 - **Automatizado (completado, ver rondas anteriores):** accesibilidad, teclado, foco, nombres accesibles, errores, contraste y desbordamiento en Chromium, Firefox y WebKit con viewports de 360, 768 y 1366 px; la regresión de 001 pasó. Es emulación de tamaño, no dispositivo real.
 - **Revisión manual en laptop Windows:** la persona responsable informa haber hecho una revisión visual y funcional de la plataforma en su laptop. **No dejó registro ni capturas**: `manual-t080/registro-manual-t080.md` está sin rellenar (sin dispositivo, navegador, ancho ni resultados) y las carpetas `computadora/capturas` y `celular/capturas` están vacías. Por tanto **no se declara aprobado ninguno de los recorridos R1 a R9**; solo consta la revisión informada, sin evidencia verificable.
@@ -1376,7 +1380,7 @@ Leyenda: configuración local = Node 24, base y recursos descartables; «CI» = 
 | ~~INC-002-02: decidir la enmienda del plan~~ | Product Owner | **Resuelto:** enmienda aprobada y aplicada el 2026-11-25 |
 | ~~Abrir los `.drawio` de T089 en Draw.io~~ | Product Owner | **Atendido el 2026-11-25:** no es criterio obligatorio de T089 (ver «T089 · Evidencia y aceptación de la omisión de la apertura en Draw.io») |
 | Contrastar el número de pruebas por grupo en los XML de CI (requieren artefactos con autenticación) | Desarrollo | Mejora de evidencia |
-| Revisión independiente en sesión nueva, PR revisado y fusionado | Product Owner | T094 (no iniciada) |
+| Revisión independiente en sesión nueva, PR revisado y fusionado | Product Owner | T094 (revisión independiente y fusión realizadas; ver «T094 · Revisión independiente y cierre por excepción») |
 
 Las pruebas de 003, 004, 007, 008, 011 y 012 quedan fuera de 002 y se registran por separado.
 
@@ -1437,4 +1441,48 @@ Las pruebas de 003, 004, 007, 008, 011 y 012 quedan fuera de 002 y se registran 
 **Criterio literal y excepción.** T093 indica que la marca de éxito exige todas las pruebas aplicables APROBADAS. No lo están: **EQ-07/PR07 queda «EJECUTADA parcial»** y **SC-04 «no demostrado»**, porque la parte manual en celular físico no se ejecutó. No se presentan como pruebas aprobadas.
 **Base de la excepción.** La constitución (línea 305) admite excepciones: «DEBEN documentarse y aprobarse antes de aplicarse». Esta se documenta aquí y la aprobó expresamente el Product Owner el 2026-11-25 (opción A), en continuidad con la excepción de T080 que ratificó el mismo día, con el mismo riesgo residual. Ni T093 ni la constitución prohíben completar la tarea por excepción formal; T093 consolida y registra estados, y es T094 la que declara el cierre de la funcionalidad.
 **Evidencia conservada.** CI n.º 19 aprobada (commit `b740034`, con el historial de las n.º 13 a 18 como histórico); INC-002-02 cerrada por enmienda aprobada; comprobaciones técnicas de T089 y aceptación de omitir la apertura en Draw.io (no obligatoria).
-**Lo que T094 debe verificar.** Revisión independiente en sesión nueva; PR revisado y fusionado; la excepción de PR07/SC-04 y su riesgo; que ninguna prueba aplicable figure PENDIENTE, EJECUTADA sin evaluar o FALLIDA sin una excepción aprobada. T094 no se ha iniciado.
+**Lo que T094 debe verificar.** Revisión independiente en sesión nueva; PR revisado y fusionado; la excepción de PR07/SC-04 y su riesgo; que ninguna prueba aplicable figure PENDIENTE, EJECUTADA sin evaluar o FALLIDA sin una excepción aprobada. *(Nota de T094: al redactar este apartado T094 no se había iniciado; su registro consta en «T094 · Revisión independiente y cierre por excepción».)*
+
+## T094 · Revisión independiente y cierre por excepción (2026-11-25)
+
+**Estado.** T094 **COMPLETADA ADMINISTRATIVAMENTE POR EXCEPCIÓN** (`[x]` en `tasks.md`). **No es una aprobación técnica completa:** PR07 queda «EJECUTADA parcial» y SC-04 «no demostrado». El Product Owner aceptó el dictamen y ratificó las excepciones; la fusión y la CI posterior están confirmadas.
+
+### Revisión independiente (sesión nueva del asistente)
+- **Alcance:** PR #3, commit `a0fd655`, contra la constitución, `spec.md`, `plan.md`, la Definition of Done y el criterio de T094. **Muestreo dirigido, no línea por línea** (325 archivos, unas 29 000 líneas); no se repitieron las pruebas aprobadas.
+- **Dictamen: APTO CON OBSERVACIONES.** Sin defectos bloqueantes. Comprobado: 6 de las 23 operaciones del contrato 002 son públicas y todas son `GET` de lectura intencional; el resto exige Bearer; el permiso RF39 se consulta en PostgreSQL y se bloquea en cada mutación; las respuestas públicas usan listas explícitas de campos; sin secretos versionados; sin `continue-on-error` en CI; la enmienda de validación de contacto de 001 está documentada en su especificación y su contrato.
+- **Observaciones del dictamen:** (1) referencias a la CI n.º 19 desactualizadas (corregidas aquí); (2) textos históricos de T080 («PENDIENTE», «`[ ]`»), ahora con nota de lectura; (3) rendimiento y E2E de 002 solo locales; (4) independencia limitada, porque el Product Owner aprueba las excepciones y realiza la revisión manual; (5) el certificado de `localhost` de los ensayos vence el 2026-11-30.
+
+### Fusión
+- **PR #3** fusionado por *merge commit* el 2026-11-26 03:34:57 UTC (2026-11-25 22:34, hora de Lima). **Commit de fusión: `84d637e342ca11edc8a220a5c11fa6297f8cadee`**; padres `c520e66` y `a0fd655`. El árbol de `main` es idéntico al de `a0fd655` (`git diff a0fd655 84d637e` vacío). La fusión la realizó manualmente el Product Owner tras comprobar que el commit seguía siendo `a0fd655`, ambas CI aprobadas y sin conflictos.
+
+### Evidencia de CI
+| Ejecución | Commit | Evento | Resultado |
+|---|---|---|---|
+| 002 Prestadores y catálogo n.º 27 | `a0fd655` | `pull_request` | **aprobada** (Calidad, Validación 002, Regresión 001) |
+| 001 Usuarios y acceso n.º 17 | `a0fd655` | `pull_request` | **aprobada** |
+| 002 Prestadores y catálogo n.º 26 | `a0fd655` | `push` | aprobada |
+| 002 Prestadores y catálogo n.º 28 | `84d637e` (`main`) | `push` | **aprobada** |
+| 001 Usuarios y acceso n.º 18 | `84d637e` (`main`) | `push` | **aprobada** (confirmada por el Product Owner con la captura de GitHub y por la API de Actions: `completed/success`, 03:35 a 03:50 UTC) |
+
+La n.º 19 (commit `b740034`) queda como antecedente de T093. «n.º 18» de 002 (histórico, fallida, `c3684e4`) no es la n.º 18 de 001: son flujos distintos con numeración propia.
+
+### Excepciones ratificadas por el Product Owner (2026-11-25, tras el dictamen)
+- **EQ-07/PR07: EJECUTADA parcial.** Automatizado aprobado (54 de 54 en 9 proyectos); manual en laptop observado sin capturas verificables; **celular físico no ejecutado**.
+- **SC-04: no demostrado** («recorridos en celular, tableta y computadora»). **No se declara aprobado.** La casilla de `checklists/requirements.md` «Los criterios de éxito se han verificado con evidencia de ejecución» **permanece sin marcar**.
+- **Riesgo residual aceptado:** defectos propios de un dispositivo táctil físico (teclado en pantalla, gestos, rendimiento del navegador móvil) no detectables con la emulación ni con la revisión en laptop.
+- **Playwright y k6 de 002 con evidencia local.** EQ-01 y EQ-03 («APROBADA (local)») y los 54 casos de Playwright se ejecutaron en la validación local; **la CI de 002 no ejecuta k6 ni Playwright**. Limitaciones conocidas: caídas 0xC0000409 previas al cortacircuitos de Redis sin causa raíz; EQ-03 no demuestra escalabilidad bajo saturación; la constitución pide evidencia de E2E, rendimiento y usabilidad en el entorno de demostración, y esa evidencia es local.
+- **T080, T089, T093 e INC-002-02:** T080 y T093 cerradas por excepción (ver sus secciones); T089 sin apertura en Draw.io, omisión aceptada, riesgo bajo; INC-002-02 cerrada por enmienda aprobada.
+
+### Cumplimiento de los criterios de T094
+| Criterio | Estado |
+|---|---|
+| Pruebas aplicables APROBADAS | Cumple **con excepción aprobada** (PR07 parcial, SC-04 no demostrado) |
+| Restauración y mediciones con evidencia válida | Cumple (T071 en local y CI; EQ-01 y EQ-03 en local) |
+| Revisión en sesión nueva | Cumplida (dictamen APTO CON OBSERVACIONES) |
+| Evidencia de CI | Cumple: n.º 27, n.º 17, n.º 28 y n.º 18 aprobadas |
+| Ninguna prueba PENDIENTE, EJECUTADA sin evaluar o FALLIDA sin excepción | Cumple |
+| PR revisado y fusionado en `main` | Cumplido (`84d637e`) |
+| Revisión manual del Product Owner | Cumplida: dictamen aceptado y excepciones ratificadas (2026-11-25) |
+
+### Pendientes posteriores al cierre (fuera de 002)
+Recorridos en celular físico (SC-04); k6 y E2E de 002 en CI o en el entorno de demostración; las mejoras futuras listadas en T080.
