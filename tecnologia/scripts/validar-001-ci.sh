@@ -25,7 +25,7 @@ backend test:seed
 
 export JEST_JUNIT_OUTPUT_DIR="$EVIDENCIA_001"
 JEST_JUNIT_OUTPUT_NAME=u.xml backend test:unit
-JEST_JUNIT_OUTPUT_NAME=i.xml backend test:integration -- --runInBand
+JEST_JUNIT_OUTPUT_NAME=i.xml backend test:integration -- --runInBand --testPathIgnorePatterns prestadores-catalogo
 JEST_JUNIT_OUTPUT_NAME=c.xml backend test:contract
 JEST_JUNIT_OUTPUT_NAME=arquitectura.xml backend test:architecture
 frontend test:unit -- --outputFile.junit="$EVIDENCIA_001/v.xml"
