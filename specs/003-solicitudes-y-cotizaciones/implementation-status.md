@@ -513,7 +513,7 @@ Capturas 40 a 45 a los tres anchos en `tecnologia/.local/evidencia/003/us4/web-c
 
 ## 15. Fase 7 · T088 — arranque completo con las 58 operaciones (CP-308, R-27)
 
-**Estado:** T088 completada y marcada `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `600a56f` (CI #7 de 003: SUCCESS, según informó el PO). Los resultados de esta sección son locales; la CI remota no se ha ejecutado para este cambio. No se implementó ninguna tarea posterior (T089–T116).
+**Estado:** T088 completada y marcada `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `600a56f` (CI #7 de 003: SUCCESS, según informó el PO). Los resultados de esta sección son locales. **Actualización posterior:** T088 quedó aprobada en GitHub Actions **#8** (commit `ac0bfe3`, según informó el PO). No se implementó ninguna tarea posterior (T089–T116).
 
 ### 15.1 Qué se hizo
 
@@ -563,7 +563,7 @@ La no regresión de los arranques base (17 operaciones) y de la 002 (40, sin nin
 
 ## 16. Fase 7 · T089 — contratos REST y seguridad por operación de las 18 operaciones
 
-**Estado:** T089 completada y marcada `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `ac0bfe3` (CI #8 de 003: SUCCESS, según informó el PO). Los resultados de esta sección son locales; la CI remota no se ha ejecutado para este cambio. No se implementó T090 ni ninguna tarea posterior.
+**Estado:** T089 completada y marcada `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `ac0bfe3` (CI #8 de 003: SUCCESS, según informó el PO). Los resultados de esta sección son locales. **Actualización posterior:** T089 quedó aprobada en GitHub Actions **#9** (commit `d068435`, según informó el PO). No se implementó T090 ni ninguna tarea posterior.
 
 ### 16.1 Qué se hizo
 
@@ -629,4 +629,62 @@ Comandos: `npm run test:contract -- --testPathPatterns operaciones-003`, `npm ru
 3. No se ejecutaron las regresiones de 001 y 002: T089 no modifica código de producción ni contratos, y su última verificación completa fue la de la sección 15 (T088).
 4. No se ejecutaron Firefox ni WebKit ni Playwright (no hay cambios de interfaz); la matriz de nueve proyectos es de T102.
 5. Siguen pendientes las 35 pruebas de infraestructura de 002, los 3 casos `todo` de `frontera-004.spec.ts`, T090 (matriz PR04), cobertura Jest y k6.
-6. La CI de GitHub Actions no se ha ejecutado para este cambio.
+6. (Histórico, al cerrar T089) La CI no se había ejecutado para ese cambio; después aprobó en #9.
+
+
+## 17. Fase 7 · T090 — matriz de seguridad PR04 de punta a punta (CA-SEG-01, CP-303)
+
+**Estado:** T090 completada y marcada `[x]` con evidencia **local**. Sin `git add`, `commit` ni `push`. Base: commit `d068435` (T089; CI #9 de 003: SUCCESS, según informó el PO). Historial remoto: T088 → #8 aprobada; T089 → #9 aprobada; **solo T090 está pendiente de su propia ejecución remota**. **La CI remota no se ha ejecutado para este cambio**: el resultado de GitHub Actions para T090 está pendiente y no se declara verde. No se implementó ninguna tarea posterior (T091–T116). No se modificó código de producción, contratos, políticas ni frontend.
+
+### 17.1 Qué se hizo
+Un único archivo nuevo: `tecnologia/backend/test/integration/solicitudes-cotizaciones/seguridad-end-to-end.spec.ts` (346 casos). Aplicación completa real (Nest + PostgreSQL efímero `ayacucho_003_test_*` + Garage con prefijo propio), cuentas ficticias, controladores y rutas reales. Reutiliza `montarUs1` y el soporte existente; no repite la verificación de contrato de T089 (aquí se verifica **quién** puede hacer **qué**).
+
+### 17.2 Matriz
+Identidades (8): dueño · destinatario de una dirigida (Elena) · prestador compatible sin cotización (Ana) · autor de cotización no retirada (Beto) · autor de cotización retirada y ya sin cobertura (Carla) · cliente ajeno · prestador ajeno (Darío) · sin sesión. Cada celda declara su estado **antes** de ejecutarse. 40 filas (operación × recurso/estado) × 8 identidades = **320 celdas**, que cubren las **18 operaciones** (cada una con las 8 identidades; la suite lo comprueba contra el contrato aprobado). Recursos: solicitud publicada, dirigida, borrador; cotización activa, retirada y de dirigida; hilos de aclaración; colecciones; fotografías no compartidas, de dirigida y de borrador. Cada fila declara método y ruta, `operationId`, tipo de recurso, condición de acceso, dato privado y si muta.
+Resultados observados: 200 ×54, 201 ×10, 401 ×40, 403 ×63, 404 ×147, 409 ×6. Planificadas 320, ejecutadas 320, aprobadas 320, fallidas 0, no aplicables 0. La evidencia por celda queda en `tecnologia/.local/evidencia/003/t090/matriz-pr04.json` (ignorada por Git).
+
+Decisiones de política observadas (no modificadas): un prestador compatible **sin** cotización ve la solicitud pero **no** su historial de versiones (CA-HIS-01; mi primera expectativa era errónea y se corrigió en la prueba); la bitácora es solo del dueño; el compatible no accede a una dirigida; el autor retirado conserva solo la lectura de su cotización y su hilo y pierde la solicitud si no tiene otro título; falta de perfil → 403, recurso ajeno o sin título → 404 indistinguible de inexistente.
+
+### 17.3 Ninguna modificación no autorizada
+Antes y después de **cada** petición se toma una instantánea de 10 tablas completas (`solicitudes`, `solicitudes_versiones`, `solicitudes_bitacora`, `solicitudes_archivos`, `solicitudes_objetos_pendientes`, `cotizaciones`, `cotizaciones_versiones`, `cotizaciones_aclaraciones`, `avisos_negocio`, `claves_idempotencia`; recuento y hash del texto de cada fila) y del listado de objetos de Garage bajo el prefijo de la suite (clave, tamaño, ETag). Resultado: **ninguna de las celdas rechazadas ni de las lecturas cambió nada** (incluidos avisos, bitácoras y claves de idempotencia). Las celdas autorizadas que mutan se ejecutan en un escenario propio y **sí** cambian la instantánea (16 celdas), lo que demuestra que la instantánea detecta modificaciones. Además, cada 404 se compara con la misma petición sobre identificadores inexistentes (mismo estado y cuerpo), cada rechazo valida su esquema de error y se escanea para que no contenga correos, ids de cuenta o prestador, nombres, prefijo o claves de almacenamiento, SQL ni trazas, y ninguna respuesta no autorizada devuelve binario ni `image/*`.
+
+### 17.4 Controles adicionales
+Listados (oportunidades, «mis solicitudes» de ambos roles, «mis cotizaciones») con contenido exacto por título, recorriendo todas las páginas; paginación, filtros y orden manipulados (`tamano`, `pagina`, `estado`, `cuentaId`, `orden`…) sin filtraciones ni cambios; comparación con ids de otra solicitud (del mismo cliente, de otro cliente, inexistentes) → 404 idéntico; nombres públicos solo dentro de la solicitud propia; fotografías con Garage real (sin compartir, compartida, revocada, dirigida, borrador, ids manipulados, rutas internas, codificaciones, inexistentes, carga no autorizada sin objetos nuevos); tokens inválidos o manipulados → 401; cuenta con ambos perfiles; clave de idempotencia reutilizada por otra cuenta; solicitud cerrada. Los diez controles de aislamiento del PO se verifican con pruebas nominales sobre las celdas ejecutadas.
+
+### 17.5 Cobertura declarada
+CA-SEG-01 y CP-303 se declaran cubiertos **por la combinación identidad × operación definida arriba (320/320 celdas, 18/18 operaciones)**; no se deriva de líneas ni de número de pruebas. Otros estados no incluidos como celdas propias (p. ej. solicitud cerrada con todas las identidades) se cubren con el bloque de estados, no con celdas.
+
+### 17.6 CI
+El flujo `.github/workflows/solicitudes-cotizaciones.yml` ejecuta `test:integration:003` (`--testPathPatterns solicitudes-cotizaciones`). `jest --listTests` con ese patrón selecciona 22 suites, **incluida** la nueva; no hubo que cambiar el flujo. Resultado remoto: pendiente de publicación por el PO.
+
+### 17.7 Pruebas locales (27 de noviembre de 2026, Node 24.15.0)
+| Comprobación | Resultado |
+|---|---|
+| `seguridad-end-to-end.spec.ts` (con `seguridad-solicitudes`) | 349/349 la última ejecución aislada; suite nueva: 346 casos aprobados |
+| `tsc`, `eslint --max-warnings=0`, `build` | Sin errores |
+| Unitarias | 669/669, 41 suites |
+| Arquitectura | 8/8, 3 suites |
+| Contrato 003 | 95/95, 6 suites |
+| Integración 003 | **686 aprobadas**, 3 `todo`, 0 fallidas, 22/22 suites (en la **repetición**; ver 17.8) |
+Regresiones 001/002: no se ejecutaron, porque no se tocó código de producción ni compartido.
+
+### 17.8 Incidencias y riesgos
+1. **Primera ejecución completa de integración 003: 2 fallos en `seguridad-solicitudes.spec.ts`** (suite anterior, T050): un caso agotó los 30 s de Jest y el siguiente recibió 503. No son fallos de política: coinciden con la ejecución en paralelo (2 workers) junto a la suite nueva, que es pesada (~80 s). La repetición pasó (22/22). **La cifra de 686 proviene de la repetición, no de la primera ejecución**; la causa es una hipótesis de carga, sin diagnóstico confirmado. Riesgo: en la CI (2 workers) puede repetirse; si ocurre, conviene reducir el coste de la suite nueva o ampliar el plazo de esa prueba concreta (decisión del PO).
+2. Errores de expectativa propios corregidos sin tocar producción: historial de versiones del compatible (404 por CA-HIS-01), el `ETag` débil de Express (no es metadato de S3) y la paginación del dueño (más de 50 solicitudes con los escenarios).
+3. **Aborto nativo `0xC0000409`: sin ocurrencias** en T090. Sigue sin causa identificada.
+4. Sin vulnerabilidades detectadas; no se hicieron correcciones de producción.
+5. Pendientes que se mantienen: 35 pruebas de infraestructura de 002, 3 casos `todo` de `frontera-004`, Firefox/WebKit, cobertura Jest, k6, dos 422 declarados sin escenario (`cerrarSolicitud003`, `retirarCotizacion003`), y CI remota de T088–T090.
+
+### 17.9 Verificación acotada de estabilidad (27 de noviembre de 2026)
+**Comando de la CI** (`.github/workflows/solicitudes-cotizaciones.yml`, línea 104): `npm --prefix tecnologia/backend run test:integration:003` = `jest --selectProjects integration --maxWorkers=2 --testPathPatterns solicitudes-cotizaciones`, en `ubuntu-24.04`. La suite T090 está **incluida realmente**: `--listTests` con ese patrón lista 22 archivos, entre ellos `seguridad-end-to-end.spec.ts`, y las repeticiones la ejecutaron. El resultado remoto de T090 sigue pendiente.
+**Repeticiones locales con el mismo comando** (Node 24.15.0, evidencia separada en `tecnologia/.local/evidencia/003/t090/estabilidad-integracion-rep{1,2,3}.txt`):
+| Ejecución | Resultado | Duración | Suite T090 | `seguridad-solicitudes` | Aviso «worker failed to exit» |
+|---|---|---|---|---|---|
+| Original (incidente) | 2 fallos en T050 (timeout 30 s y 503 posterior) | — | — | 58,2 s | sí |
+| Repetición inmediata | 22/22, 686 + 3 `todo` | 258 s | — | 24,6 s | no |
+| Rep. 1 | 22/22, 686 + 3 `todo` | 261 s | 146 s | 18,6 s | sí |
+| Rep. 2 | 22/22, 686 + 3 `todo` | 416 s | 183 s | 30,0 s | sí |
+| Rep. 3 | 22/22, 686 + 3 `todo` | 249 s | 156 s | 25,1 s | no |
+| Sin la suite T090 (21 suites) | 21/21, 340 + 3 `todo` | 333 s | — | — | no |
+Además: la suite T090 sola con `--detectOpenHandles` pasa (349/349 con `seguridad-solicitudes`) y no detecta manejadores abiertos.
+**Diagnóstico.** Los fallos del incidente no se repitieron en 4 ejecuciones completas consecutivas (3 + la repetición), pero **eso no demuestra ausencia de intermitencia**. Hay una variabilidad grande de duración (249–416 s) y `seguridad-solicitudes` llegó a 30 s en la repetición 2 (el límite de Jest por prueba es 30 s para casos individuales; esa cifra es de la suite entera), lo que es coherente con la hipótesis de competencia por CPU/E/S entre los dos workers, **no confirmada**. El aviso «worker failed to exit gracefully» apareció en el incidente y en 2 de 3 repeticiones; no apareció en la ejecución sin T090 ni con `--detectOpenHandles`. No se pudo atribuir a una suite concreta; queda como **riesgo abierto** y no se modificó nada. No se cambió código ni tiempos límite: no hubo fallos que corregir.
