@@ -1,5 +1,5 @@
 import { ErrorApi } from '../../usuarios-acceso/aplicacion/puertos.js';
-import type { ApiSolicitudes, SolicitudPrivada } from '../modelos/contratos.js';
+import type { ApiSolicitudes, SolicitudPrivada, SolicitudVisible } from '../modelos/contratos.js';
 
 const raiz = '/api/v1/solicitudes';
 const recurso = (id: string) => '/' + encodeURIComponent(id);
@@ -38,6 +38,13 @@ export function crearApiSolicitudes(token: () => string | undefined, invalidar: 
   }
   return {
     listar: (pagina, estado) => json('?' + new URLSearchParams({ rol: 'cliente', pagina: String(pagina), ...(estado ? { estado } : {}) })),
+    oportunidades: pagina => json('/oportunidades?' + new URLSearchParams({ pagina: String(pagina) })),
+    listarComoPrestador: (pagina, estado) => json('?' + new URLSearchParams({ rol: 'prestador', pagina: String(pagina), ...(estado ? { estado } : {}) })),
+    obtenerVisible: async id => {
+      const detalle = await json<SolicitudPrivada | SolicitudVisible>(recurso(id));
+      if (!('titulos' in detalle)) throw new ErrorApi(409, 'SOLICITUD_PROPIA', 'Esta solicitud es tuya. Gestiónala desde Mis solicitudes.');
+      return detalle;
+    },
     obtener: async id => {
       const detalle = await json<SolicitudPrivada | { titulos: string[] }>(recurso(id));
       if ('titulos' in detalle) throw new Error('Solo puedes gestionar tus propias solicitudes.');

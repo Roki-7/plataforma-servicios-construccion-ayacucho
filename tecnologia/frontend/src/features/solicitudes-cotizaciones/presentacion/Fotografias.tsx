@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { mensajeSolicitud, tiposImagen } from '../aplicacion/edicion.js';
 import type { ApiSolicitudes, FotoSolicitud } from '../modelos/contratos.js';
 
-function VistaFoto({ api, id, archivoId, numero }: { api: ApiSolicitudes; id: string; archivoId: string; numero: number }) {
+export function VistaFoto({ api, id, archivoId, numero }: { api: ApiSolicitudes; id: string; archivoId: string; numero: number }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [intento, setIntento] = useState(0);

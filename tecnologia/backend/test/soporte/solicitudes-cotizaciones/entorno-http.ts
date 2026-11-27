@@ -54,6 +54,7 @@ export async function montarUs1(opciones: OpcionesUs1 = {}) {
       app, db: app.db, http, datos, config, base, almacen, real, prefijo: garage.prefijo, cerrar, token, tipoMime: 'image/webp',
       crear: (tk: string | undefined, cuerpo: object, clave?: string) => escritura(http.post(api), tk, clave).send(cuerpo),
       listar: (tk: string | undefined, consulta = '') => lectura(http.get(`${api}${consulta}`), tk),
+      oportunidades: (tk: string | undefined, consulta = '') => lectura(http.get(`${api}/oportunidades${consulta}`), tk),
       obtener: (tk: string | undefined, id: string) => lectura(http.get(`${api}/${id}`), tk),
       editar: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.patch(`${api}/${id}`), tk, clave).send(cuerpo),
       publicar: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`${api}/${id}/publicacion`), tk, clave).send(cuerpo),

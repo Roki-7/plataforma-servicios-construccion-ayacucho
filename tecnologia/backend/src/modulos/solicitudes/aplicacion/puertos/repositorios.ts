@@ -12,6 +12,16 @@ export interface ResumenDeFila {
   /** Solo con `rol=prestador`: es destinataria de una dirigida. */
   readonly esDestinatario: boolean;
 }
+export interface OportunidadDeFila {
+  readonly solicitudId: string; readonly tipo: TipoSolicitud; readonly categoriaId: string; readonly distrito: string;
+  readonly fechaDesde: string; readonly fechaHasta: string | null; readonly descripcionCorta: string;
+  readonly clienteCuentaId: string; readonly prestadorCuentaId: string | null; readonly compartirFotografias: boolean;
+  readonly hayFotografias: boolean; readonly versionTrabajo: number; readonly publicadaEn: Date;
+}
+export interface RepositorioOportunidades {
+  listarAbiertas(cuentaId: string, prestadorId: string, categorias: readonly string[], distritos: readonly string[], pagina: number, tamano: number): Promise<PaginaDeFilas<OportunidadDeFila>>;
+  listarComoPrestador(cuentaId: string, solicitudesConAutoria: readonly string[], estado: EstadoSolicitud | undefined, pagina: number, tamano: number): Promise<PaginaDeFilas<ResumenDeFila>>;
+}
 export interface ArchivoDeVersion { readonly archivoId: string; readonly tipoMime: string; readonly bytes: number; readonly ancho: number; readonly alto: number; readonly sha256: string }
 export interface NuevaVersion {
   readonly solicitudId: string; readonly numero: number; readonly descripcion: string; readonly medidas: string | null; readonly categoriaId: string; readonly distrito: string;
@@ -32,7 +42,6 @@ export interface RepositorioSolicitudes {
   insertarVersion(tx: ContextoTransaccion, version: NuevaVersion): Promise<void>;
   insertarBitacora(tx: ContextoTransaccion, entrada: NuevaBitacora): Promise<void>;
   listarComoCliente(cuentaId: string, estado: EstadoSolicitud | undefined, pagina: number, tamano: number): Promise<PaginaDeFilas<ResumenDeFila>>;
-  listarComoPrestador(cuentaId: string, solicitudesConAutoria: readonly string[], estado: EstadoSolicitud | undefined, pagina: number, tamano: number): Promise<PaginaDeFilas<ResumenDeFila>>;
   versiones(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeFilas<VersionGuardada>>;
   bitacora(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeFilas<EntradaGuardada>>;
 }

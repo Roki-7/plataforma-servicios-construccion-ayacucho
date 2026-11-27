@@ -132,3 +132,29 @@
 @media (max-width: 63.99rem) {
   .sol-doble:has(#sol-distrito) { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Recorrido del prestador (HU08): etiquetas de acceso, datos de la solicitud y estados vacíos. */
+.sol-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  padding: .2rem .7rem;
+  border-radius: 999px;
+  background: var(--petroleo-suave);
+  color: var(--petroleo-oscuro);
+  font-size: .875rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.sol-etiqueta[data-titulo="DESTINATARIO"] { background: var(--terracota-suave); color: var(--terracota-texto); }
+.sol-etiqueta[data-titulo="AUTOR_DE_COTIZACION"] { background: var(--fondo); color: var(--petroleo-oscuro); border: 1px solid var(--separador); }
+.sol-datos { display: grid; gap: .6rem; margin: 0; min-width: 0; }
+.sol-datos > div { display: grid; gap: .1rem; min-width: 0; }
+.sol-datos dt { color: var(--texto-suave); font-size: .875rem; }
+.sol-datos dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.sol-subtitulo { margin: .4rem 0 0; font-size: 1rem; color: var(--petroleo-oscuro); }
+.sol-vacio .sol-acciones a { font-weight: 700; }
+.sol-resumen h2 { overflow-wrap: anywhere; }
+.sol-panel-acciones { align-content: start; }
+@media (min-width: 48rem) {
+  .sol-principal .sol-datos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

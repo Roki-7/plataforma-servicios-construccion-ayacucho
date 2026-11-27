@@ -20,7 +20,7 @@ const busqueda = new BusquedaWeb({
   obtenerPerfil: vi.fn(), obtenerServicio: vi.fn(), obtenerImagen: vi.fn(),
 });
 const crearApi = (s = borrador) => ({
-  listar: vi.fn(async () => pagina), obtener: vi.fn(async () => s),
+  listar: vi.fn(async () => pagina), oportunidades: vi.fn(async () => pagina), listarComoPrestador: vi.fn(async () => pagina), obtenerVisible: vi.fn(), obtener: vi.fn(async () => s),
   crear: vi.fn<ApiSolicitudes['crear']>(async () => s),
   editar: vi.fn<ApiSolicitudes['editar']>(async () => ({ ...s, version: 2 })),
   publicar: vi.fn<ApiSolicitudes['publicar']>(async () => ({ ...s, estado: 'ABIERTA', version: 2, versionTrabajo: 1 })),

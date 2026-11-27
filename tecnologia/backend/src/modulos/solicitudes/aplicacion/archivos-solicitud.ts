@@ -6,11 +6,10 @@ import { ErrorAplicacion } from '../../../compartido/dominio/errores.js';
 import { uuidEnMinusculas } from '../../../compartido/dominio/identificadores.js';
 import { caducidadDeCarga } from '../dominio/archivos.js';
 import { archivoExpirado, dependenciaNoDisponible, limiteArchivos, recursoNoDisponible, solicitudNoAbierta } from '../dominio/errores.js';
-import { decidirAcceso } from '../dominio/politica-acceso.js';
 import { limitesDeArchivos } from '../dominio/tipos.js';
 import { exigirCliente, vistaDeArchivo, type ActorSolicitudes, type PerfilesDeUsuarios } from './solicitudes.js';
 import type { AlmacenArchivosSolicitud, SaneadorImagenSolicitud } from './puertos/archivos.js';
-import type { AutoriaDeCotizacion } from './puertos/cotizaciones.js';
+import type { OportunidadesServicio } from './oportunidades.js';
 import type { ArchivoGuardado, RepositorioArchivos, RepositorioSolicitudes, TraducirEscrituraSolicitud } from './puertos/repositorios.js';
 
 /** Máximo de intentos distintos de una misma carga idempotente: tras un fallo de almacenamiento, el reintento con la misma clave usa un identificador nuevo. */
@@ -24,7 +23,7 @@ export interface DependenciasArchivos {
   readonly idempotencia: Idempotencia002;
   readonly unidad: UnidadDeTrabajo;
   readonly usuarios: PerfilesDeUsuarios;
-  readonly autoria: AutoriaDeCotizacion;
+  readonly oportunidades: Pick<OportunidadesServicio, 'decidir'>;
   readonly traducirEscritura: TraducirEscrituraSolicitud;
   readonly ahora?: () => Date;
 }
@@ -151,10 +150,7 @@ export class ArchivosSolicitudServicio {
       if (!vigente) throw recursoNoDisponible();
     } else {
       if (archivo.estado !== 'CONFIRMADO') throw recursoNoDisponible();
-      const tienePerfilPrestador = actor.identidad.perfiles.includes('prestador');
-      const autorNoRetirado = tienePerfilPrestador && s.estado !== 'BORRADOR' ? await this.d.autoria.tieneNoRetirada(s.id, actor.identidad.cuentaId) : false;
-      const decision = decidirAcceso({ solicitud: { tipo: s.tipo, estado: s.estado, clienteCuentaId: s.clienteCuentaId, prestadorCuentaId: s.prestadorCuentaId, compartirFotografias: s.compartirFotografias },
-        actor: { cuentaId: actor.identidad.cuentaId, tienePerfilPrestador }, compatible: false, autorNoRetirado });
+      const decision = await this.d.oportunidades.decidir(s, actor.identidad);
       if (decision.fotografias !== 'VISIBLES') throw recursoNoDisponible();
     }
     let bytes: Uint8Array;

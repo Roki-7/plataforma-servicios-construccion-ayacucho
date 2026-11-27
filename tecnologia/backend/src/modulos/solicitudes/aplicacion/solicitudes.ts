@@ -14,15 +14,15 @@ import {
   servicioNoPerteneceAlPrestador, solicitudNoAbierta, versionDesactualizada,
 } from '../dominio/errores.js';
 import { hoyEnLima } from '../dominio/fechas.js';
-import { decidirAcceso } from '../dominio/politica-acceso.js';
 import {
   advertenciasDeCobertura, descripcionCorta, evaluarTextoLibre, exigirCompleta, exigirFechaNoAnterior, exigirInmutables, exigirPeriodoCoherente, normalizarEntrada,
   type Advertencia, type CopiaDeServicio, type EntradaSolicitud, type Solicitud,
 } from '../dominio/solicitud.js';
 import type { EstadoSolicitud } from '../dominio/tipos.js';
 import { compararEstados, efectosDeCierre, efectosDeEdicion, efectosDePublicacion, estadoCanonico } from '../dominio/version.js';
+import { exigirPrestadorHabilitado, type OportunidadesServicio } from './oportunidades.js';
 import type { AlmacenArchivosSolicitud } from './puertos/archivos.js';
-import type { AutoriaDeCotizacion, PrestadoresInteresados } from './puertos/cotizaciones.js';
+import type { PrestadoresInteresados } from './puertos/cotizaciones.js';
 import type { ArchivoDeVersion, ArchivoGuardado, RepositorioArchivos, RepositorioSolicitudes, TraducirEscrituraSolicitud } from './puertos/repositorios.js';
 
 export interface ActorSolicitudes { readonly token: string; readonly identidad: IdentidadAcceso }
@@ -40,7 +40,7 @@ export interface DependenciasSolicitudes {
   readonly prestadores: PrestadoresApi & LecturasDePrestadores;
   readonly avisos: AvisosNegocioApi;
   readonly interesados: PrestadoresInteresados;
-  readonly autoria: AutoriaDeCotizacion;
+  readonly oportunidades: OportunidadesServicio;
   readonly traducirEscritura: TraducirEscrituraSolicitud;
   readonly ahora?: () => Date;
 }
@@ -48,10 +48,6 @@ export interface DependenciasSolicitudes {
 export const exigirCliente = (identidad: IdentidadAcceso): void => {
   if (!identidad.perfiles.includes('cliente')) throw new ErrorAplicacion(403, 'SIN_PERMISO', 'Se requiere un perfil de cliente habilitado.');
 };
-export const exigirPrestadorHabilitado = (identidad: IdentidadAcceso): void => {
-  if (!identidad.perfiles.includes('prestador')) throw new ErrorAplicacion(403, 'SIN_PERMISO', 'Se requiere un perfil de prestador habilitado.');
-};
-
 const tipoMime = 'image/webp' as const;
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
 
@@ -334,9 +330,8 @@ export class SolicitudesServicio {
       exigirCliente(actor.identidad);
       resultado = await this.d.repositorio.listarComoCliente(actor.identidad.cuentaId, consulta.estado, pagina, tamano);
     } else {
-      exigirPrestadorHabilitado(actor.identidad);
-      conAutoria = new Set(await this.d.autoria.solicitudesConNoRetirada(actor.identidad.cuentaId));
-      resultado = await this.d.repositorio.listarComoPrestador(actor.identidad.cuentaId, [...conAutoria], consulta.estado, pagina, tamano);
+      resultado = await this.d.oportunidades.listarComoPrestador(actor.identidad, consulta.estado, pagina, tamano);
+      conAutoria = resultado.conAutoria;
     }
     return {
       elementos: resultado.elementos.map(f => ({
@@ -357,9 +352,9 @@ export class SolicitudesServicio {
     if (s.clienteCuentaId === cuentaId) {
       return vistaPrivada(s, await this.d.archivos.listarVisibles(solicitudId), await this.advertencias(s, false));
     }
-    const decision = await this.decidirComoPrestador(s, actor);
+    const decision = await this.d.oportunidades.decidir(s, actor.identidad);
     if (!decision.puedeLeer) throw recursoNoDisponible();
-    const confirmados = (await this.d.archivos.listarVisibles(solicitudId)).filter(a => a.estado === 'CONFIRMADO');
+    const confirmados = decision.fotografias === 'OCULTAS' ? [] : (await this.d.archivos.listarVisibles(solicitudId)).filter(a => a.estado === 'CONFIRMADO');
     const titulos = [...(decision.titulos.destinatario ? ['DESTINATARIO'] : []), ...(decision.titulos.compatible ? ['COMPATIBLE'] : []), ...(decision.titulos.autor ? ['AUTOR_DE_COTIZACION'] : [])];
     return {
       solicitudId: s.id, tipo: s.tipo, estado: s.estado, descripcion: s.descripcion!, ...(s.medidas ? { medidas: s.medidas } : {}), categoriaId: s.categoriaId!, distrito: s.distrito!,
@@ -369,22 +364,12 @@ export class SolicitudesServicio {
     };
   }
 
-  /** La política única decide. La compatibilidad (título b) la aporta la historia de oportunidades; aquí se resuelven los títulos de destinatario y de autor. */
-  async decidirComoPrestador(s: Solicitud, actor: ActorSolicitudes) {
-    const tienePerfilPrestador = actor.identidad.perfiles.includes('prestador');
-    const autorNoRetirado = tienePerfilPrestador && s.estado !== 'BORRADOR' ? await this.d.autoria.tieneNoRetirada(s.id, actor.identidad.cuentaId) : false;
-    return decidirAcceso({
-      solicitud: { tipo: s.tipo, estado: s.estado, clienteCuentaId: s.clienteCuentaId, prestadorCuentaId: s.prestadorCuentaId, compartirFotografias: s.compartirFotografias },
-      actor: { cuentaId: actor.identidad.cuentaId, tienePerfilPrestador }, compatible: false, autorNoRetirado,
-    });
-  }
-
   async historial(actor: ActorSolicitudes, solicitudIdEntrada: string, tipo: 'versiones' | 'bitacora', pagina = 1, tamano = 20): Promise<ValorJson> {
     const solicitudId = uuidEnMinusculas(solicitudIdEntrada);
     const s = await this.d.repositorio.obtener(solicitudId);
     if (!s) throw recursoNoDisponible();
     const esDueno = s.clienteCuentaId === actor.identidad.cuentaId;
-    const decision = esDueno ? null : await this.decidirComoPrestador(s, actor);
+    const decision = esDueno ? null : await this.d.oportunidades.decidir(s, actor.identidad);
     if (!esDueno && !decision?.puedeLeer) throw recursoNoDisponible();
     if (tipo === 'bitacora') {
       // Solo el cliente dueño consulta la bitácora; cualquier otro, incluido un prestador autorizado para las versiones, recibe «inexistente».

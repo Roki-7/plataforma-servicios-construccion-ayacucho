@@ -22,6 +22,8 @@ import { PortadaMarca } from '../compartido/Marca.js';
 import { useCuentaSesion } from '../features/usuarios-acceso/presentacion/useCuentaSesion.js';
 import { EditorSolicitud } from '../features/solicitudes-cotizaciones/presentacion/EditorSolicitud.js';
 import { ListaSolicitudes } from '../features/solicitudes-cotizaciones/presentacion/ListaSolicitudes.js';
+import { Oportunidades, SolicitudesRecibidas } from '../features/solicitudes-cotizaciones/presentacion/ListasPrestador.js';
+import { DetalleSolicitudPrestador } from '../features/solicitudes-cotizaciones/presentacion/DetalleSolicitudPrestador.js';
 import { solicitudesWeb } from './solicitudes-cotizaciones.js';
 import './estilos.css';
 import '../features/solicitudes-cotizaciones/presentacion/solicitudes.css';
@@ -29,6 +31,9 @@ import '../features/solicitudes-cotizaciones/presentacion/solicitudes.css';
 const uuidRuta = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
 const detalleSolicitud = new RegExp('^/solicitudes/' + uuidRuta + '$');
 const esRutaSolicitudes = (ruta: string) => ruta === '/solicitudes' || ruta === '/solicitudes/nueva' || detalleSolicitud.test(ruta);
+const detalleSolicitudPrestador = new RegExp('^/prestador/solicitudes/' + uuidRuta + '$');
+/** Recorrido del prestador (HU08): oportunidades, solicitudes recibidas y su detalle de solo lectura. */
+const esRutaPrestadorSolicitudes = (ruta: string) => ruta === '/prestador/oportunidades' || ruta === '/prestador/solicitudes' || detalleSolicitudPrestador.test(ruta);
 
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
@@ -53,7 +58,7 @@ export function App() {
     setTrasCierre(false);
     const destino = new URL(evento.currentTarget.href).pathname;
     ir(destino);
-    if (esRutaSolicitudes(destino)) window.scrollTo(0, 0);
+    if (esRutaSolicitudes(destino) || esRutaPrestadorSolicitudes(destino)) window.scrollTo(0, 0);
   }
 
   const acceso = <Acceso key={cierres} trasCierre={trasCierre} correoInicial={correoInicial} entrar={async (datos) => {
@@ -63,7 +68,7 @@ export function App() {
     setTrasCierre(false);
     if (location.pathname !== '/confirmar-correo' || !correoWeb.tieneEnlace()) {
       const destino = location.pathname;
-      ir(rutasProfesionales.includes(destino) || esRutaSolicitudes(destino) ? destino : '/cuenta');
+      ir(rutasProfesionales.includes(destino) || esRutaSolicitudes(destino) || esRutaPrestadorSolicitudes(destino) ? destino : '/cuenta');
     }
   }} />;
   const pantallaRecuperacion = recuperacion.tieneEnlace() ? <EstablecerContrasena key={enlaceVersion} establecer={(nueva, confirmacion) => recuperacion.consumir(nueva, confirmacion)} completada={() => { sesion.invalidar(); history.replaceState(null, '', '/acceso'); setRuta('/acceso'); setMensaje('Contraseña actualizada. Inicie sesión con su nueva contraseña.'); }} /> : recuperacion.enlaceInvalido ? <section><h2>Enlace no válido</h2><p>Solicite un enlace nuevo para recuperar el acceso.</p><a href="/recuperar">Solicitar un enlace nuevo</a></section> : <RecuperarAcceso solicitar={(correo) => recuperacion.solicitar(correo)} />;
@@ -71,6 +76,7 @@ export function App() {
   let contenido: ReactNode;
   const prestadorRuta = new RegExp('^/prestadores/' + uuidRuta + '$').exec(ruta)?.[1]; const servicioRuta = new RegExp('^/servicios/' + uuidRuta + '$').exec(ruta)?.[1];
   const solicitudRuta = detalleSolicitud.exec(ruta)?.[1];
+  const solicitudPrestadorRuta = detalleSolicitudPrestador.exec(ruta)?.[1];
   const borradorGuardado = Boolean(solicitudRuta && mensaje === 'Borrador guardado.');
   if (cargando && ruta !== '/buscar' && !prestadorRuta && !servicioRuta) contenido = <p>Comprobando sesión…</p>;
   else if (ruta === '/buscar') contenido = <PantallaBusqueda alVerPrestador={id => ir('/prestadores/' + id)} alVerServicio={id => ir('/servicios/' + id)} />;
@@ -82,12 +88,15 @@ export function App() {
     else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
     else if (ruta === '/prestador/perfil') contenido = <RequierePrestador><PantallaPerfilProfesional /></RequierePrestador>;
     else if (ruta === '/prestador/servicios') contenido = <RequierePrestador><PantallaServicios /></RequierePrestador>;
+    else if (ruta === '/prestador/oportunidades') contenido = <RequierePrestador><Oportunidades api={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} /></RequierePrestador>;
+    else if (ruta === '/prestador/solicitudes') contenido = <RequierePrestador><SolicitudesRecibidas api={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} /></RequierePrestador>;
+    else if (solicitudPrestadorRuta) contenido = <RequierePrestador><DetalleSolicitudPrestador key={solicitudPrestadorRuta} api={solicitudesWeb} categorias={categoriasWeb} id={solicitudPrestadorRuta} alNavegar={navegar} /></RequierePrestador>;
     else if (ruta === '/solicitudes') contenido = <ListaSolicitudes api={solicitudesWeb} alNavegar={navegar} />;
     else if (ruta === '/solicitudes/nueva' || solicitudRuta) contenido = <EditorSolicitud key={solicitudRuta ?? 'nueva'} id={solicitudRuta} api={solicitudesWeb} busqueda={busquedaWeb} categorias={categoriasWeb}
       alNavegar={navegar} mensajeInicial={borradorGuardado ? mensaje : undefined}
       alCrear={id => { ir('/solicitudes/' + id, 'Borrador guardado.'); window.scrollTo(0, 0); }} />;
     else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} alActualizar={refrescarCuenta} />;
-  } else if (rutaCuenta || esRutaSolicitudes(ruta) || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
+  } else if (rutaCuenta || esRutaSolicitudes(ruta) || esRutaPrestadorSolicitudes(ruta) || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
     contenido = <><PortadaMarca />{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
   } else {
     contenido = <><PortadaMarca /><Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} /></>;
@@ -97,7 +106,9 @@ export function App() {
     ? [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/cuenta', texto: 'Mi cuenta', icono: 'cuenta', actual: ruta === '/cuenta' },
       { href: '/solicitudes', texto: 'Mis solicitudes', icono: 'servicios', actual: esRutaSolicitudes(ruta) },
       { href: '/habilitar-perfil', texto: 'Mis perfiles', icono: 'perfiles', actual: ruta === '/habilitar-perfil' }, { href: '/prestador/perfil', texto: 'Mi perfil profesional', icono: 'profesional', actual: ruta === '/prestador/perfil' },
-      { href: '/prestador/servicios', texto: 'Mis servicios', icono: 'servicios', actual: ruta === '/prestador/servicios' }]
+      { href: '/prestador/servicios', texto: 'Mis servicios', icono: 'servicios', actual: ruta === '/prestador/servicios' },
+      { href: '/prestador/oportunidades', texto: 'Oportunidades', icono: 'buscar', actual: ruta === '/prestador/oportunidades' },
+      { href: '/prestador/solicitudes', texto: 'Solicitudes recibidas', icono: 'servicios', actual: ruta === '/prestador/solicitudes' || Boolean(solicitudPrestadorRuta) }]
     : [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/registro', texto: 'Crear cuenta', icono: 'registro', actual: ruta === '/' || ruta === '/registro' },
       { href: '/acceso', texto: 'Acceder', icono: 'acceso', actual: ruta === '/acceso' }];
   return <div className="app">

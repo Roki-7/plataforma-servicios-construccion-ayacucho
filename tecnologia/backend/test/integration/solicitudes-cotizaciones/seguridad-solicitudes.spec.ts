@@ -159,7 +159,7 @@ describe('destinatario de una dirigida (título a)', () => {
 describe('autor de una cotización no retirada (título c), historial y fotografías (CA-HIS-01 a 03, CA-PRI-02 a 04, CA-ARC-04)', () => {
   test('el autor lee una publicada y sus versiones, pero no la bitácora (CA-HIS-01 y CA-HIS-03)', async () => {
     const o = ops(publicada);
-    const d = await o.obtener(tBeto).expect(200); expect(d.body.titulos).toEqual(['AUTOR_DE_COTIZACION']);
+    const d = await o.obtener(tBeto).expect(200); expect(d.body.titulos).toEqual(['COMPATIBLE', 'AUTOR_DE_COTIZACION']); // US2: Beto además es compatible con la publicada
     const v = await o.versiones(tBeto).expect(200);
     expect(JSON.stringify(v.body)).not.toMatch(/actor|privacidad|compartir|transicion|bitacora|CERRADA|PUBLICADA/i);
     expect((await o.bitacora(tBeto)).status).toBe(404);

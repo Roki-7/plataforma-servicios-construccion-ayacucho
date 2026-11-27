@@ -287,3 +287,69 @@ certutil.exe -user -delstore Root 1AFF0BAF5415118AA464AD297AFCA5DC4F30483C
 Para verificar la retirada, repetir la consulta `-store` y comprobar que ya no encuentra esa huella. La confianza se mantuvo durante esta revisión. Los anchos se comprobaron en navegadores de escritorio con viewport configurado. La prueba en un teléfono físico permanece pendiente.
 
 [Microsoft Learn · Certutil y almacenes de certificados](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/certutil#-delstore).
+
+## 11. Fase 4 · US2 HU08 (T060–T067)
+
+**Estado:** T060–T067 completadas y marcadas. Sin `git add`, `commit` ni `push`: los cambios están solo en el árbol de trabajo sobre `99a7cb1`. GitHub Actions **no** se declara aprobado para US2 porque no está publicada.
+
+### 11.1 Trabajo de Codex recuperado
+
+Codex dejó, sin commit, las pruebas T060–T062 y la implementación T063–T065 casi completa. Se revisó el diff completo y se conservó íntegro:
+
+- `OportunidadesServicio` (aplicación) con una **decisión única de acceso** (`decidir`) que reutiliza `decidirAcceso`, la compatibilidad (categorías cubiertas de Catálogo + distritos de Prestadores) y la autoría de Cotizaciones. El detalle, el historial y la ruta de la fotografía la consumen todos; se eliminó la copia anterior (`decidirComoPrestador` y el bloque propio de `archivos-solicitud.ts`).
+- `RepositorioOportunidadesPostgres`: página y total por ventana en una sola sentencia; las ramas «publicadas compatibles» y «dirigidas al destinatario» son disjuntas.
+- `GET /solicitudes/oportunidades` registrado antes de `/{solicitudId}`; rama `rol=prestador` del listado.
+- Pruebas: `oportunidades.spec.ts` (integración y contrato) y `solicitudes-prestador.spec.ts`.
+
+Lo que **faltaba** y se completó: pruebas HTTP de 401, no compatible, ajeno, borrador y respuesta opaca idéntica a un identificador inexistente; pruebas de revocación (cierre y pérdida de compatibilidad, en detalle y fotografía); toda la parte web (T066) y su evidencia (T067).
+
+### 11.2 Funcionalidad entregada
+
+Recorrido del prestador (rutas `/prestador/oportunidades`, `/prestador/solicitudes`, `/prestador/solicitudes/{id}`, con el mismo control de perfil y la misma navegación lateral que Mis servicios):
+
+1. **Oportunidades**: publicadas ABIERTAS compatibles y dirigidas abiertas; etiqueta de tipo, categoría, distrito, periodo y estado de fotografías («Sin fotografías», «compartidas», «no compartidas por el cliente»); paginación; estados de carga, vacío (con enlaces reales a servicios y perfil), error con reintento.
+2. **Solicitudes recibidas** (`rol=prestador`): dirigidas al prestador en cualquier estado salvo borrador y solicitudes con su cotización no retirada, también cerradas; filtro por estado sin «Borrador»; etiquetas de título.
+3. **Detalle de solo lectura**: títulos de acceso, aviso de solicitud cerrada, medidas, fotografías según la política del servidor, historial de versiones solo si es destinatario o autor. Un acceso denegado muestra un mensaje que no distingue entre «no existe» y «sin acceso». Si el cliente abre su propia solicitud aquí, se le remite a su editor.
+
+### 11.3 Reglas verificadas (backend)
+
+El acceso se decide en el servidor; la interfaz solo presenta lo recibido. Verificado con PostgreSQL y Garage reales: compatible (categoría + distrito + servicio publicado y clasificaciones activas) ve la publicada; no compatible, otro cliente, destinatario distinto y cuenta sin perfil reciben 404/403 según corresponda y un cuerpo 404 idéntico al de un identificador inexistente; sin sesión, 401 en detalle y fotografía; el borrador solo lo ve su dueño; la fotografía de una publicada no compartida y la de una dirigida a otro prestador devuelven 404; cerrar la solicitud o pausar el servicio revoca detalle y fotografía en la petición siguiente; la autoría vigente conserva la lectura; ninguna respuesta incluye identificadores ni datos del cliente ni claves de almacenamiento.
+
+### 11.4 Pruebas (26–27 de noviembre de 2026)
+
+Runtime: Node 24.15.0 del toolchain del proyecto, desde PowerShell. (Git Bash usa Node 22 y su `cwd` en minúscula hace fallar Vitest; las primeras ejecuciones de Jest de esta fase se hicieron con Node 22 y **se repitieron** con 24.15.0.)
+
+| Comprobación | Resultado |
+|---|---|
+| `tsc`, `eslint --max-warnings=0`, `build` del backend | Sin errores |
+| `tsc` y `eslint --max-warnings=0` del frontend | Sin errores |
+| Jest unitario del backend | 634/634, 38 suites |
+| Arquitectura | 8/8, 3 suites |
+| Integración 003 completa (`test:integration:003`) | **289/289, 17/17 suites**, una sola ejecución de 98,4 s |
+| Contrato 003 | Tras la corrección de la incidencia 3, con Node 24.15.0: **40/40 en 3/3 suites** (antes de ella, 38/39). |
+| Integración 003 tras la corrección | **289/289, 17/17 suites**, una sola ejecución de 144,6 s |
+| Build del frontend (`npm run build`) | Correcto: tsc y Vite, 79 módulos |
+| Vitest 003 | 23/23, 3 archivos (11 casos nuevos en `prestador.test.tsx`). `us2/vitest-junit.xml` |
+| Playwright `us2.spec.ts`, Chromium a 360, 768 y 1366 px | 6/6 sobre la aplicación real (HTTPS 8447). `us2/web-chromium/` |
+
+### 11.5 Evidencia visual
+
+Capturas de las siete pantallas a los tres anchos en `tecnologia/.local/evidencia/003/us2/web-chromium/capturas/chromium-{360,768,1366}/` (10 a 16). Cada captura comprueba que el documento no excede el viewport. Se revisaron visualmente oportunidades (360), detalle con fotografía (1366) y dirigida cerrada con historial (768). Se verificó la apertura de un detalle con Enter desde el enlace enfocado.
+
+### 11.6 Incidencias y correcciones
+
+1. **Fechas desplazadas un día** (hallada en la revisión con la app real): `2031-03-10` se mostraba como «9 mar.» al interpretarse como instante UTC y formatearse en Lima. Se creó `fechaCalendario` (UTC) y una prueba. El editor de US1 usa `<input type=date>` y no está afectado.
+2. **Nombre accesible del enlace** con un espacio espurio («Ver detalle : …»): se sustituyó el texto oculto por `aria-label`.
+3. **Contrato 413 de US1 (corregido).** `solicitudes.spec.ts` fallaba con `read ECONNRESET` en 3 de 3 ejecuciones con Node 24.15.0 (a los 7 ms, en la primera petición: JSON de 70 000 bytes frente a un límite de 65 536). **Causa exacta:** en `configurar-api.ts`, el rechazo anticipado por `Content-Length` enviaba el 413 y solo después llamaba `req.resume()`. Con el cuerpo de la petición sin leer, Node cierra el socket con un reinicio (RST) al terminar la respuesta y el cliente pierde el 413. No dependía de OpenAPI ni de las fotografías. **Corrección** (solo `rechazarCuerpoGrande` en `configurar-api.ts`): el cuerpo se descarta, sin almacenarlo ni interpretarlo, y se responde al terminar de recibirlo, si el tamaño declarado es de hasta 1 MiB; por encima se responde de inmediato con `Connection: close` sin leer nada, de modo que un cliente no puede forzar lecturas arbitrarias. Los límites (65 536 B, 14 000 000 B y 10 MB de imagen decodificada), el esquema del error y el contrato OpenAPI no cambiaron, ni la versión de Node. **Prueba nueva** en el contrato: 413 íntegro con cuerpos de 70 000 y 900 000 bytes y comprobación de que el servicio sigue atendiendo. **Resultado:** 3 de 3 ejecuciones de `solicitudes.spec.ts` con 20/20 (antes 19/20), y la suite 003 completa abajo. El rechazo de imágenes de más de 10 MB y la carga válida siguen cubiertos por las pruebas existentes de contrato e integración, que pasan. **Límite:** el camino de más de 1 MiB declarados responde de inmediato y, ante clientes que siguen enviando, el servidor puede cortar la conexión; no se prueba automáticamente.
+4. **Prueba de US1 actualizada**: `seguridad-solicitudes.spec.ts` esperaba `['AUTOR_DE_COTIZACION']` para Beto porque la compatibilidad aún no se evaluaba. Ahora es también compatible y la lectura devuelve `['COMPATIBLE','AUTOR_DE_COTIZACION']`, como establece la spec.
+5. **Servidor de validación obsoleto**: el API del puerto 3004 (iniciado a las 17:50) respondía 400 en `/solicitudes/oportunidades`. Con autorización del PO se detuvo y se reinició con el código actual y Node 24.15.0 (log en `.local/003/backend-us2.log`). Volumen y contenedores intactos.
+6. Un intento de test de contratos 001/002 con `npm run test:contract` global falla por `ECONNREFUSED 127.0.0.1:54329` (infraestructura de 001 apagada), no por US2.
+
+### 11.7 Limitaciones y verificaciones pendientes
+
+- **Firefox y WebKit no se ejecutaron**: no están instalados en este equipo para la versión actual de Playwright. La matriz de nueve proyectos corresponde a T102.
+- Las 35 pruebas de infraestructura de 002 siguen **sin verificar**. No se ejecutaron los contratos 001/002 ni su regresión en esta fase.
+- Cobertura Jest, k6 y pruebas de carga no se ejecutaron (fuera de T060–T067).
+- El «presupuesto de sentencias» (CP-306) se verificó con el contador de pruebas de integración para oportunidades y recibidas; la carga con k6 queda para la fase de calidad.
+- La «cobertura de CA-ARC-04 para prestadores solo compatibles» queda cubierta por las pruebas HTTP de `solicitudes-prestador.spec.ts`.
+- CI de GitHub Actions: no ejecutada para estos cambios.

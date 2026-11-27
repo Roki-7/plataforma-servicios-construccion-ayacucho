@@ -3,12 +3,14 @@ import type { Response } from 'express';
 import { ErrorAplicacion } from '../../../compartido/dominio/errores.js';
 import type { PeticionIdentidad002 } from '../../../composicion/identidad-002.js';
 import type { ArchivosSolicitudServicio, CargaDeArchivo } from '../aplicacion/archivos-solicitud.js';
+import type { OportunidadesServicio } from '../aplicacion/oportunidades.js';
 import type { ActorSolicitudes, SolicitudesServicio } from '../aplicacion/solicitudes.js';
 import type { EntradaSolicitud } from '../dominio/solicitud.js';
 import type { EstadoSolicitud } from '../dominio/tipos.js';
 
 export const SOLICITUDES_003 = Symbol('Servicio de solicitudes de 003');
 export const ARCHIVOS_SOLICITUD_003 = Symbol('Servicio de archivos de solicitudes de 003');
+export const OPORTUNIDADES_003 = Symbol('Servicio de oportunidades de 003');
 
 /** La identidad procede del guard del servidor. Nunca se lee del cuerpo ni de parámetros. */
 function actorDe(req: PeticionIdentidad002): ActorSolicitudes {
@@ -19,13 +21,16 @@ function actorDe(req: PeticionIdentidad002): ActorSolicitudes {
 const claveDe = (req: PeticionIdentidad002) => req.get('Idempotency-Key') ?? '';
 
 /**
- * Las nueve operaciones de la historia HU07. La autorización y la validación del esquema ocurren antes (guard de identidad y `configurarApi`); los casos de uso
- * vuelven a comprobar perfil, titularidad y estado en cada operación. El orden de declaración es parte del contrato: las rutas literales deben ir antes que
- * las de parámetro (la historia de oportunidades registra su `solicitudes/oportunidades` en un controlador anterior a este).
+ * HU07 y HU08. El guard y `configurarApi` validan antes de que los casos de uso comprueben el perfil y los títulos.
+ * Las rutas literales se declaran antes de las parametrizadas.
  */
 @Controller('solicitudes')
 export class SolicitudesController {
-  constructor(@Inject(SOLICITUDES_003) private readonly solicitudes: SolicitudesServicio, @Inject(ARCHIVOS_SOLICITUD_003) private readonly archivos: ArchivosSolicitudServicio) {}
+  constructor(
+    @Inject(SOLICITUDES_003) private readonly solicitudes: SolicitudesServicio,
+    @Inject(ARCHIVOS_SOLICITUD_003) private readonly archivos: ArchivosSolicitudServicio,
+    @Inject(OPORTUNIDADES_003) private readonly oportunidades: OportunidadesServicio,
+  ) {}
 
   @Post() async crear(@Req() req: PeticionIdentidad002, @Body() cuerpo: EntradaSolicitud, @Res() res: Response): Promise<void> {
     const r = await this.solicitudes.crear(actorDe(req), claveDe(req), cuerpo);
@@ -35,6 +40,11 @@ export class SolicitudesController {
   @Get() async listar(@Req() req: PeticionIdentidad002, @Res({ passthrough: true }) res: Response) {
     const consulta = res.locals['consulta002'] as { rol?: 'cliente' | 'prestador'; estado?: EstadoSolicitud; pagina?: number; tamano?: number };
     return this.solicitudes.listar(actorDe(req), consulta);
+  }
+
+  @Get('oportunidades') async listarOportunidades(@Req() req: PeticionIdentidad002, @Res({ passthrough: true }) res: Response) {
+    const { pagina, tamano } = res.locals['consulta002'] as { pagina?: number; tamano?: number };
+    return this.oportunidades.listar(actorDe(req).identidad, pagina, tamano);
   }
 
   @Get(':solicitudId') async obtener(@Req() req: PeticionIdentidad002, @Param('solicitudId') solicitudId: string) {

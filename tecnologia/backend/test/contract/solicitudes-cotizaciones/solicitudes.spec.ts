@@ -46,7 +46,7 @@ describe('definición de las nueve operaciones', () => {
     const rutas = ((e.app.app.getHttpAdapter().getInstance() as { router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] } }).router.stack
       .flatMap(({ route }) => route ? Object.keys(route.methods).map(m => `${m.toUpperCase()} ${route.path.replace(/^\/api\/v1/, '').replace(/:(\w+)/g, '{$1}')}`) : []));
     for (const id of operacionesDeLaHistoria) { const { metodo, ruta } = operaciones.get(id)!; expect(rutas).toContain(`${metodo.toUpperCase()} ${ruta}`); }
-    expect(rutas.filter(r => r.includes('/solicitudes') && !r.includes('/cotizaciones'))).toHaveLength(operacionesDeLaHistoria.length);
+    expect(rutas.filter(r => r.includes('/solicitudes') && !r.includes('/cotizaciones') && r !== 'GET /solicitudes/oportunidades')).toHaveLength(operacionesDeLaHistoria.length);
   });
   test('todas exigen Bearer; las mutaciones declaran Origin e Idempotency-Key y las lecturas no', () => {
     for (const id of operacionesDeLaHistoria) {
@@ -178,6 +178,14 @@ describe('errores 404, 409, 413, 422 y 503', () => {
     const imagenGrande = await conforme('cargarArchivoSolicitud003', await e.cargar(t1, publicada.solicitudId, await jpegDeTamano(10_000_001)), 'C003Error413');
     expect((imagenGrande.body as { codigo: string }).codigo).toBe('ARCHIVO_DEMASIADO_GRANDE');
   }, 120000);
+  test('413 se entrega íntegro, sin reinicio de conexión, también con un cuerpo declarado de cientos de KB que se descarta sin almacenarlo', async () => {
+    for (const descripcion of ['x'.repeat(70_000), 'x'.repeat(900_000)]) {
+      const r = await conforme('crearSolicitud003', await e.crear(t1, { tipo: 'PUBLICADA', descripcion }), 'C003Error413');
+      expect(r.status).toBe(413);
+      expect((r.body as { codigo: string }).codigo).toBe('CUERPO_DEMASIADO_GRANDE');
+    }
+    expect((await e.listar(t1, '?tamano=1').expect(200)).body.total).toBeGreaterThan(0);
+  }, 60000);
   test('422 con cada código de la historia que el cliente puede provocar', async () => {
     const d = e.datos; const codigos = new Set<string>();
     const registrar = async (op: string, r: Awaited<ReturnType<typeof e.crear>>) => { const c = await conforme(op, r as unknown as Respuesta, 'C003Error422'); codigos.add((c.body as { codigo: string }).codigo); };

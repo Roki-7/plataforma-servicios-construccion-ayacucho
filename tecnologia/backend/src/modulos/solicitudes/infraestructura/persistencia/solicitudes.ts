@@ -5,6 +5,7 @@ import type {
 } from '../../aplicacion/puertos/repositorios.js';
 import type { Solicitud } from '../../dominio/solicitud.js';
 import type { EstadoSolicitud } from '../../dominio/tipos.js';
+import { paginaDeResumenes, sqlPaginaDeSolicitudes, type FilaResumen } from './oportunidades.js';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Las fechas de calendario se leen como texto para que el controlador del driver no las convierta a la zona del servidor. */
@@ -27,23 +28,6 @@ const aSolicitud = (f: Fila): Solicitud => ({
 });
 const valoresDe = (s: Solicitud) => [s.id, s.clienteCuentaId, s.tipo, s.estado, s.prestadorId, s.prestadorCuentaId, s.servicio?.servicioId ?? null, s.servicio?.titulo ?? null,
   s.servicio?.categoriaId ?? null, s.descripcion, s.medidas, s.categoriaId, s.distrito, s.fechaDesde, s.fechaHasta, s.compartirFotografias, s.version, s.versionTrabajo, s.publicadaEn, s.cerradaEn];
-
-interface FilaResumen { total: number; id: string | null; tipo: Solicitud['tipo']; estado: Solicitud['estado']; categoria_id: string | null; distrito_codigo: string | null;
-  fecha_desde: string | null; corta: string | null; version: number; version_trabajo: number; actualizada_en: Date; es_destinatario?: boolean }
-const aResumen = (f: FilaResumen): ResumenDeFila => ({ solicitudId: f.id!, tipo: f.tipo, estado: f.estado, categoriaId: f.categoria_id, distrito: f.distrito_codigo, fechaDesde: f.fecha_desde,
-  descripcionCorta: f.corta, version: f.version, versionTrabajo: f.version_trabajo, actualizadaEn: f.actualizada_en, esDestinatario: f.es_destinatario === true });
-
-/**
- * Sentencia de página con total de la MISMA lectura: la ventana `f` se materializa una vez y el total y la página salen de ella, así que son coherentes y el
- * número de sentencias no depende del tamaño de página. Con una página vacía sigue devolviendo el total.
- */
-const sqlPagina = (filtro: string, extra: string, limite: string, salto: string) => `WITH f AS MATERIALIZED (
-    SELECT id, tipo, estado, categoria_id, distrito_codigo, to_char(fecha_desde, 'YYYY-MM-DD') AS fecha_desde,
-      left(descripcion, 200) AS corta, version, version_trabajo, actualizada_en, count(*) OVER ()::int AS cantidad${extra}
-    FROM solicitudes WHERE ${filtro}
-  ), pagina AS (SELECT * FROM f ORDER BY actualizada_en DESC, id LIMIT ${limite} OFFSET ${salto})
-  SELECT COALESCE(pagina.cantidad, (SELECT cantidad FROM f LIMIT 1), 0) AS total, pagina.* FROM (SELECT 1) x
-  LEFT JOIN pagina ON true ORDER BY pagina.actualizada_en DESC, pagina.id`;
 
 export class RepositorioSolicitudesPostgres implements RepositorioSolicitudes {
   constructor(private readonly uow: UnidadDeTrabajoPostgres) {}
@@ -79,18 +63,9 @@ export class RepositorioSolicitudesPostgres implements RepositorioSolicitudes {
   }
 
   async listarComoCliente(cuentaId: string, estado: EstadoSolicitud | undefined, pagina: number, tamano: number): Promise<PaginaDeFilas<ResumenDeFila>> {
-    const filas = await this.uow.db.query(sqlPagina('cliente_cuenta_id = $1::uuid AND ($2::text IS NULL OR estado = $2::text)', '', '$3', '$4'),
+    const filas = await this.uow.db.query(sqlPaginaDeSolicitudes('cliente_cuenta_id = $1::uuid AND ($2::text IS NULL OR estado = $2::text)', '', '$3', '$4'),
       [cuentaId, estado ?? null, tamano, (pagina - 1) * tamano]) as FilaResumen[];
-    return { total: filas[0]?.total ?? 0, elementos: filas.filter(f => f.id !== null).map(aResumen) };
-  }
-
-  async listarComoPrestador(cuentaId: string, conAutoria: readonly string[], estado: EstadoSolicitud | undefined, pagina: number, tamano: number): Promise<PaginaDeFilas<ResumenDeFila>> {
-    // Dirigidas a la cuenta en cualquier estado salvo borrador, y solicitudes donde tiene una cotización no retirada (también cerradas). Nunca un borrador ajeno.
-    const filtro = `estado <> 'BORRADOR' AND ($2::text IS NULL OR estado = $2::text)
-      AND ((tipo = 'DIRIGIDA' AND prestador_cuenta_id = $1::uuid) OR id = ANY($3::uuid[]))`;
-    const filas = await this.uow.db.query(sqlPagina(filtro, `, (tipo = 'DIRIGIDA' AND prestador_cuenta_id = $1::uuid) AS es_destinatario`, '$4', '$5'),
-      [cuentaId, estado ?? null, [...conAutoria], tamano, (pagina - 1) * tamano]) as FilaResumen[];
-    return { total: filas[0]?.total ?? 0, elementos: filas.filter(f => f.id !== null).map(aResumen) };
+    return paginaDeResumenes(filas);
   }
 
   async versiones(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeFilas<VersionGuardada>> {

@@ -61,6 +61,19 @@ function responder(res: Response, error: ErrorAplicacion): void {
   if (error.http === 429 && error.reintentarEnSegundos !== undefined) res.setHeader('Retry-After', String(error.reintentarEnSegundos));
   res.status(error.http).json({ codigo: error.codigo, mensaje: error.message, detalles: error.detalles });
 }
+/** Hasta este tamaño declarado se descarta el cuerpo antes de responder; por encima se corta la conexión tras la respuesta. */
+const DRENAJE_MAXIMO_BYTES = 1_048_576;
+/**
+ * 413 anticipado por `Content-Length`. El cuerpo nunca se almacena ni se interpreta. Si la respuesta se enviara con el cuerpo sin leer, Node cerraría el socket
+ * con un reinicio (RST) y el cliente perdería el 413 (`ECONNRESET`). Por eso, dentro de un tope acotado, se descarta primero el cuerpo y luego se responde; un
+ * `Content-Length` mayor al tope se responde de inmediato con `Connection: close`, sin leer nada, de modo que no se puede forzar a leer cantidades arbitrarias.
+ */
+function rechazarCuerpoGrande(req: Request, res: Response): void {
+  const error = new ErrorAplicacion(413, 'CUERPO_DEMASIADO_GRANDE', 'El cuerpo supera el límite permitido.');
+  if (Number(req.headers['content-length']) > DRENAJE_MAXIMO_BYTES) { res.setHeader('Connection', 'close'); responder(res, error); req.resume(); return; }
+  req.once('end', () => { if (!res.headersSent) responder(res, error); });
+  req.resume();
+}
 function unicodeValido(valor: unknown): boolean {
   if (typeof valor === 'string') return valor.isWellFormed();
   if (Array.isArray(valor)) return valor.every(unicodeValido);
@@ -119,7 +132,7 @@ export async function configurarApi(app: INestApplication, config: { origen: str
     res.locals['ruta002'] = ruta?.consultas !== undefined;
     if (config.registrar) res.on('finish', () => config.registrar?.(eventoPeticion(req.method, ruta?.patron, res.statusCode)));
     const limite = ruta?.operacion['x-limite-cuerpo-bytes'] ?? 65536;
-    if (Number(req.headers['content-length'] ?? 0) > limite) { responder(res, new ErrorAplicacion(413, 'CUERPO_DEMASIADO_GRANDE', 'El cuerpo supera el límite permitido.')); req.resume(); return; }
+    if (Number(req.headers['content-length'] ?? 0) > limite) { rechazarCuerpoGrande(req, res); return; }
     let bytes = 0;
     json({ limit: limite, strict: false, inflate: false, type: () => true, verify: (_req, _res, body) => { bytes = body.length; new TextDecoder('utf-8', { fatal: true }).decode(body); } })(req, res, (fallo?: unknown) => {
       try {

@@ -63,8 +63,58 @@ export interface VersionTrabajo {
   };
 }
 
+export type TituloAcceso = 'DESTINATARIO' | 'COMPATIBLE' | 'AUTOR_DE_COTIZACION';
+
+/** Fila de «Oportunidades»: publicadas compatibles y dirigidas abiertas. Nunca incluye datos del cliente. */
+export interface Oportunidad {
+  solicitudId: string;
+  tipo: TipoSolicitud;
+  categoriaId: string;
+  distrito: string;
+  fechaDesde: string;
+  fechaHasta?: string;
+  descripcionCorta: string;
+  hayFotografias: boolean;
+  fotografiasCompartidas: boolean;
+  versionTrabajo: number;
+  publicadaEn: string;
+}
+
+/** Fila de «Solicitudes recibidas» (`rol=prestador`): dirigidas a la cuenta y solicitudes con cotización propia. */
+export interface ResumenComoPrestador extends Omit<ResumenSolicitud, 'distrito'> {
+  categoriaId?: string;
+  distrito?: string;
+  fechaDesde?: string;
+  titulos: Exclude<TituloAcceso, 'COMPATIBLE'>[];
+}
+
+export interface FotografiasVisibles {
+  hay: boolean;
+  compartidas: boolean;
+  archivos: FotoSolicitud[];
+}
+
+/** Vista de un prestador con acceso. Sin identificadores ni datos del cliente. */
+export interface SolicitudVisible {
+  solicitudId: string;
+  tipo: TipoSolicitud;
+  estado: EstadoSolicitud;
+  descripcion: string;
+  medidas?: string;
+  categoriaId: string;
+  distrito: string;
+  fechaDesde: string;
+  fechaHasta?: string;
+  fotografias: FotografiasVisibles;
+  versionTrabajo: number;
+  titulos: TituloAcceso[];
+}
+
 export interface ApiSolicitudes {
   listar(pagina: number, estado?: EstadoSolicitud): Promise<Pagina<ResumenSolicitud>>;
+  oportunidades(pagina: number): Promise<Pagina<Oportunidad>>;
+  listarComoPrestador(pagina: number, estado?: EstadoSolicitud): Promise<Pagina<ResumenComoPrestador>>;
+  obtenerVisible(id: string): Promise<SolicitudVisible>;
   obtener(id: string): Promise<SolicitudPrivada>;
   crear(datos: DatosSolicitud, clave: string): Promise<SolicitudPrivada>;
   editar(id: string, datos: Partial<DatosSolicitud> & { version: number }, clave: string): Promise<SolicitudPrivada>;
