@@ -688,3 +688,58 @@ Regresiones 001/002: no se ejecutaron, porque no se tocó código de producción
 | Sin la suite T090 (21 suites) | 21/21, 340 + 3 `todo` | 333 s | — | — | no |
 Además: la suite T090 sola con `--detectOpenHandles` pasa (349/349 con `seguridad-solicitudes`) y no detecta manejadores abiertos.
 **Diagnóstico.** Los fallos del incidente no se repitieron en 4 ejecuciones completas consecutivas (3 + la repetición), pero **eso no demuestra ausencia de intermitencia**. Hay una variabilidad grande de duración (249–416 s) y `seguridad-solicitudes` llegó a 30 s en la repetición 2 (el límite de Jest por prueba es 30 s para casos individuales; esa cifra es de la suite entera), lo que es coherente con la hipótesis de competencia por CPU/E/S entre los dos workers, **no confirmada**. El aviso «worker failed to exit gracefully» apareció en el incidente y en 2 de 3 repeticiones; no apareció en la ejecución sin T090 ni con `--detectOpenHandles`. No se pudo atribuir a una suite concreta; queda como **riesgo abierto** y no se modificó nada. No se cambió código ni tiempos límite: no hubo fallos que corregir.
+
+
+## 18. Fase 7 · T091 — errores, concurrencia e integridad de datos (CA-ERR-01 a 03)
+
+**Estado:** T091 completada y marcada `[x]` con evidencia **local**. Sin `git add`, `commit` ni `push`. Base: commit `a951972` (T090; GitHub Actions #10 SUCCESS, según informó el PO). **La CI remota de T091 está pendiente** hasta que el PO publique. No se modificó código de producción (se alteró y **revirtió** una vez, a propósito, para la prueba de sensibilidad de 18.5), ni contratos, ni frontend. No se implementó T092 ni posteriores.
+
+### 18.1 Qué se hizo
+Un archivo nuevo: `tecnologia/backend/test/integration/solicitudes-cotizaciones/errores-concurrencia.spec.ts` (112 casos). Aplicación completa real (Nest + PostgreSQL efímero + Garage con prefijo propio), cuentas ficticias. Complementa sin duplicar: `concurrencia.spec.ts` (CA-CON-01 a 06), `reintento-con-unidad-de-trabajo.spec.ts` (el ayudante con la unidad de trabajo, sin HTTP) y los contratos de T089. Lo nuevo es la **integridad medida sobre datos persistidos** (10 tablas fila a fila y objetos de Garage, antes y después) y el recorrido por HTTP de los tres criterios.
+
+### 18.2 Cobertura exacta
+| Criterio | Escenarios | Resultado |
+|---|---|---|
+| **CA-ERR-01** (conflictos esperados) | 28 conflictos: 409 `VERSION_DESACTUALIZADA` (5 operaciones), `SOLICITUD_MODIFICADA` (2), `SOLICITUD_NO_ABIERTA` (4), `COTIZACION_EXISTENTE`, `COTIZACION_RETIRADA` (3), `CLAVE_IDEMPOTENCIA_REUTILIZADA` (2); 422 `COTIZACION_PROPIA`, `COTIZACION_INCOMPLETA`, `SOLICITUD_INCOMPLETA`, `CAMPO_NO_MODIFICABLE`, `DATOS_PERSONALES_EN_TEXTO`, `LIMITE_ACLARACIONES`, `LIMITE_COMPARACION`, `LIMITE_ARCHIVOS`, `IMAGEN_FORMATO_NO_ADMITIDO`; 400 `DATOS_INVALIDOS`; 404 `RECURSO_NO_DISPONIBLE`. Cada uno: estado inicial conocido, estado y código exactos, esquema de error del contrato, sin detalles internos, **instantánea idéntica** e invariantes intactos; más un caso de repetición con la misma clave. | 29/29 |
+| Carreras reales (CA-CON) | 8: ediciones, publicaciones, cierre contra edición, actualizaciones, retiros, 5 aclaraciones sobre 18 (exactamente 2 entran y 3 reciben `LIMITE_ACLARACIONES`), retiro contra aclaración y cotizaciones simultáneas. El resultado debe ser uno de los permitidos y el efecto debe igualar el de **una sola ejecución exitosa**, medido en un gemelo secuencial. | 8/8 |
+| **CA-ERR-02** | Interbloqueo **real** de PostgreSQL (18.3); espera de bloqueo real agotada; interbloqueo transitorio `40P01` en 9 operaciones; conflicto persistente `40P01` y `40001` en 8 operaciones monotransaccionales (16 casos); `55P03`. | 28/28 |
+| **CA-ERR-03** | 5 SQLSTATE inesperados (`XX000`, `58030`, `53300`, `57014`, `P0001`) × 9 operaciones (45 casos); fallo de lectura inesperado. | 46/46 |
+| Cobertura de la tabla de errores | 1 prueba que exige un dueño para cada código de la tabla aprobada | 1/1 |
+
+Total: 29 + 8 + 28 + 46 + 1 = 112.
+
+No se declara aprobado AC09 completo: la contratación pertenece a funcionalidades posteriores. Códigos de la tabla de errores sin escenario propio aquí: `ARCHIVO_NO_LISTO`, `ARCHIVO_EXPIRADO` y `ARCHIVO_DEMASIADO_GRANDE` (413), que exigen manipular el reloj o el objeto; se verifican en `archivos-solicitud.spec.ts` (CA-ARC-03 y CA-ARC-12) y esta suite lo declara en una prueba de cobertura.
+
+### 18.3 Concurrencia y deadlocks
+- **Interbloqueo real, determinista y sin `sleep`:** una transacción externa T1 toma la cotización `FOR UPDATE`; la aplicación (retirar) toma la solicitud `FOR SHARE` y espera la cotización; se sondea `pg_stat_activity` hasta ver a la aplicación esperando un bloqueo; sólo entonces T1 pide la solicitud `FOR UPDATE`, cerrando el ciclo. PostgreSQL aborta a la aplicación (la primera en esperar); T1 obtiene el bloqueo (se comprueba que **no** fue la víctima) y hace `ROLLBACK`; la aplicación reintenta y responde **200**. Se comprueba que `pg_stat_database.deadlocks` sube, que no hay duplicados (una retirada y una clave de idempotencia), que no queda transacción abierta ni espera de bloqueo y los invariantes.
+- **Espera de bloqueo agotada real:** T1 retiene la solicitud; la edición espera el `lock_timeout` de 5 s (entre 4,5 y 9 s: una sola espera, **sin reintento**) y responde 409 `CONFLICTO_CONCURRENTE`; sin cambios; con el bloqueo liberado la misma operación prospera.
+- **Conflicto persistente:** un disparador de PostgreSQL en la base descartable levanta un error con SQLSTATE `40P01` o `40001` en la primera escritura de cada intento. Se verifica la política aprobada: **1 intento + 2 reintentos = 3**, luego 409 `CONFLICTO_CONCURRENTE`, todo revertido y, tras retirar la inyección, la misma clave funciona. Limitación declarada: aquí el conflicto persistente es un código real de PostgreSQL levantado por el disparador, **no** un ciclo de bloqueos repetido tres veces.
+- **Distinciones:** deadlock real (reintentado), `40P01`/`40001` (reintentados, límite 2), `55P03` (no reintentado, 409), versión obsoleta (409 sin reintento) y fallo inesperado (503 sin reintento) son escenarios distintos con aserciones distintas.
+
+### 18.4 Fallos inesperados e integridad
+Para cada una de las 9 operaciones que escriben (crear, editar, publicar, cerrar, cargar archivo, cotizar, actualizar, retirar y aclarar) se inyecta el fallo **dentro de la transacción real, después de otras escrituras**. Resultado en los 45 casos: 503 `DEPENDENCIA_NO_DISPONIBLE` (no se convierte en conflicto de negocio), **un solo intento**, respuesta conforme a `C003Error503` y sin SQL, tablas, códigos SQLSTATE, trazas ni claves; la instantánea de base y de Garage vuelve **idéntica** (en la carga de archivos se espera, con límite, a que el objeto huérfano se compense); sin transacciones abiertas ni esperas; la misma clave de idempotencia, reutilizada después, produce el efecto una sola vez. Un fallo de lectura inesperado (tabla ausente un instante) responde 503 genérico sin modificar datos. Invariantes comprobados tras cada caso y al cerrar la suite: versiones de solicitud y de cotización consecutivas y coherentes con su contador, aclaraciones 1..n con n ≤ 20, una sola cotización no retirada por prestador y solicitud, ninguna cotización sobre un borrador ni sin versión, una sola publicación y un solo cierre en la bitácora.
+
+### 18.5 Sensibilidad
+Se cambió temporalmente el número de reintentos de producción (`reintento-concurrencia.ts`, 2 a 1): el caso de conflicto persistente falló (esperaba 3 intentos y obtuvo 2). El archivo se **restauró** de inmediato (`git status` solo muestra la suite nueva).
+
+### 18.6 CI
+`jest --listTests` con el patrón de `test:integration:003` selecciona 23 archivos, incluida la suite nueva; se ejecuta con el mismo comando que GitHub Actions (`--maxWorkers=2`). No se modificó el flujo (T094 no se adelanta). La CI remota de T091 queda pendiente.
+
+### 18.7 Pruebas locales (27 de noviembre de 2026, Node 24.15.0)
+| Comprobación | Resultado |
+|---|---|
+| `errores-concurrencia.spec.ts` | 112/112 (tras corregir el conteo de intentos, ver 18.8) |
+| `tsc`, `eslint --max-warnings=0`, `build` | Sin errores |
+| Unitarias | 669/669, 41 suites |
+| Arquitectura | 8/8 |
+| Contrato 003 | 95/95, 6 suites |
+| Integración 003 (2 workers, como la CI) | **798 aprobadas + 3 `todo`, 23/23 suites**, en **dos ejecuciones completas consecutivas** (301 s y 271 s); la suite nueva tardó 82 s y 75 s |
+
+Regresiones 001/002: no ejecutadas (no se modificó producción). Playwright, k6 y cobertura Jest: no ejecutados.
+
+### 18.8 Incidencias y riesgos
+1. En la primera ejecución fallaron 66 casos de **mi propia suite** por un supuesto erróneo: contaba los intentos con un disparador sobre `claves_idempotencia`, pero la clave solo se escribe al final de una transacción que tiene éxito. Se sustituyó por el contador de disparos de la inyección (cada intento fallido cuenta una vez). No hubo defecto de producción.
+2. Sin vulnerabilidades ni defectos de producción detectados; ninguna corrección.
+3. **Aborto nativo `0xC0000409`: sin ocurrencias** y **sin avisos «worker failed to exit»** en las dos integraciones completas; sigue sin causa identificada y la intermitencia del antecedente de T090 no se da por descartada con dos ejecuciones.
+4. La suite nueva añade unos 80 s de trabajo a la integración: vigilar el tiempo total en CI.
+5. Pendientes que se mantienen: 35 pruebas de infraestructura de 002, 3 `todo` de `frontera-004`, Firefox/WebKit, cobertura Jest, k6, dos 422 declarados sin escenario (`cerrarSolicitud003`, `retirarCotizacion003`) y la CI remota de T091.
