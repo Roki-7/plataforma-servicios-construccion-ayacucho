@@ -743,3 +743,76 @@ Regresiones 001/002: no ejecutadas (no se modificó producción). Playwright, k6
 3. **Aborto nativo `0xC0000409`: sin ocurrencias** y **sin avisos «worker failed to exit»** en las dos integraciones completas; sigue sin causa identificada y la intermitencia del antecedente de T090 no se da por descartada con dos ejecuciones.
 4. La suite nueva añade unos 80 s de trabajo a la integración: vigilar el tiempo total en CI.
 5. Pendientes que se mantienen: 35 pruebas de infraestructura de 002, 3 `todo` de `frontera-004`, Firefox/WebKit, cobertura Jest, k6, dos 422 declarados sin escenario (`cerrarSolicitud003`, `retirarCotizacion003`) y la CI remota de T091.
+
+
+## 19. Fase 7 · T092 — verificación de arquitectura PR12
+
+**Estado:** T092 completada y marcada `[x]` con evidencia **local**. Sin `git add`, `commit` ni `push`. Base: commit `9cd1fc8` (T091). **La aprobación remota de T092 está pendiente** hasta que el PO publique. Sobre la CI #11 (T091): el PO informó éxito general, con un indicador amarillo en «Validación 003» en su última captura; **no pude verificar el estado definitivo de ese trabajo desde esta sesión** (no hay acceso a GitHub), así que no lo documento como aprobado individualmente. No se modificó código de producción, contratos, flujo de CI ni frontend. No se implementó T093 ni posteriores.
+
+### 19.1 Qué cubría y qué faltaba
+La suite existente (T022) ya ejecutaba `dependency-cruiser` sobre `src` y el frontend y probaba, con árboles sintéticos, las reglas negativas de `tecnologia/dependency-cruiser.cjs` (dominio sin detalles ni otros módulos, aplicación sin implementaciones, consumo solo por `api-publica`, Solicitudes sin Cotizaciones, sin ciclos). Eso es **verdad solo para lo que las reglas prohíben por patrón**. Faltaba: (a) comprobar que el análisis abarca todos los archivos reales de los dos módulos; (b) una descripción **positiva** de lo permitido (qué puede importar cada capa), porque las reglas no prohíben, por ejemplo, que la presentación importe infraestructura; (c) el grafo de módulos y de capas; (d) sensibilidad sobre importaciones de tipo, reexportaciones y dinámicas. No se añadió ni se cambió ninguna regla de `dependency-cruiser.cjs` (es compartido con 001 y 002).
+
+### 19.2 Qué se añadió
+Solo `tecnologia/backend/test/architecture/solicitudes-cotizaciones.spec.ts` (de 4 a 11 pruebas). Un evaluador puro, `evaluarArquitectura`, recorre el grafo real que extrae el analizador (importaciones estáticas, `import type`, `export … from` e `import()` dinámicas) y exige:
+- **Dominio** (de cada módulo 003): solo depende de su propio dominio y de `compartido/dominio`; **ningún** paquete externo ni módulo del núcleo de Node.
+- **Aplicación**: dominio propio, aplicación propia, su `api-publica`, `compartido/{dominio,aplicacion}`, las `api-publica` de otros módulos aprobados y el núcleo `crypto`; **ningún** `typeorm`, `@nestjs`, `express`, `pg`, `sharp`, `@aws-sdk`, ni infraestructura/presentación.
+- **Infraestructura**: dominio, aplicación (puertos) e infraestructura propios, `compartido` y tecnología (`typeorm`, `pg`, `@aws-sdk/*`, `sharp`, `crypto`); nunca presentación ni otros módulos.
+- **Presentación**: aplicación y dominio propios, `compartido/{dominio,aplicacion}`, `@nestjs/common`, `express` y **un único** archivo de composición, `composicion/identidad-002` (precedente de 002: los controladores leen la identidad del adaptador HTTP del arranque; también lo hacen administración, catálogo y prestadores); nunca infraestructura.
+- **`api-publica`**: solo mira hacia dentro (dominio/aplicación propios y `compartido`).
+- **Consumo entre módulos** (plan.md, research.md): Solicitudes → {catálogo, prestadores, notificaciones, usuarios-acceso} y Cotizaciones → {solicitudes}, siempre por `api-publica`, y Cotizaciones llega a Solicitudes por **un único archivo** (`cotizaciones/aplicacion/puertos/solicitudes.ts`). Fuera de su módulo, solo `composicion` (la raíz de composición) puede tocar internos.
+- **Grafo:** sin ciclos de módulos que pasen por Solicitudes o Cotizaciones; Solicitudes no tiene arista hacia Cotizaciones; sin ciclos entre capas; el dominio no depende de ninguna otra capa; aplicación solo hacia dominio y `api-publica`; infraestructura y presentación no se importan entre sí.
+- **Cobertura:** el conjunto de archivos analizados de cada módulo es **idéntico** al de los `.ts` en disco (un archivo nuevo entra solo; ninguna lista fija), y el grafo contiene aristas `type-only` y `export` (se prueba que el analizador las ve).
+
+Resultado sobre el código real: **0 hallazgos**. Las reglas de `dependency-cruiser` sobre `src` y el frontend: 0 violaciones.
+
+### 19.3 Resultado de los límites modulares y las capas
+- **Ciclos entre Solicitudes y Cotizaciones: descartados** (ningún ciclo de archivos, y ninguno de módulos pasa por ellos). Observación fuera del alcance de T092: existe un ciclo de **módulos** `catalogo ↔ prestadores` (visible en el grafo de módulos; el análisis de archivos no encuentra ciclo), heredado de 002; no es de 003 y no se tocó.
+- **Límites modulares: cumplen.** Aristas observadas = aprobadas (Solicitudes: catálogo, prestadores, notificaciones, usuarios-acceso; Cotizaciones: solicitudes). Los únicos archivos ajenos a un módulo 003 que lo importan son de `composicion/`, y el único archivo de un módulo 003 que importa a otro módulo 003 es el puerto citado.
+- **Clean Architecture: cumple** para los dos módulos (ver 19.2). Excepciones: ninguna ADR aplicable; el único caso de borde, `presentación → composicion/identidad-002`, es un precedente aprobado y heredado de 002, y la prueba lo acota a ese archivo para que cualquier otro acoplamiento de la presentación con la composición sea una infracción.
+
+### 19.4 Sensibilidad
+- **Sintética** (árboles temporales en `test/arquitectura-003-*`, que se borran): el evaluador detecta dominio con infraestructura, con `import type`, con `export * from`, con `@nestjs/common` y con `node:fs`; aplicación con `typeorm`; presentación con infraestructura; infraestructura con presentación; Cotizaciones con un interno de Solicitudes y con la `api-publica` desde un archivo que no es el puerto; Solicitudes con Cotizaciones; un tercer módulo con un interno de Solicitudes; un ciclo de tres archivos; una `import()` dinámica de un interno ajeno. Cada archivo infractor debe aparecer citado. Un árbol **conforme** no produce falsos positivos.
+- **Sobre código real:** se añadió temporalmente `import '../infraestructura/persistencia/cotizaciones.js'` al controlador de Cotizaciones; la prueba falló con «presentación con dependencia indebida…». El archivo se **restauró** (`git status` solo muestra la suite modificada).
+
+### 19.5 Clasificación: qué es automático y qué es inspección
+| Principio | ¿Lo verifica la prueba? |
+|---|---|
+| Regla de dependencia (dominio ← aplicación ← infraestructura/presentación), límites de módulo, ausencia de ciclos | **Sí**, automático (19.2). |
+| Inversión de dependencias | **Parcialmente**: la prueba garantiza que la aplicación no importa implementaciones; que existe la interfaz y que la composición la conecta se demuestra inspeccionando el código (ejemplos 1 y 2). |
+| Responsabilidad única, segregación de interfaces, abierto/cerrado, sustitución de Liskov | **No** se prueban automáticamente: se justifican con el código (ejemplos 3 a 5). Una prueba de importaciones no demuestra SOLID. |
+
+### 19.6 Ejemplos reales para la sustentación
+1. **Inversión de dependencias (Cotizaciones).** El caso de uso `CotizacionesServicio` (`cotizaciones/aplicacion/cotizaciones.ts`) recibe sus dependencias por constructor (`DependenciasCotizaciones`, línea 38) como **interfaces** del puerto (`RepositorioCotizaciones`, `aplicacion/puertos/repositorio.ts:28`), no como clases. La implementación `RepositorioCotizacionesPostgres implements RepositorioCotizaciones` vive en `infraestructura/persistencia/cotizaciones.ts:42`, y `composicion/cotizaciones-003.ts:54` la crea con `new RepositorioCotizacionesPostgres(uow)` y la inyecta. La aplicación no sabe que existe PostgreSQL.
+2. **Inversión entre módulos (Solicitudes sin importar Cotizaciones).** Solicitudes declara el puerto `PrestadoresInteresados` y `AutoriaDeCotizacion` (`solicitudes/aplicacion/puertos/cotizaciones.ts`) con un comentario explícito de que no importa Cotizaciones; `composicion/solicitudes-003.ts:57-70` conecta el puerto con `cotizaciones/api-publica` (`interesados: { de: … cotizaciones.autoresNoRetirados … }`). Si Cotizaciones cambiara, Solicitudes no se recompilaría.
+3. **Separación dominio / aplicación / infraestructura.** `cotizaciones/dominio/aclaracion.ts` contiene reglas puras sin dependencias (`normalizarTextoDeAclaracion`, `numeroDelSiguienteMensaje`, `exigirHiloAbierto`, `autorDelHilo`, límites de 1 000 caracteres y 20 mensajes); `aplicacion/cotizaciones.ts` las orquesta con transacción e idempotencia; `infraestructura/persistencia/aclaraciones.ts` solo guarda y lee filas. Cada uno cambia por una razón distinta (responsabilidad única).
+4. **Segregación de interfaces.** Puertos pequeños y específicos en lugar de una interfaz grande: `RepositorioCotizaciones`, `RepositorioAclaraciones`, `RepositorioDeAutoria` (3 métodos de lectura) y, en Solicitudes, `AlmacenArchivosSolicitud`, `SaneadorImagenSolicitud`, `RepositorioOportunidades`. Cada consumidor depende solo de lo que usa.
+5. **Abierto/cerrado y sustitución.** `AlmacenArchivosSolicitud` tiene una implementación real (`SolicitudesS3`, Garage) y las pruebas inyectan otra sin tocar el caso de uso (el almacén que falla en `montarUs1({ almacen })`); la política de acceso `solicitudes/dominio/politica-acceso.ts` es la única fuente de las reglas y la consumen listados, detalle, historial, archivos y cotización sin duplicarlas.
+
+### 19.7 Comandos para la sustentación en vivo (solo T092; sin menú general)
+- **Carpeta:** `tecnologia/backend` (desde la raíz del repositorio: `cd tecnologia\backend`).
+- **Node:** la caja de herramientas local debe estar en el `PATH` (Node 24.15.0): `$env:PATH = "$((Resolve-Path ..\.local\toolchain\node_modules\node\bin).Path);" + $env:PATH`.
+- **Comando (PowerShell):** `npm run test:architecture -- --testPathPatterns solicitudes-cotizaciones`
+- **Salida esperada al aprobar:** `Test Suites: 1 passed, 1 total` y `Tests: 11 passed, 11 total` (tarda de 60 a 120 s). Sin el filtro, `npm run test:architecture` ejecuta las 3 suites de 001, 002 y 003: `Test Suites: 3 passed, 3 total` y `Tests: 15 passed, 15 total`.
+- **Qué analiza:** todo `src/` del backend y `frontend/src` con las reglas de `tecnologia/dependency-cruiser.cjs`; y, con `evaluarArquitectura`, todos los archivos de `src/modulos/solicitudes` y `src/modulos/cotizaciones`.
+- **Qué detecta:** ciclos; dominio con frameworks, infraestructura u otros módulos; aplicación con implementaciones; presentación con infraestructura; consumo de internos de otro módulo; Solicitudes→Cotizaciones; consumo no aprobado entre módulos; archivos nuevos sin clasificar.
+- **Limitaciones:** solo ve importaciones (no referencias por cadenas ni inyección por nombre); no demuestra por sí sola SOLID ni mantenibilidad (AC05 se sustenta además con 19.6); `composicion/` no se restringe por diseño (es la raíz de composición); el ciclo de módulos `catalogo ↔ prestadores` de 002 no se evalúa aquí.
+- **Qué debe explicar el estudiante:** el estilo (monolito modular, ADR-001), la regla de dependencia (ADR-002), por qué Solicitudes no importa Cotizaciones (puerto + composición), un ejemplo de inversión (19.6.1 o 19.6.2), y que la prueba falla si alguien rompe la regla (mostrar la sensibilidad de 19.4).
+
+### 19.8 CI
+`.github/workflows/solicitudes-cotizaciones.yml` (línea 102) ejecuta `npm --prefix tecnologia/backend run test:architecture -- --testPathPatterns solicitudes-cotizaciones`; con ese filtro se ejecuta localmente **11 pruebas, 1 suite**, incluida la nueva cobertura. No se modificó el flujo (T094 no se adelanta). La CI remota de T092 queda pendiente.
+
+### 19.9 Pruebas locales (27 de noviembre de 2026, Node 24.15.0)
+| Comprobación | Resultado |
+|---|---|
+| Arquitectura 003 (con el filtro de la CI) | 11/11, 1 suite |
+| Arquitectura completa (001, 002, 003) | 15/15, 3 suites |
+| `tsc`, `eslint --max-warnings=0`, `build` | Sin errores |
+| Unitarias | 669/669, 41 suites |
+| Contrato 003 | 95/95, 6 suites, **en la repetición** (ver 19.10) |
+Integración, regresiones 001/002, Playwright, k6 y cobertura: no ejecutados (no se modificó código de producción ni de aplicación).
+
+### 19.10 Incidencias y riesgos
+1. **Aborto nativo `0xC0000409`: 1 ocurrencia** en el contrato 003 dentro del script de verificación (sin salida de Jest). La repetición pasó 95/95; la cifra de contrato 003 proviene de esa repetición. Sigue sin causa identificada.
+2. Dos fallos propios al escribir las pruebas, corregidos antes de las ejecuciones reportadas: el ciclo de módulos `catalogo ↔ prestadores` (ajeno a 003) hacía fallar una comprobación demasiado amplia, que se acotó a los ciclos que pasan por los módulos 003; y las aristas hacia `composicion` se acotaron al único archivo permitido.
+3. La suite de arquitectura tarda unos 120 s en la ejecución completa (cada análisis recorre todo `src`); vigilar si crece.
+4. Pendientes que se mantienen: 35 pruebas de infraestructura de 002, 3 `todo` de `frontera-004`, avisos «worker failed to exit» intermitentes, Firefox/WebKit, cobertura Jest, k6, dos 422 declarados sin escenario y la CI remota de T092 (y la verificación del trabajo «Validación 003» de la CI #11).
