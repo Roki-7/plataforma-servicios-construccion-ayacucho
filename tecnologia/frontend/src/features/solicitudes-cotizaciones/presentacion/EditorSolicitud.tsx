@@ -275,6 +275,7 @@ export function EditorSolicitud({ api, busqueda, categorias, id, alCrear, mensaj
         <div className="sol-panel sol-panel-acciones">
           {!cerrada && <button className={actual?.estado === 'BORRADOR' ? 'boton boton-secundario' : 'boton boton-primario'} type="submit" form="sol-formulario" disabled={ocupado}>{actual ? 'Guardar cambios' : 'Guardar borrador'}</button>}
           {actual?.estado === 'BORRADOR' && <button className="boton boton-primario" type="button" disabled={ocupado} onClick={() => publicar(actual)}>Publicar solicitud</button>}
+          {publicada && actual && <a className="boton boton-secundario sol-enlace-boton" href={`/solicitudes/${actual.solicitudId}/cotizaciones`} onClick={alNavegar}>Ver cotizaciones recibidas</a>}
           {publicada && <button type="button" className="boton boton-secundario" aria-expanded={verHistorial} onClick={() => setVerHistorial(v => !v)}>{verHistorial ? 'Ocultar versiones' : 'Ver versiones'}</button>}
           {actual && !cerrada && !confirmarCierre && <button className="boton boton-secundario" type="button" disabled={ocupado} onClick={() => setConfirmarCierre(true)}>{publicada ? 'Cerrar solicitud' : 'Descartar borrador'}</button>}
           {actual && !cerrada && confirmarCierre && <div className="sol-confirmar">

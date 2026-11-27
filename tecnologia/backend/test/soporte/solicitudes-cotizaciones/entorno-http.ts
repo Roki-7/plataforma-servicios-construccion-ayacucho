@@ -65,6 +65,9 @@ export async function montarUs1(opciones: OpcionesUs1 = {}) {
       actualizarCotizacion: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`/api/v1/cotizaciones/${id}/versiones`), tk, clave).send(cuerpo),
       retirarCotizacion: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`/api/v1/cotizaciones/${id}/retiro`), tk, clave).send(cuerpo),
       misCotizaciones: (tk: string | undefined, consulta = '') => lectura(http.get(`/api/v1/cotizaciones${consulta}`), tk),
+      cotizacionesDe: (tk: string | undefined, solicitudId: string, consulta = '') => lectura(http.get(`${api}/${solicitudId}/cotizaciones${consulta}`), tk),
+      aclarar: (tk: string | undefined, cotizacionId: string, cuerpo: object, clave?: string) => escritura(http.post(`/api/v1/cotizaciones/${cotizacionId}/aclaraciones`), tk, clave).send(cuerpo),
+      aclaraciones: (tk: string | undefined, cotizacionId: string, consulta = '') => lectura(http.get(`/api/v1/cotizaciones/${cotizacionId}/aclaraciones${consulta}`), tk),
       cotizacion: (tk: string | undefined, id: string) => lectura(http.get(`/api/v1/cotizaciones/${id}`), tk),
       archivo: (tk: string | undefined, id: string, archivoId: string) => lectura(http.get(`${api}/${id}/archivos/${archivoId}`), tk).buffer(true).parse((res, cb) => { const trozos: Buffer[] = []; res.on('data', (t: Buffer) => trozos.push(t)); res.on('end', () => { const bytes = Buffer.concat(trozos); cb(null, /json/.test(String(res.headers['content-type'] ?? '')) ? JSON.parse(bytes.toString('utf8')) : bytes); }); }),
     };

@@ -33,7 +33,8 @@ const vacia = { elementos: [], total: 0, pagina: 1, tamano: 20 };
 const crearApi = () => ({
   enviar: vi.fn<ApiCotizaciones['enviar']>(async () => cotizacion()), actualizar: vi.fn<ApiCotizaciones['actualizar']>(async () => cotizacion({ version: 2 })),
   retirar: vi.fn<ApiCotizaciones['retirar']>(async () => cotizacion({ estado: 'RETIRADA' })), obtener: vi.fn<ApiCotizaciones['obtener']>(async () => detalle()),
-  mias: vi.fn<ApiCotizaciones['mias']>(async () => vacia),
+  mias: vi.fn<ApiCotizaciones['mias']>(async () => vacia), deSolicitud: vi.fn<ApiCotizaciones['deSolicitud']>(async () => vacia),
+  aclaraciones: vi.fn<ApiCotizaciones['aclaraciones']>(async () => vacia), enviarAclaracion: vi.fn<ApiCotizaciones['enviarAclaracion']>(),
 });
 const navegar = vi.fn((e: { preventDefault: () => void }) => e.preventDefault());
 const solicitudes = (s: SolicitudVisible = solicitud) => ({ obtenerVisible: vi.fn(async () => s) }) as unknown as ApiSolicitudes;

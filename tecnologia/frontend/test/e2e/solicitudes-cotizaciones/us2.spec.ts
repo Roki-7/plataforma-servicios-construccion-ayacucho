@@ -102,8 +102,9 @@ test('US2: oportunidades compatibles, fotografías según la política y dirigid
   await entrar(page, 'beto', '/prestador/oportunidades', 'Oportunidades');
   const lista = page.getByRole('list', { name: 'Oportunidades' });
   await expect(lista.getByRole('heading', { name: new RegExp(marca) })).toHaveCount(2);
-  await expect(lista.getByRole('heading', { name: /Pintar la fachada/ })).toHaveCount(0);
-  await expect(lista.getByRole('heading', { name: /Revisar la red de agua/ })).toHaveCount(0);
+  await expect(lista.getByRole('heading', { name: new RegExp(`Pintar la fachada de dos pisos \\[${marca}\\]`) })).toHaveCount(0);
+  // Acotado a la marca de esta ejecución: otras suites usan textos parecidos con solicitudes públicas abiertas que sí son visibles.
+  await expect(lista.getByRole('heading', { name: new RegExp(`Revisar la red de agua del patio \\[${marca}\\]`) })).toHaveCount(0);
   await expect(lista.getByText('Fotografías no compartidas por el cliente').first()).toBeVisible();
   await captura(page, info, '10-oportunidades');
 

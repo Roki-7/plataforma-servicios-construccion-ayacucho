@@ -7,6 +7,7 @@ import { CategoriasDeOfertaPostgres } from '../modulos/catalogo/infraestructura/
 import { CotizacionesServicio } from '../modulos/cotizaciones/aplicacion/cotizaciones.js';
 import type { CoberturasDePrestador } from '../modulos/cotizaciones/aplicacion/puertos/entorno.js';
 import { traducirCondicionCotizaciones } from '../modulos/cotizaciones/dominio/errores.js';
+import { RepositorioAclaracionesPostgres } from '../modulos/cotizaciones/infraestructura/persistencia/aclaraciones.js';
 import { RepositorioCotizacionesPostgres } from '../modulos/cotizaciones/infraestructura/persistencia/cotizaciones.js';
 import { COTIZACIONES_003, CotizacionesController, CotizacionesDeSolicitudController } from '../modulos/cotizaciones/presentacion/cotizaciones.controller.js';
 import type { LecturasDePrestadores, PrestadoresApi } from '../modulos/prestadores/api-publica.js';
@@ -16,9 +17,10 @@ import type { UsuariosAcceso } from '../modulos/usuarios-acceso/api-publica.js';
 import { IDEMPOTENCIA_002, REVISION_OFERTA_002, UNIDAD_DE_TRABAJO_002, USUARIOS_ACCESO_002 } from './app.module.js';
 import { PRESTADORES_API_002 } from './servicios-002.js';
 
-/** Las cinco operaciones de HU10 (US3). El listado de cotizaciones de una solicitud y la comparación son de HU11. */
+/** Las cinco operaciones de HU10 (US3) y las tres de HU11 (US4): lista y comparación del cliente, y aclaraciones. */
 export const operacionesCotizaciones003 = [
   'enviarCotizacion003', 'listarMisCotizaciones003', 'obtenerCotizacion003', 'actualizarCotizacion003', 'retirarCotizacion003',
+  'listarCotizacionesDeSolicitud003', 'enviarAclaracion003', 'listarAclaraciones003',
 ] as const;
 
 export interface OpcionesCotizaciones003 {
@@ -27,6 +29,7 @@ export interface OpcionesCotizaciones003 {
 }
 
 const REPOSITORIO_COTIZACIONES_003 = Symbol('Repositorio de cotizaciones de 003');
+const REPOSITORIO_ACLARACIONES_003 = Symbol('Repositorio de aclaraciones de 003');
 const SOLICITUDES_API_003 = Symbol('API pública de Solicitudes para Cotizaciones');
 
 /** Adaptador de composición: categorías cubiertas (Catálogo) y zonas (Prestadores), tras el bloqueo compartido de la revisión de oferta. */
@@ -49,13 +52,16 @@ export function registroCotizaciones003(opciones: OpcionesCotizaciones003 = {}):
 } {
   const proveedores: Provider[] = [
     { provide: REPOSITORIO_COTIZACIONES_003, inject: [UNIDAD_DE_TRABAJO_002], useFactory: (uow: UnidadDeTrabajoPostgres) => new RepositorioCotizacionesPostgres(uow) },
+    { provide: REPOSITORIO_ACLARACIONES_003, inject: [UNIDAD_DE_TRABAJO_002], useFactory: (uow: UnidadDeTrabajoPostgres) => new RepositorioAclaracionesPostgres(uow) },
     { provide: SOLICITUDES_API_003, inject: [UNIDAD_DE_TRABAJO_002], useFactory: (uow: UnidadDeTrabajoPostgres) => new ApiSolicitudes(new RepositorioSolicitudesPostgres(uow)) },
     { provide: COTIZACIONES_003,
-      inject: [REPOSITORIO_COTIZACIONES_003, SOLICITUDES_API_003, IDEMPOTENCIA_002, USUARIOS_ACCESO_002, PRESTADORES_API_002, REVISION_OFERTA_002, UNIDAD_DE_TRABAJO_002],
-      useFactory: (repositorio: RepositorioCotizacionesPostgres, solicitudes: ApiSolicitudes, idempotencia: Idempotencia002, usuarios: UsuariosAcceso,
+      inject: [REPOSITORIO_COTIZACIONES_003, REPOSITORIO_ACLARACIONES_003, SOLICITUDES_API_003, IDEMPOTENCIA_002, USUARIOS_ACCESO_002, PRESTADORES_API_002, REVISION_OFERTA_002, UNIDAD_DE_TRABAJO_002],
+      useFactory: (repositorio: RepositorioCotizacionesPostgres, aclaraciones: RepositorioAclaracionesPostgres, solicitudes: ApiSolicitudes, idempotencia: Idempotencia002, usuarios: UsuariosAcceso,
         prestadores: PrestadoresApi & LecturasDePrestadores, revision: RevisionDeOferta, uow: UnidadDeTrabajoPostgres) =>
         new CotizacionesServicio({
-          repositorio, solicitudes, idempotencia, identidades: usuarios, prestadores,
+          repositorio, aclaraciones, solicitudes, idempotencia, identidades: usuarios, prestadores,
+          // Lectura interna de nombres públicos: solo la consume el caso de uso que verificó que quien pregunta es el cliente dueño de la solicitud.
+          nombres: { nombresPublicos: ids => prestadores.nombresPublicos(ids) },
           coberturas: coberturas(revision, new CategoriasDeOfertaPostgres(uow), prestadores),
           traducirEscritura: trabajo => conTraduccionBd(traducirCondicionCotizaciones, trabajo),
           ...(opciones.ahora ? { ahora: opciones.ahora } : {}),

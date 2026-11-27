@@ -17,5 +17,10 @@ export interface CoberturaDePrestador {
  * paso 2 del orden único de bloqueos (idempotencia → revisión → solicitud → cotización).
  */
 export interface CoberturasDePrestador { cargar(prestadorId: string, tx: ContextoTransaccion): Promise<CoberturaDePrestador> }
+/**
+ * Nombres públicos de prestadores, en UNA consulta (hasta 50). Lectura interna: no comprueba quién pregunta. El único consumidor legítimo es el caso de uso de
+ * Cotizaciones que ya verificó que quien pregunta es el cliente dueño de la solicitud y que pasa solo los autores de cotizaciones de ESA solicitud.
+ */
+export interface NombresPublicosDePrestadores { nombresPublicos(prestadorIds: readonly string[]): Promise<ReadonlyMap<string, string>> }
 /** Traduce las condiciones de base de datos esperadas dentro de la transacción de escritura. */
 export type TraducirEscrituraDeCotizacion = <T>(trabajo: () => Promise<T>) => Promise<T>;

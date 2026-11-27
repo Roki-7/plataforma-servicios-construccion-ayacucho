@@ -114,9 +114,18 @@ export const etiquetasTipo: Record<TipoCotizacion, string> = { ESTIMADA: 'Estima
 export function explicacionDeEstado(c: Pick<Cotizacion, 'estado' | 'solicitudCerrada' | 'versionVigente'>): string {
   if (c.estado === 'RETIRADA') return 'Retiraste esta cotización. Se conserva en lectura y ya no ocupa tu lugar en la solicitud.';
   if (c.solicitudCerrada) return 'La solicitud está cerrada. Tu cotización se conserva en lectura y ya no puede actualizarse ni retirarse.';
-  if (c.estado === 'VENCIDA') return `Tu cotización venció el ${fechaHoraLima(c.versionVigente.vigenteHasta)}. Actualízala con una nueva vigencia para que vuelva a estar vigente.`;
+  if (c.estado === 'VENCIDA') return `Tu cotización venció (${fechaHoraLima(c.versionVigente.vigenteHasta)}). Actualízala con una nueva vigencia para que vuelva a estar vigente.`;
   if (c.estado === 'PENDIENTE_REVISION') return 'La solicitud cambió después de tu última versión. Revisa el trabajo y actualiza tu cotización para que vuelva a estar vigente.';
-  return `Vigente hasta el ${fechaHoraLima(c.versionVigente.vigenteHasta)}.`;
+  return `Vigente hasta el ${fechaHoraLima(c.versionVigente.vigenteHasta)}`;
+}
+
+/** Lo mismo que `explicacionDeEstado`, dicho al cliente que recibe la cotización. Tampoco afirma que se haya avisado a nadie. */
+export function explicacionParaCliente(c: Pick<Cotizacion, 'estado' | 'solicitudCerrada' | 'versionVigente'>): string {
+  if (c.estado === 'RETIRADA') return 'El prestador retiró esta cotización. Se conserva en lectura.';
+  if (c.solicitudCerrada) return 'Tu solicitud está cerrada. La cotización y su hilo de aclaraciones se conservan en lectura.';
+  if (c.estado === 'VENCIDA') return `Esta cotización venció (${fechaHoraLima(c.versionVigente.vigenteHasta)}). El prestador puede actualizarla con una nueva vigencia.`;
+  if (c.estado === 'PENDIENTE_REVISION') return 'Cambiaste la solicitud después de esta versión. El prestador debe revisarla y actualizarla.';
+  return `Vigente hasta el ${fechaHoraLima(c.versionVigente.vigenteHasta)}`;
 }
 
 export const textoDeMotivo: Record<MotivoNoAceptable, string> = {
@@ -144,6 +153,8 @@ export function falloDeCotizacion(e: unknown): FalloDeCotizacion {
     COTIZACION_INCOMPLETA: 'Faltan datos obligatorios para este tipo de cotización.',
     RECURSO_NO_DISPONIBLE: 'Esta solicitud o cotización no está disponible. Puede haber cambiado o no corresponder a tus servicios y zonas.',
     SIN_PERMISO: 'Para cotizar, habilita el perfil de prestador en Mis perfiles.',
+    LIMITE_ACLARACIONES: 'El hilo alcanzó el máximo de 20 mensajes. Ya no admite más.',
+    LIMITE_COMPARACION: 'Puedes comparar hasta 10 cotizaciones a la vez.',
   };
   return {
     mensaje: porCodigo[e.codigo] ?? e.message, campos, solicitudCambio: e.codigo === 'SOLICITUD_MODIFICADA',

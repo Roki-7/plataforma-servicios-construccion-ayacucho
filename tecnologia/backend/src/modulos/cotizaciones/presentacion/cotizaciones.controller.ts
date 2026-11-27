@@ -25,6 +25,12 @@ export class CotizacionesDeSolicitudController {
     const r = await this.cotizaciones.enviar(actorDe(req), claveDe(req), solicitudId, cuerpo);
     res.status(r.http).json(r.cuerpo);
   }
+
+  /** Solo el cliente dueño. Sin `ids`, lista paginada sin clasificación de «mejor»; con `ids` (hasta 10), las cotizaciones para compararlas. */
+  @Get(':solicitudId/cotizaciones') async listar(@Req() req: PeticionConIdentidad, @Param('solicitudId') solicitudId: string, @Res({ passthrough: true }) res: Response) {
+    const consulta = res.locals['consulta002'] as { ids?: string; pagina?: number; tamano?: number };
+    return this.cotizaciones.listarDeSolicitud(actorDe(req), solicitudId, consulta);
+  }
 }
 
 /** Operaciones sobre una cotización concreta y «mis cotizaciones». El guard y `configurarApi` validan antes de que los casos de uso comprueben perfil y titularidad. */
@@ -48,6 +54,17 @@ export class CotizacionesController {
 
   @Post(':cotizacionId/retiro') async retirar(@Req() req: PeticionConIdentidad, @Param('cotizacionId') cotizacionId: string, @Body() cuerpo: { versionCotizacion: number }, @Res() res: Response): Promise<void> {
     const r = await this.cotizaciones.retirar(actorDe(req), claveDe(req), cotizacionId, cuerpo);
+    res.status(r.http).json(r.cuerpo);
+  }
+
+  /** El cliente dueño y el prestador autor. Cualquier otra cuenta, 404. */
+  @Get(':cotizacionId/aclaraciones') async listarAclaraciones(@Req() req: PeticionConIdentidad, @Param('cotizacionId') cotizacionId: string, @Res({ passthrough: true }) res: Response) {
+    const { pagina, tamano } = res.locals['consulta002'] as { pagina?: number; tamano?: number };
+    return this.cotizaciones.listarAclaraciones(actorDe(req), cotizacionId, pagina, tamano);
+  }
+
+  @Post(':cotizacionId/aclaraciones') async enviarAclaracion(@Req() req: PeticionConIdentidad, @Param('cotizacionId') cotizacionId: string, @Body() cuerpo: { texto: string }, @Res() res: Response): Promise<void> {
+    const r = await this.cotizaciones.enviarAclaracion(actorDe(req), claveDe(req), cotizacionId, cuerpo);
     res.status(r.http).json(r.cuerpo);
   }
 }

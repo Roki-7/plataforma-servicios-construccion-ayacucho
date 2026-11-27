@@ -32,6 +32,8 @@ export interface Cotizacion {
   cotizacionId: string;
   solicitudId: string;
   prestadorId: string;
+  /** Solo para el cliente dueño de la solicitud. */
+  prestadorNombrePublico?: string;
   estado: EstadoCotizacion;
   vencida: boolean;
   requiereRevision: boolean;
@@ -48,10 +50,25 @@ export interface CotizacionDetalle extends Cotizacion {
   versiones: VersionDeCotizacion[];
 }
 
+export type AutorDeAclaracion = 'CLIENTE' | 'PRESTADOR';
+/** Mensaje de un hilo de aclaraciones: texto plano, inmutable, asociado a la cotización. */
+export interface Aclaracion {
+  aclaracionId: string;
+  numero: number;
+  autor: AutorDeAclaracion;
+  texto: string;
+  versionCotizacion: number;
+  creadaEn: string;
+}
+
 export interface ApiCotizaciones {
   enviar(solicitudId: string, datos: DatosCotizacion & { versionTrabajoSolicitud: number }, clave: string): Promise<Cotizacion>;
   actualizar(cotizacionId: string, datos: DatosCotizacion & { versionTrabajoSolicitud: number; versionCotizacion: number }, clave: string): Promise<Cotizacion>;
   retirar(cotizacionId: string, versionCotizacion: number, clave: string): Promise<Cotizacion>;
   obtener(cotizacionId: string): Promise<CotizacionDetalle>;
   mias(pagina: number): Promise<Pagina<Cotizacion>>;
+  /** Cliente dueño: cotizaciones de su solicitud, en orden de llegada. Con `ids` (hasta 10), las que se comparan. */
+  deSolicitud(solicitudId: string, pagina: number, ids?: readonly string[]): Promise<Pagina<Cotizacion>>;
+  aclaraciones(cotizacionId: string, pagina: number): Promise<Pagina<Aclaracion>>;
+  enviarAclaracion(cotizacionId: string, texto: string, clave: string): Promise<Aclaracion>;
 }

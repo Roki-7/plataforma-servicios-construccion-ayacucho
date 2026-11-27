@@ -454,3 +454,58 @@ El workflow `solicitudes-cotizaciones.yml` no se modificó: ejecuta exactamente 
 - Los **3 casos `todo`** de `frontera-004.spec.ts` son el contrato futuro de la 004 (E2), escrito y no simulado.
 - Las pruebas de **Firefox y WebKit** siguen sin ejecutarse; la matriz de nueve proyectos corresponde a T102.
 - Un aborto nativo de Node (`0xC0000409`) ocurrió en dos ejecuciones locales de Jest sin relación con las suites (la repetición exacta pasó). Sigue sin causa identificada; no lo ocultan las demás pruebas, pero tampoco se atribuye a este cambio.
+
+
+## 14. Fase 6 · US4 HU11 (T080–T087)
+
+**Rango exacto:** T080–T082 (pruebas primero), T083–T085 (backend), T086 (web) y T087 (punto de verificación). Las 8 quedan marcadas `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `9f5f6df` (CI #6 de 003: SUCCESS, según informó el PO); los resultados de esta sección son locales y la CI remota no se ha ejecutado para US4.
+
+### 14.1 Funcionalidad entregada
+
+- **Dominio** (`cotizaciones/dominio/aclaracion.ts` y `comparacion.ts`): hasta 1 000 caracteres por mensaje, 20 por hilo, sin adjuntos, mensajes inmutables y un hilo por identidad de cotización (sobrevive a las actualizaciones; un retiro seguido de un reenvío crea otra cotización con un hilo vacío). La comparación acepta 1 a 10 identificadores (11 → 422 `LIMITE_COMPARACION`; mal formado → 400) y su vista de referencia no suma, no totaliza, no ordena ni clasifica; las estimadas se rotulan y los campos ausentes dicen «No indicado».
+- **Persistencia y casos de uso**: `RepositorioAclaracionesPostgres` (numeración consecutiva bajo `FOR UPDATE` de la cotización, segunda barrera por `UNIQUE` y `CHECK`), `listarDeSolicitud` y `obtenerVarias` en el repositorio de cotizaciones, y en `CotizacionesServicio`: `listarDeSolicitud`, `enviarAclaracion` y `listarAclaraciones`. Orden de bloqueos del plan (idempotencia → solicitud `FOR SHARE` → cotización `FOR UPDATE`).
+- **API**: `listarCotizacionesDeSolicitud003`, `enviarAclaracion003` y `listarAclaraciones003`, registradas en `composicion/cotizaciones-003.ts`. La aplicación arranca en modo de prueba con las **18 operaciones** de 003 (10 de Solicitudes y Oportunidades, 5 de HU10 y 3 de HU11). No se tocó T088 ni la composición completa de las 58.
+- **`nombresPublicos`**: T084 es su consumidor legítimo, acotado al cliente dueño de la solicitud y a los autores de las cotizaciones de ESA solicitud (lista, comparación y detalle de la cotización). La prueba de protección (`nombres-publicos-alcance.spec.ts`) se actualizó solo para admitir ese consumidor y se endureció: exige que el caso de uso la llame tras comprobar la titularidad, que pase solo los autores de la página y que ni controladores ni presentación la referencien.
+- **Web**: cliente, `/solicitudes/{id}/cotizaciones` (lista en orden de llegada, sin clasificación, con casillas para marcar hasta 10), `/solicitudes/{id}/comparar` y `/solicitudes/{id}/cotizaciones/{cotizacionId}` (detalle con el hilo); prestador, el hilo en el detalle de su cotización. La comparación es una tabla accesible (encabezados de fila y columna, primera columna fija y desplazamiento solo dentro de su marco) a partir de 1024 px y tarjetas completas por cotización en tableta y teléfono, sin ocultar datos. El hilo muestra autor, número y versión, un contador visible de 1 000 caracteres, validación junto al campo, prevención del doble envío, conservación del texto ante errores, «Actualizar mensajes» real y modo de solo lectura; no hay adjuntos, ediciones ni respuestas simuladas, y ningún texto afirma que un aviso se haya enviado. Se añadió el enlace «Ver cotizaciones recibidas» en las acciones de la solicitud publicada del cliente (cambio mínimo en una pantalla aprobada).
+
+### 14.2 Reglas de autorización verificadas (PostgreSQL real)
+
+Lista y comparación: solo el cliente dueño; un tercero, otro cliente, el prestador autor o cualquier otro prestador reciben el mismo 404 que ante un identificador inexistente y ningún nombre; un identificador de otra solicitud o inexistente dentro de `ids` da 404 sin revelar de quién es. Aclaraciones: leen y escriben solo el cliente dueño y el prestador autor; cualquier otra cuenta, 404 idéntico; sin sesión, 401; si el dueño ya no tiene el perfil de cliente, 403. Cotización retirada → 409 `COTIZACION_RETIRADA`; solicitud cerrada → 409 `SOLICITUD_NO_ABIERTA`; en ambos casos el hilo sigue en lectura. Mensaje de más de 1 000 caracteres → 400; el 21.º → 422, también con dos mensajes simultáneos (uno gana, el otro recibe 422 y no se repite número). El nombre público aparece solo para el cliente dueño (lista, comparación y detalle); el prestador autor no lo recibe ni ve los de otros.
+
+### 14.3 Pruebas (27 de noviembre de 2026, Node 24.15.0, PowerShell)
+
+| Comprobación | Resultado |
+|---|---|
+| `tsc`, `eslint --max-warnings=0` y `build` del backend | Sin errores |
+| Jest unitario | 669/669, 41 suites (nuevas: comparación 12 y aclaración 5; la de protección de `nombresPublicos` pasa de 4 a 6 casos) |
+| Arquitectura | 8/8, 3 suites |
+| Contrato 003 | 71/71, 5 suites (nueva `aclaraciones.spec.ts`: 15) |
+| Integración 003 completa | 334 aprobadas y 3 `todo`, 21/21 suites (nueva `aclaraciones-comparacion.spec.ts`: 14, con CP-304 y CP-306: la lista cuesta las mismas sentencias con 1, 2 o 50 por página y con 2 o 5 `ids`, con un solo total y una sola lectura de nombres) |
+| `tsc`, `eslint` y `npm run build` del frontend | Sin errores |
+| Vitest completo | 241/241, 24 archivos (18 casos nuevos de HU11), con 1 trabajador y 15 s por prueba |
+| Playwright `us4.spec.ts`, Chromium a 360, 768 y 1366 px | 9/9 sobre la aplicación real (HTTPS 8447) |
+| Playwright `us2.spec.ts`, `us3.spec.ts` y `us4.spec.ts` juntos, Chromium a los tres anchos | 24 casos: 21 aprobados en la primera pasada; los 3 fallos eran de `us2` (ver incidencia 6) y `us2` pasó 6/6 tras corregir su aserción |
+
+### 14.4 Evidencia visual
+
+Capturas 40 a 45 a los tres anchos en `tecnologia/.local/evidencia/003/us4/web-chromium/capturas/chromium-{360,768,1366}/` (cotizaciones recibidas, comparación, comparación tras quitar una, hilo del cliente, hilo del prestador y sin acceso). Cada captura comprueba que el documento no excede el viewport. Revisadas a ojo: comparación a 1366 (tabla) y a 360 (tarjetas), recibidas a 1366 y el hilo a 768 y a 360.
+
+### 14.5 Incidencias y correcciones
+
+1. **Pruebas de integración propias**: Beto ya tenía una cotización activa al preparar el caso del presupuesto de sentencias (409); se reordenó la preparación.
+2. **Contrato de US3**: afirmaba «exactamente 5 rutas con /cotizaciones»; con HU11 hay 8. Se convirtió en una comparación exacta del conjunto esperado (más estricta, no más débil).
+3. **ESLint**: una pasada de edición introdujo un espacio irregular (NBSP) en una prueba; sustituido por su escape ` `.
+4. **Defectos visuales** (hallados al revisar capturas): «p. m..» (doble punto) en los textos de estado de las cotizaciones vigente y vencida (incluye textos de US3), y el encabezado de cada mensaje heredaba el estilo global de `<header>`. Corregidos; el texto vencida pasa a «venció (fecha)».
+5. **Pruebas Vitest/Playwright**: el fixture del frontend necesitó expresar «no informado» como ausencia (`exactOptionalPropertyTypes`); una aserción de comparación buscaba un texto que la etiqueta de estado ya reemplaza; un selector coincidía también con el título accesible de la tabla.
+6. **Aislamiento entre suites e2e**: `us3.spec.ts` publica una solicitud abierta con el mismo título que `us2.spec.ts` esperaba ausente. La aserción de `us2` se acotó a su marca; no es un defecto del producto.
+7. **Aborto nativo de Node** (`0xC0000409`): ocurrió 4 veces durante esta fase en ejecuciones de Jest (dos de integración y dos de contratos), siempre al arrancar y sin salida; en todos los casos la repetición idéntica pasó. Sigue **sin causa identificada** y no se oculta: una repetición verde no equivale a una primera ejecución limpia. Ninguna de las cifras de esta sección proviene de una ejecución abortada.
+8. **Entorno**: se reinició el API de validación (3004) con el código de US4 y se usó el stack local ya levantado.
+
+### 14.6 Limitaciones y verificaciones pendientes
+
+- Firefox y WebKit **no se ejecutaron** (no instalados): la matriz de nueve proyectos corresponde a T102.
+- Las **35 pruebas de infraestructura de 002** siguen sin verificar, y en esta fase **no se ejecutaron las regresiones de 001 y 002**: US4 no modifica código compartido (ni el middleware HTTP ni 001/002); la regresión de 001 se verificó por última vez en la sección 13.
+- Los **3 casos `todo`** de `frontera-004.spec.ts` (contrato futuro de la 004) permanecen.
+- La selección para comparar vive en memoria de la aplicación: se pierde al recargar la página y entonces se pide volver a elegir (no se persiste ningún dato en el navegador).
+- No se ejecutaron cobertura Jest, k6 ni cargas (fuera de T080–T087), ni T088 ni la composición completa de las 58 operaciones.
+- CI de GitHub Actions: no ejecutada para US4.

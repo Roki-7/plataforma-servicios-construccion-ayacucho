@@ -51,6 +51,9 @@ export class SesionApi {
     const { version } = await this.leer<{ version: number }>(`/solicitudes/${solicitudId}`);
     await this.enviar('post', `/solicitudes/${solicitudId}/cierre`, { version }, 200);
   }
+  async aclarar(cotizacionId: string, texto: string): Promise<void> {
+    await this.enviar('post', `/cotizaciones/${cotizacionId}/aclaraciones`, { texto }, 201);
+  }
   async cotizar(solicitudId: string, versionTrabajoSolicitud: number, extra: object = {}): Promise<{ cotizacionId: string }> {
     return this.enviar('post', `/solicitudes/${solicitudId}/cotizaciones`, {
       versionTrabajoSolicitud, tipo: 'ESTIMADA', alcance: 'Levantar el muro con acabado pulido.', formaCalculo: 'S/ 85 por metro cuadrado', vigenteHasta: '2031-12-31T00:00:00.000Z', ...extra,

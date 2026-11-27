@@ -5,6 +5,7 @@ import { claveIdempotencia } from '../../usuarios-acceso/infraestructura/api-usu
 import { admiteCambios, etiquetasTipo, explicacionDeEstado, falloDeCotizacion, fechaHoraLima, textoDeMotivo, type FalloDeCotizacion } from '../aplicacion/cotizacion.js';
 import type { ApiCotizaciones, CotizacionDetalle } from '../modelos/cotizaciones.js';
 import { CamposDeVersion, EtiquetaDeEstado, ResumenDeCotizacion } from './DatosDeCotizacion.js';
+import { HiloAclaraciones } from './HiloAclaraciones.js';
 
 /**
  * Detalle de una cotización propia: estado efectivo con su explicación, todos los campos de la versión vigente, versiones anteriores, y las acciones reales de
@@ -70,6 +71,7 @@ export function DetalleCotizacion({ api, id, alNavegar, ir }: { api: ApiCotizaci
           <h2 id="cot-vigente-titulo">Versión vigente (n.º {c.versionVigente.numero})</h2>
           <CamposDeVersion v={c.versionVigente} />
         </section>
+        <HiloAclaraciones api={api} cotizacionId={c.cotizacionId} miRol="PRESTADOR" soloLectura={c.estado === 'RETIRADA' ? 'Retiraste esta cotización: el hilo queda en lectura.' : c.solicitudCerrada ? 'La solicitud está cerrada: el hilo queda en lectura.' : undefined} />
         {c.versiones.length > 1 && <section className="sol-panel" aria-labelledby="cot-versiones-titulo">
           <h2 id="cot-versiones-titulo">Versiones anteriores</h2>
           {c.versiones.filter(v => v.reemplazada).map(v => <details className="sol-version" key={v.numero}>

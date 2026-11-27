@@ -24,6 +24,9 @@ import { EditorSolicitud } from '../features/solicitudes-cotizaciones/presentaci
 import { ListaSolicitudes } from '../features/solicitudes-cotizaciones/presentacion/ListaSolicitudes.js';
 import { Oportunidades, SolicitudesRecibidas } from '../features/solicitudes-cotizaciones/presentacion/ListasPrestador.js';
 import { DetalleSolicitudPrestador } from '../features/solicitudes-cotizaciones/presentacion/DetalleSolicitudPrestador.js';
+import { ComparacionDeCotizaciones } from '../features/solicitudes-cotizaciones/presentacion/ComparacionDeCotizaciones.js';
+import { CotizacionesRecibidas } from '../features/solicitudes-cotizaciones/presentacion/CotizacionesRecibidas.js';
+import { DetalleCotizacionRecibida } from '../features/solicitudes-cotizaciones/presentacion/DetalleCotizacionRecibida.js';
 import { DetalleCotizacion } from '../features/solicitudes-cotizaciones/presentacion/DetalleCotizacion.js';
 import { MisCotizaciones } from '../features/solicitudes-cotizaciones/presentacion/MisCotizaciones.js';
 import { PantallaActualizar, PantallaCotizar } from '../features/solicitudes-cotizaciones/presentacion/PantallasDeCotizacion.js';
@@ -33,7 +36,12 @@ import '../features/solicitudes-cotizaciones/presentacion/solicitudes.css';
 
 const uuidRuta = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
 const detalleSolicitud = new RegExp('^/solicitudes/' + uuidRuta + '$');
-const esRutaSolicitudes = (ruta: string) => ruta === '/solicitudes' || ruta === '/solicitudes/nueva' || detalleSolicitud.test(ruta);
+const cotizacionesRecibidas = new RegExp('^/solicitudes/' + uuidRuta + '/cotizaciones$');
+const compararCotizaciones = new RegExp('^/solicitudes/' + uuidRuta + '/comparar$');
+const cotizacionRecibida = new RegExp('^/solicitudes/' + uuidRuta + '/cotizaciones/' + uuidRuta + '$');
+/** HU11 (cliente): cotizaciones recibidas, comparación y detalle de una cotización con su hilo de aclaraciones. */
+const esRutaCotizacionesRecibidas = (ruta: string) => cotizacionesRecibidas.test(ruta) || compararCotizaciones.test(ruta) || cotizacionRecibida.test(ruta);
+const esRutaSolicitudes = (ruta: string) => ruta === '/solicitudes' || ruta === '/solicitudes/nueva' || detalleSolicitud.test(ruta) || esRutaCotizacionesRecibidas(ruta);
 const detalleSolicitudPrestador = new RegExp('^/prestador/solicitudes/' + uuidRuta + '$');
 /** Recorrido del prestador (HU08): oportunidades, solicitudes recibidas y su detalle de solo lectura. */
 const cotizarSolicitud = new RegExp('^/prestador/solicitudes/' + uuidRuta + '/cotizar$');
@@ -46,6 +54,8 @@ const esRutaPrestadorSolicitudes = (ruta: string) => ruta === '/prestador/oportu
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
   const [enlaceVersion, setEnlaceVersion] = useState(0);
+  // Cotizaciones marcadas para comparar (de una sola solicitud). No es sensible: son identificadores del propio cliente y se pierden al recargar.
+  const [seleccion, setSeleccion] = useState<{ solicitudId: string; ids: string[] }>({ solicitudId: '', ids: [] });
   const [correoInicial, setCorreoInicial] = useState('');
   const [cierres, setCierres] = useState(0); const [trasCierre, setTrasCierre] = useState(false);
   const { cuenta, refrescar: refrescarCuenta } = useCuentaSesion(perfilWeb, estado.autenticada);
@@ -84,6 +94,8 @@ export function App() {
   let contenido: ReactNode;
   const prestadorRuta = new RegExp('^/prestadores/' + uuidRuta + '$').exec(ruta)?.[1]; const servicioRuta = new RegExp('^/servicios/' + uuidRuta + '$').exec(ruta)?.[1];
   const solicitudRuta = detalleSolicitud.exec(ruta)?.[1];
+  const recibidasRuta = cotizacionesRecibidas.exec(ruta)?.[1]; const compararRuta = compararCotizaciones.exec(ruta)?.[1]; const recibidaRuta = cotizacionRecibida.exec(ruta);
+  const idsMarcados = (solicitudId: string) => seleccion.solicitudId === solicitudId ? seleccion.ids : [];
   const solicitudPrestadorRuta = detalleSolicitudPrestador.exec(ruta)?.[1];
   const cotizarRuta = cotizarSolicitud.exec(ruta)?.[1]; const cotizacionRuta = detalleCotizacion.exec(ruta)?.[1]; const actualizarRuta = actualizarCotizacion.exec(ruta)?.[1];
   const borradorGuardado = Boolean(solicitudRuta && mensaje === 'Borrador guardado.');
@@ -104,6 +116,11 @@ export function App() {
     else if (cotizarRuta) contenido = <RequierePrestador><PantallaCotizar key={cotizarRuta} api={cotizacionesWeb} solicitudes={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} ir={ir} solicitudId={cotizarRuta} /></RequierePrestador>;
     else if (cotizacionRuta) contenido = <RequierePrestador><DetalleCotizacion key={cotizacionRuta} api={cotizacionesWeb} id={cotizacionRuta} alNavegar={navegar} ir={ir} /></RequierePrestador>;
     else if (actualizarRuta) contenido = <RequierePrestador><PantallaActualizar key={actualizarRuta} api={cotizacionesWeb} solicitudes={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} ir={ir} cotizacionId={actualizarRuta} /></RequierePrestador>;
+    else if (recibidasRuta) contenido = <CotizacionesRecibidas key={recibidasRuta} api={cotizacionesWeb} solicitudId={recibidasRuta} seleccion={idsMarcados(recibidasRuta)} alNavegar={navegar}
+      alCambiarSeleccion={ids => setSeleccion({ solicitudId: recibidasRuta, ids })} alComparar={() => ir(`/solicitudes/${recibidasRuta}/comparar`)} />;
+    else if (compararRuta) contenido = <ComparacionDeCotizaciones key={compararRuta} api={cotizacionesWeb} solicitudId={compararRuta} ids={idsMarcados(compararRuta)} alNavegar={navegar}
+      alQuitar={id => setSeleccion({ solicitudId: compararRuta, ids: idsMarcados(compararRuta).filter(i => i !== id) })} />;
+    else if (recibidaRuta) contenido = <DetalleCotizacionRecibida key={recibidaRuta[2]} api={cotizacionesWeb} solicitudId={recibidaRuta[1]!} cotizacionId={recibidaRuta[2]!} alNavegar={navegar} />;
     else if (ruta === '/solicitudes') contenido = <ListaSolicitudes api={solicitudesWeb} alNavegar={navegar} />;
     else if (ruta === '/solicitudes/nueva' || solicitudRuta) contenido = <EditorSolicitud key={solicitudRuta ?? 'nueva'} id={solicitudRuta} api={solicitudesWeb} busqueda={busquedaWeb} categorias={categoriasWeb}
       alNavegar={navegar} mensajeInicial={borradorGuardado ? mensaje : undefined}

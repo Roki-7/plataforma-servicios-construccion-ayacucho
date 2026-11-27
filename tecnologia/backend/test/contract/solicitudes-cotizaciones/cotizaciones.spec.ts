@@ -44,7 +44,11 @@ describe('definición de las cinco operaciones', () => {
     const rutas = ((e.app.app.getHttpAdapter().getInstance() as { router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] } }).router.stack
       .flatMap(({ route }) => route ? Object.keys(route.methods).map(m => `${m.toUpperCase()} ${route.path.replace(/^\/api\/v1/, '').replace(/:(\w+)/g, '{$1}')}`) : []));
     for (const id of operacionesDeLaHistoria) { const { metodo, ruta } = operaciones.get(id)!; expect(rutas).toContain(`${metodo.toUpperCase()} ${ruta}`); }
-    expect(rutas.filter(r => r.includes('/cotizaciones'))).toHaveLength(operacionesDeLaHistoria.length);
+    // Las cinco de HU10 más las tres de HU11 (lista y comparación, enviar y leer aclaraciones): ninguna ruta adicional con «cotizaciones».
+    expect(rutas.filter(r => r.includes('/cotizaciones')).sort()).toEqual([
+      ...operacionesDeLaHistoria.map(id => { const { metodo, ruta } = operaciones.get(id)!; return `${metodo.toUpperCase()} ${ruta}`; }),
+      'GET /solicitudes/{solicitudId}/cotizaciones', 'POST /cotizaciones/{cotizacionId}/aclaraciones', 'GET /cotizaciones/{cotizacionId}/aclaraciones',
+    ].sort());
   });
   test('todas exigen Bearer; las mutaciones declaran Origin e Idempotency-Key y las lecturas no', () => {
     for (const id of operacionesDeLaHistoria) {

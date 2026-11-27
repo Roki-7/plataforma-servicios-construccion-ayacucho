@@ -10,8 +10,11 @@ import {
 import {
   cotizacionPropia, cotizacionRetirada, fechaNoValida, recursoNoDisponible, solicitudModificada, solicitudNoAbierta, versionDesactualizada,
 } from '../dominio/errores.js';
-import type { CoberturasDePrestador, IdentidadDeCotizador, IdentidadesDeCotizaciones, PerfilesDePrestador, TraducirEscrituraDeCotizacion } from './puertos/entorno.js';
+import { autorDelHilo, exigirHiloAbierto, normalizarTextoDeAclaracion, numeroDelSiguienteMensaje, type AutorDeAclaracion } from '../dominio/aclaracion.js';
+import { idsDeComparacion } from '../dominio/comparacion.js';
+import type { CoberturasDePrestador, IdentidadDeCotizador, IdentidadesDeCotizaciones, NombresPublicosDePrestadores, PerfilesDePrestador, TraducirEscrituraDeCotizacion } from './puertos/entorno.js';
 import type { CotizacionGuardada, RepositorioCotizaciones, VersionGuardada } from './puertos/repositorio.js';
+import type { AclaracionGuardada, RepositorioAclaraciones } from './puertos/repositorio-aclaraciones.js';
 import { coincideConCobertura, tituloParaCotizar, type LecturasDeSolicitudes, type ResumenDeSolicitud } from './puertos/solicitudes.js';
 
 export interface ActorCotizaciones { readonly token: string; readonly identidad: IdentidadDeCotizador }
@@ -39,6 +42,8 @@ export interface DependenciasCotizaciones {
   readonly identidades: IdentidadesDeCotizaciones;
   readonly prestadores: PerfilesDePrestador;
   readonly coberturas: CoberturasDePrestador;
+  readonly aclaraciones: RepositorioAclaraciones;
+  readonly nombres: NombresPublicosDePrestadores;
   readonly traducirEscritura: TraducirEscrituraDeCotizacion;
   readonly ahora?: () => Date;
 }
@@ -75,11 +80,19 @@ export function evaluarContraSolicitud(c: CotizacionGuardada, solicitud: Resumen
   });
 }
 
-/** Vista de `C003Cotizacion`. No incluye el nombre público (lo añade la historia de comparación tras comprobar el título de acceso) ni la cuenta del prestador. */
-export function vistaDeCotizacion(c: CotizacionGuardada, solicitud: ResumenDeSolicitud | undefined, ahora: Date): { [campo: string]: ValorJson } {
+/** Vista de `C003Aclaracion`. No incluye la cuenta del autor: solo su rol. */
+export function vistaDeAclaracion(a: AclaracionGuardada): { [campo: string]: ValorJson } {
+  return { aclaracionId: a.id, numero: a.numero, autor: a.autor, texto: a.texto, versionCotizacion: a.versionCotizacion, creadaEn: a.creadaEn.toISOString() };
+}
+
+/**
+ * Vista de `C003Cotizacion`. El nombre público solo se incluye cuando el llamador comprobó el título de acceso (cliente dueño de la solicitud). Nunca incluye la
+ * cuenta del prestador.
+ */
+export function vistaDeCotizacion(c: CotizacionGuardada, solicitud: ResumenDeSolicitud | undefined, ahora: Date, nombrePublico?: string): { [campo: string]: ValorJson } {
   const e = evaluarContraSolicitud(c, solicitud, ahora);
   return {
-    cotizacionId: c.id, solicitudId: c.solicitudId, prestadorId: c.prestadorId, estado: e.estado, vencida: e.vencida, requiereRevision: e.requiereRevision,
+    cotizacionId: c.id, solicitudId: c.solicitudId, prestadorId: c.prestadorId, ...(nombrePublico ? { prestadorNombrePublico: nombrePublico } : {}), estado: e.estado, vencida: e.vencida, requiereRevision: e.requiereRevision,
     solicitudCerrada: e.solicitudCerrada, motivosNoAceptable: [...e.motivosNoAceptable], version: c.version, versionVigente: vistaDeVersion(c.vigente, false),
     creadaEn: c.creadaEn.toISOString(), ...(c.retiradaEn ? { retiradaEn: c.retiradaEn.toISOString() } : {}),
   };
@@ -198,12 +211,84 @@ export class CotizacionesServicio {
     const referencia = await this.d.repositorio.referencia(cotizacionId);
     if (!referencia) throw recursoNoDisponible();
     const esAutor = referencia.prestadorCuentaId === cuentaId;
-    if (!esAutor && !(await this.d.solicitudes.esClienteDe(referencia.solicitudId, cuentaId))) throw recursoNoDisponible();
+    const esDueno = !esAutor && await this.d.solicitudes.esClienteDe(referencia.solicitudId, cuentaId);
+    if (!esAutor && !esDueno) throw recursoNoDisponible();
     const [cotizacion, versiones, solicitudes] = await Promise.all([
       this.d.repositorio.obtener(cotizacionId), this.d.repositorio.versiones(cotizacionId), this.d.solicitudes.resumenes([referencia.solicitudId]),
     ]);
     if (!cotizacion) throw recursoNoDisponible();
-    const vista = vistaDeCotizacion(cotizacion, solicitudes.get(referencia.solicitudId), this.ahora());
+    // El cliente dueño ve el nombre público del autor de las cotizaciones de SU solicitud; el autor no necesita el suyo.
+    const nombre = esDueno ? (await this.d.nombres.nombresPublicos([cotizacion.prestadorId])).get(cotizacion.prestadorId) : undefined;
+    const vista = vistaDeCotizacion(cotizacion, solicitudes.get(referencia.solicitudId), this.ahora(), nombre);
     return { ...vista, versiones: versiones.map(v => vistaDeVersion(v, v.numero !== cotizacion.vigente.numero)) };
+  }
+
+  // ─── HU11: lista y comparación del cliente dueño, y aclaraciones ──────────────────────────────────────────────────
+  /**
+   * Cotizaciones de una solicitud para su cliente dueño, en orden de llegada y sin clasificación de «mejor». Con `ids` (hasta 10) devuelve esas cotizaciones para
+   * compararlas. Cualquier otra cuenta, y cualquier identificador que no sea de esta solicitud, responde como inexistente. Presupuesto constante de sentencias:
+   * titularidad, página, solicitud y nombres públicos, uno por lectura masiva e independiente del tamaño de página.
+   */
+  async listarDeSolicitud(actor: ActorCotizaciones, solicitudIdEntrada: string, consulta: { readonly ids?: string; readonly pagina?: number; readonly tamano?: number }): Promise<ValorJson> {
+    const solicitudId = uuidEnMinusculas(solicitudIdEntrada);
+    if (!(await this.d.solicitudes.esClienteDe(solicitudId, actor.identidad.cuentaId))) throw recursoNoDisponible();
+    let pagina = consulta.pagina ?? 1; let tamano = consulta.tamano ?? 20;
+    let elementos: readonly CotizacionGuardada[]; let total: number;
+    if (consulta.ids !== undefined) {
+      const ids = idsDeComparacion(consulta.ids);
+      const halladas = new Map((await this.d.repositorio.obtenerVarias(solicitudId, ids)).map(c => [c.id, c]));
+      if (halladas.size !== ids.length) throw recursoNoDisponible();
+      elementos = ids.map(id => halladas.get(id)!); total = ids.length; pagina = 1; tamano = Math.max(tamano, ids.length);
+    } else {
+      ({ elementos, total } = await this.d.repositorio.listarDeSolicitud(solicitudId, pagina, tamano));
+    }
+    if (!elementos.length) return { elementos: [], total, pagina, tamano };
+    const [solicitudes, nombres] = await Promise.all([
+      this.d.solicitudes.resumenes([solicitudId]), this.d.nombres.nombresPublicos([...new Set(elementos.map(c => c.prestadorId))]),
+    ]);
+    const ahora = this.ahora();
+    return { elementos: elementos.map(c => vistaDeCotizacion(c, solicitudes.get(solicitudId), ahora, nombres.get(c.prestadorId))), total, pagina, tamano };
+  }
+
+  /** Participante del hilo: el cliente dueño o el prestador autor. Cualquier otra cuenta, o una cotización inexistente, responde igual (404). */
+  private async participante(cotizacionId: string, cuentaId: string, tx?: ContextoTransaccion): Promise<{ readonly solicitudId: string; readonly autor: AutorDeAclaracion }> {
+    const referencia = await this.d.repositorio.referencia(cotizacionId, tx);
+    if (!referencia) throw recursoNoDisponible();
+    const esAutorDeLaCotizacion = referencia.prestadorCuentaId === cuentaId;
+    const esDuenoDeLaSolicitud = !esAutorDeLaCotizacion && await this.d.solicitudes.esClienteDe(referencia.solicitudId, cuentaId, tx);
+    const autor = autorDelHilo({ esDuenoDeLaSolicitud, esAutorDeLaCotizacion });
+    if (!autor) throw recursoNoDisponible();
+    return { solicitudId: referencia.solicitudId, autor };
+  }
+
+  /** Mensajes del hilo, por número ascendente. Se leen también con la cotización retirada o la solicitud cerrada (CA-ACL-03). */
+  async listarAclaraciones(actor: ActorCotizaciones, cotizacionIdEntrada: string, pagina = 1, tamano = 20): Promise<ValorJson> {
+    const cotizacionId = uuidEnMinusculas(cotizacionIdEntrada);
+    await this.participante(cotizacionId, actor.identidad.cuentaId);
+    const r = await this.d.aclaraciones.listar(cotizacionId, pagina, tamano);
+    return { elementos: r.elementos.map(vistaDeAclaracion), total: r.total, pagina, tamano };
+  }
+
+  /**
+   * Escribe un mensaje en el hilo. Orden de bloqueos: solicitud `FOR SHARE` y cotización `FOR UPDATE`, que además serializa la numeración (el mensaje 21 recibe 422 aunque
+   * lleguen dos a la vez). Con la cotización retirada o la solicitud cerrada el hilo es de solo lectura.
+   */
+  async enviarAclaracion(actor: ActorCotizaciones, clave: string, cotizacionIdEntrada: string, cuerpo: { readonly texto: string }): Promise<ResultadoIdempotente> {
+    const cotizacionId = uuidEnMinusculas(cotizacionIdEntrada);
+    const identidad = await this.d.identidades.exigir(actor.token);
+    const cuentaId = identidad.cuentaId;
+    return this.escribir({ cuentaId, ruta: '/cotizaciones/{cotizacionId}/aclaraciones', clave, ids: { cotizacionId }, cuerpo: cuerpo as unknown as ValorJson }, async tx => {
+      const { solicitudId, autor } = await this.participante(cotizacionId, cuentaId, tx);
+      const perfil = autor === 'CLIENTE' ? 'cliente' : 'prestador';
+      if (!identidad.perfiles.includes(perfil)) throw new ErrorAplicacion(403, 'SIN_PERMISO', `Se requiere un perfil de ${perfil} habilitado.`);
+      const solicitud = await this.d.solicitudes.bloquearCompartido(solicitudId, tx);
+      const cotizacion = await this.d.repositorio.bloquear(cotizacionId, tx);
+      if (!solicitud || !cotizacion) throw recursoNoDisponible();
+      exigirHiloAbierto({ cotizacionRetirada: cotizacion.estado === 'RETIRADA', solicitudAbierta: solicitud.estado === 'ABIERTA' });
+      const texto = normalizarTextoDeAclaracion(cuerpo.texto);
+      const numero = numeroDelSiguienteMensaje(await this.d.aclaraciones.contar(cotizacionId, tx));
+      const creada = await this.d.aclaraciones.insertar(tx, { id: randomUUID(), cotizacionId, numero, autorCuentaId: cuentaId, autor, texto, versionCotizacion: cotizacion.vigente.numero });
+      return { http: 201, cuerpo: vistaDeAclaracion(creada) };
+    });
   }
 }

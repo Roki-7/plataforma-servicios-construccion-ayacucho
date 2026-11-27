@@ -193,3 +193,48 @@
 
 .cot-alcance { margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; }
 .cot-precio-pendiente { color: var(--texto-suave); font-size: 1.1rem; font-weight: 700; }
+
+/* HU11: cotizaciones recibidas, comparación neutral y aclaraciones. */
+.cot-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: .85rem 1rem; border: 1px solid var(--separador); border-radius: var(--radio); background: var(--petroleo-suave); position: sticky; top: .5rem; z-index: 2; }
+.cot-barra p { margin: 0; }
+.cot-tarjeta { transition: border-color .15s ease, box-shadow .15s ease; }
+.cot-tarjeta[data-seleccionada="true"] { border-color: var(--petroleo); box-shadow: 0 0 0 2px var(--petroleo-suave), var(--sombra); }
+.cot-tarjeta-cabecera { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+.cot-tarjeta-cabecera h2 { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.cot-marca { display: inline-flex; align-items: center; gap: .55rem; min-height: 44px; padding-inline: .6rem; border: 1px solid var(--separador); border-radius: .65rem; cursor: pointer; font-weight: 600; background: var(--superficie); }
+.cot-marca input { width: 1.2rem; height: 1.2rem; margin: 0; accent-color: var(--petroleo); }
+.cot-marca:has(input:focus-visible) { outline: 3px solid var(--terracota); outline-offset: 2px; }
+.cot-marca:has(input:disabled) { cursor: not-allowed; opacity: .6; }
+.cot-hilo-cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.cot-hilo-cabecera h2 { margin: 0; }
+.cot-hilo-vacio { margin: 0; padding: .9rem 1rem; border: 1px dashed var(--separador); border-radius: .7rem; color: var(--texto-suave); }
+.cot-hilo-lista { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; max-height: 32rem; overflow: auto; }
+.cot-mensaje { display: flex; min-width: 0; }
+.cot-mensaje article { max-width: 92%; padding: .65rem .85rem; border: 1px solid var(--separador); border-radius: .85rem; border-end-start-radius: .2rem; background: var(--fondo); min-width: 0; overflow-wrap: anywhere; }
+.cot-mensaje[data-propio="true"] { justify-content: flex-end; }
+.cot-mensaje[data-propio="true"] article { background: var(--petroleo-suave); border-color: transparent; border-end-start-radius: .85rem; border-end-end-radius: .2rem; }
+.cot-mensaje-cabecera { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .5rem; font-size: .9rem; }
+.cot-mensaje-cabecera time { margin-inline-start: auto; font-size: .8rem; }
+.cot-mensaje p { margin: .25rem 0; }
+.cot-mensaje .cot-mensaje-pie { margin: 0; font-size: .8rem; }
+.cot-hilo form { display: grid; gap: .75rem; margin: 0; }
+.cot-hilo textarea { width: 100%; box-sizing: border-box; }
+.cot-col-cabecera { display: grid; gap: .45rem; justify-items: start; min-width: 0; font-weight: 400; }
+.cot-col-nombre { color: var(--petroleo-oscuro); font-size: 1.05rem; overflow-wrap: anywhere; }
+.cot-col-chips, .cot-col-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
+.cot-senal { padding: .15rem .55rem; border-radius: .4rem; background: var(--terracota-suave); color: var(--terracota-texto); font-size: .85rem; font-weight: 600; }
+.cot-comparacion-tarjetas { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; grid-template-columns: minmax(0, 1fr); }
+.cot-comparacion-tarjetas li, .cot-comparacion-tarjetas article { min-width: 0; }
+.cot-comparacion-tarjetas article { height: 100%; }
+@media (min-width: 48rem) { .cot-comparacion-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cot-campos dd[data-vacio="true"], .cot-tabla td[data-vacio="true"] { color: var(--texto-suave); font-style: italic; font-weight: 400; }
+.cot-tabla-marco { overflow-x: auto; border: 1px solid var(--separador); border-radius: var(--radio); background: var(--superficie); max-width: 100%; }
+.cot-tabla-marco:focus-visible { outline: 3px solid var(--terracota); outline-offset: 3px; }
+.cot-tabla { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; min-width: calc(9rem + var(--columnas, 3) * 15rem); }
+.cot-tabla th, .cot-tabla td { padding: .8rem .9rem; text-align: start; vertical-align: top; border-bottom: 1px solid var(--separador); border-inline-end: 1px solid var(--separador); overflow-wrap: anywhere; }
+.cot-tabla thead th { background: var(--fondo); font-weight: 400; vertical-align: top; }
+.cot-tabla th[scope="row"] { width: 9rem; color: var(--texto-suave); font-size: .9rem; font-weight: 600; background: var(--superficie); }
+.cot-tabla th:first-child { position: sticky; inset-inline-start: 0; z-index: 1; width: 9rem; background: var(--fondo); }
+.cot-tabla tbody th:first-child { background: var(--superficie); }
+.cot-tabla tbody tr:last-child > * { border-bottom: 0; }
+.cot-celda-dato { font-weight: 700; color: var(--petroleo-oscuro); }

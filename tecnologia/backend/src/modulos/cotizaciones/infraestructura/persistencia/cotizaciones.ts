@@ -101,6 +101,27 @@ export class RepositorioCotizacionesPostgres implements RepositorioCotizaciones 
     return { total: filas[0]?.total ?? 0, elementos: filas.filter(f => f.id !== null).map(aCotizacion) };
   }
 
+  async listarDeSolicitud(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeCotizaciones> {
+    if (!esUuid(solicitudId)) return { elementos: [], total: 0 };
+    // Orden de llegada y desempate por identificador: determinista y sin clasificación de «mejor». El total sale de la misma ventana.
+    const filas = await this.uow.db.query(`WITH f AS MATERIALIZED (
+        SELECT c.id, c.creada_en, count(*) OVER ()::int AS cantidad FROM cotizaciones c WHERE c.solicitud_id = $1::uuid
+      ), pagina AS (SELECT * FROM f ORDER BY creada_en, id LIMIT $2 OFFSET $3)
+      SELECT COALESCE(p.cantidad, (SELECT cantidad FROM f LIMIT 1), 0) AS total, ${columnas}
+      FROM (SELECT 1) x LEFT JOIN pagina p ON true
+      LEFT JOIN cotizaciones c ON c.id = p.id LEFT JOIN cotizaciones_versiones v ON v.cotizacion_id = c.id AND v.numero = c.version_actual
+      ORDER BY p.creada_en, p.id`, [solicitudId, tamano, (pagina - 1) * tamano]) as (FilaCotizacion & { total: number })[];
+    return { total: filas[0]?.total ?? 0, elementos: filas.filter(f => f.id !== null).map(aCotizacion) };
+  }
+
+  async obtenerVarias(solicitudId: string, ids: readonly string[]): Promise<readonly CotizacionGuardada[]> {
+    const validos = ids.filter(esUuid);
+    if (!esUuid(solicitudId) || !validos.length) return [];
+    const filas = await this.uow.db.query(`SELECT ${columnas} FROM cotizaciones c JOIN cotizaciones_versiones v ON v.cotizacion_id = c.id AND v.numero = c.version_actual
+      WHERE c.solicitud_id = $1::uuid AND c.id = ANY($2::uuid[])`, [solicitudId, validos]) as FilaCotizacion[];
+    return filas.map(aCotizacion);
+  }
+
   private async insertarVersion(tx: ContextoTransaccion, id: string, numero: number, v: NuevaVersionDeCotizacion): Promise<void> {
     await this.uow.runner(tx).query(`INSERT INTO cotizaciones_versiones (cotizacion_id, numero, version_trabajo_solicitud, tipo, alcance, exclusiones, materiales, mano_de_obra,
       precio_centimos, forma_calculo, plazo_dias, vigente_hasta, condiciones_pago) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [id, numero, ...valoresDeVersion(v)]);

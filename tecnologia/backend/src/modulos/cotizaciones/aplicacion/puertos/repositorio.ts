@@ -39,6 +39,10 @@ export interface RepositorioCotizaciones {
   agregarVersion(tx: ContextoTransaccion, id: string, version: NuevaVersionDeCotizacion): Promise<void>;
   /** Marca la cotización como RETIRADA (terminal) y sube la versión de control. */
   retirar(tx: ContextoTransaccion, id: string): Promise<void>;
+  /** Cotizaciones de una solicitud, en orden de llegada (sin clasificación), con el total de la misma lectura. Solo para el cliente dueño. */
+  listarDeSolicitud(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeCotizaciones>;
+  /** Las cotizaciones indicadas que pertenecen a la solicitud, en UNA sentencia. Las que no existen o son de otra solicitud no aparecen. */
+  obtenerVarias(solicitudId: string, ids: readonly string[]): Promise<readonly CotizacionGuardada[]>;
   /** Cotizaciones de una cuenta de prestador, de la más reciente a la más antigua, con el total de la misma lectura. */
   listarDeCuenta(cuentaId: string, pagina: number, tamano: number): Promise<PaginaDeCotizaciones>;
 }
