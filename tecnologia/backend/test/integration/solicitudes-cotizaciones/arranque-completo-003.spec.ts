@@ -1,20 +1,26 @@
 import { afterAll, beforeAll, describe, expect, test } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import request from 'supertest';
 import { crearAplicacion } from '../../../src/composicion/app.module.js';
 import { crearAplicacionCompleta002 } from '../../../src/composicion/aplicacion-002.js';
-import { crearAplicacionCompleta003 } from '../../../src/composicion/aplicacion-003.js';
+import { crearAplicacionCompleta003, crearAplicacionConHistorias003 } from '../../../src/composicion/aplicacion-003.js';
+import { inventarioOpenApi, type DocumentoOpenApi } from '../../../src/composicion/componer-openapi.js';
 import { aplicarMigraciones003 } from '../../../src/composicion/migraciones-003.js';
 import { registroOferta002 } from '../../../src/composicion/oferta-002.js';
 import { registroOferta003 } from '../../../src/composicion/oferta-003.js';
+import { SolicitudesS3 } from '../../../src/modulos/solicitudes/infraestructura/archivos/solicitudes-s3.js';
+import { almacenamientoAislado003 } from '../../soporte/solicitudes-cotizaciones/almacenamiento.js';
+import { iniciarSesion003, sembrarDatos003 } from '../../soporte/solicitudes-cotizaciones/datos.js';
 import { baseAislada003 } from '../../soporte/solicitudes-cotizaciones/postgres.js';
 import { almacenEnMemoria003, configuracionDePrueba003, controladorSimulado003, operaciones003 } from '../../soporte/solicitudes-cotizaciones/entorno.js';
 
 /**
- * CP-308 sobre la aplicación real (T011). Arranca Nest con la composición de la 001, la 002 y la 003 sobre bases descartables `ayacucho_003_test_*`.
- * Los controladores de la 003 aún no existen: se usan controladores simulados que solo registran las rutas del contrato, para ensayar la tabla de rutas
- * de `configurarApi`, `verificarRouter` y los modos `prueba` y `completa`. El arranque definitivo con los controladores reales se valida en T088.
+ * CP-308 sobre la aplicación real (T011 y T088). Arranca Nest con la composición de la 001, la 002 y la 003 sobre bases descartables `ayacucho_003_test_*`.
+ * Los bloques de los modos `prueba` y `completa` usan controladores simulados (solo registran las rutas del contrato) para ensayar los casos NEGATIVOS de la tabla de
+ * rutas de `configurarApi` y de `verificarRouter`. El último bloque de arranque (T088) usa el ensamblador REAL, `crearAplicacionCompleta003`, con los controladores y el
+ * almacén de Garage reales y sin subconjuntos ni dobles.
  */
 type Aplicacion = Awaited<ReturnType<typeof crearAplicacion>>;
 const rutas = (app: Aplicacion) => ((app.app.getHttpAdapter().getInstance() as { router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] } }).router.stack
@@ -101,10 +107,127 @@ describe('modo completa: las 58 operaciones', () => {
       controladores: [controladorSimulado003(['obtenerSolicitud003']), controladorSimulado003(restantes)] } })).rejects.toThrow('Una ruta parametrizada oculta una ruta literal');
   }, 120000);
 
-  test('faltan operaciones: la aplicación completa sin controladores reales no arranca (se completa con las historias, T088)', async () => {
+  test('sin las opciones de las historias no hay controladores de la 003 y la aplicación completa no arranca: el router no coincide con las 58', async () => {
     await expect(crearAplicacionCompleta003(await configuracionDePrueba003(base.url), { prestadores: { almacen: almacenEnMemoria003() }, worker: false }))
       .rejects.toThrow('El router no coincide');
   }, 120000);
+});
+
+describe('T088 · ensamblador y arranque REAL: crearAplicacionCompleta003 con las 58 operaciones (CP-308, R-27)', () => {
+  const protegida = (o: Record<string, unknown>) => ((o['security'] as Record<string, unknown>[] | undefined) ?? []).some(x => Object.hasOwn(x, 'bearerAuth'));
+  let garage: Awaited<ReturnType<typeof almacenamientoAislado003>>;
+  let real: Aplicacion;
+  let datos: Awaited<ReturnType<typeof sembrarDatos003>>;
+  let origen: string;
+  let http: ReturnType<typeof request>;
+  const contratos = async () => {
+    const leer = async (archivo: string) => JSON.parse(await readFile(resolve('contracts', archivo), 'utf8')) as DocumentoOpenApi;
+    return { c001: await leer('openapi.json'), c002: await leer('prestadores-catalogo.openapi.json'), c003: await leer('solicitudes-cotizaciones.openapi.json') };
+  };
+  const identificada = (metodo: string, ruta: string) => `${metodo.toUpperCase()} ${ruta.replace(/\{[^}]+\}/g, '{}')}`;
+
+  beforeAll(async () => {
+    garage = await almacenamientoAislado003();
+    const config = await configuracionDePrueba003(base.url);
+    origen = config.origen;
+    // Sin controladores simulados ni subconjuntos: el ensamblador definitivo con el almacén real de Garage.
+    real = await crearAplicacionCompleta003(config, { prestadores: { almacen: almacenEnMemoria003() }, solicitudes: { almacen: new SolicitudesS3(garage.cliente, garage.bucket, garage.prefijo) }, worker: false });
+    abiertas.push(real);
+    datos = await sembrarDatos003(real, origen);
+    http = request(real.app.getHttpServer());
+  }, 240000);
+  afterAll(async () => { await garage?.cerrar(); });
+
+  test('el inventario de contratoDeOferta es 17 + 23 + 18 = 58 y el espejo de la 003 es idéntico a la fuente aprobada', async () => {
+    const { c001, c002, c003 } = await contratos();
+    expect([inventarioOpenApi(c001).length, inventarioOpenApi(c002).length, inventarioOpenApi(c003).length]).toEqual([17, 23, 18]);
+    expect(Buffer.compare(await readFile(resolve('contracts/solicitudes-cotizaciones.openapi.json')), await readFile(resolve('../../specs/003-solicitudes-y-cotizaciones/contracts/openapi.json')))).toBe(0);
+    // La aplicación completa solo arranca si `contratoDeOferta` valida esos inventarios: llegar aquí lo demuestra; se comprueba además el total registrado.
+    expect(rutas(real)).toHaveLength(58);
+  });
+
+  test('el router de Nest coincide exactamente con la unión de las 58 operaciones, sin rutas de más ni de menos', async () => {
+    const { c001, c002, c003 } = await contratos();
+    const esperadas = [c001, c002, c003].flatMap(c => inventarioOpenApi(c).map(({ metodo, ruta }) => `${metodo.toUpperCase()} ${ruta}`)).sort();
+    expect(rutas(real)).toEqual(esperadas);
+    expect(new Set(rutas(real)).size).toBe(58);
+    expect(rutas(real).filter(r => r.includes('/solicitudes') || r.includes('/cotizaciones'))).toHaveLength(18);
+  });
+
+  test('no hay colisiones: ni operationId repetidos, ni método y ruta repetidos, ni rutas equivalentes que solo difieran en el nombre del parámetro', async () => {
+    const { c001, c002, c003 } = await contratos();
+    const todas = [c001, c002, c003].flatMap(c => inventarioOpenApi(c));
+    expect(todas).toHaveLength(58);
+    const repetidos = (valores: string[]) => valores.filter((v, i) => valores.indexOf(v) !== i);
+    expect(repetidos(todas.map(o => o.operacion.operationId))).toEqual([]);
+    expect(repetidos(todas.map(o => `${o.metodo.toUpperCase()} ${o.ruta}`))).toEqual([]);
+    expect(repetidos(todas.map(o => identificada(o.metodo, o.ruta)))).toEqual([]);
+    // Una ruta con parámetro no oculta a una literal del mismo método: en el ORDEN REAL de registro de Express la literal va antes (`verificarRouter` lo impide al arrancar).
+    const orden = ((real.app.getHttpAdapter().getInstance() as { router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] } }).router.stack
+      .flatMap(({ route }) => route ? Object.keys(route.methods).map(m => `${m.toUpperCase()} ${route.path.replace(/^\/api\/v1/, '').replace(/:(\w+)/g, '{$1}')}`) : []));
+    let ocultables = 0;
+    for (const a of todas) for (const bb of todas) {
+      if (a === bb || a.metodo !== bb.metodo) continue;
+      const pa = a.ruta.split('/'); const pb = bb.ruta.split('/');
+      if (pa.length === pb.length && pa.some((p, k) => p.startsWith('{') && !pb[k]!.startsWith('{')) && pa.every((p, k) => p.startsWith('{') || p === pb[k])) {
+        ocultables += 1;
+        expect(orden.indexOf(`${bb.metodo.toUpperCase()} ${bb.ruta}`)).toBeLessThan(orden.indexOf(`${a.metodo.toUpperCase()} ${a.ruta}`));
+      }
+    }
+    expect(ocultables).toBeGreaterThan(0); // p. ej. `solicitudes/oportunidades` frente a `solicitudes/{solicitudId}`: el caso que importa existe y está bien ordenado.
+  });
+
+  test('la tabla de rutas de configurarApi cubre las 58: ninguna operación protegida responde 404 y todas exigen Bearer antes de tocar datos', async () => {
+    const { c001, c002, c003 } = await contratos();
+    const idsDe = (n: number) => `123e4567-e89b-42d3-a456-${String(n).padStart(12, '0')}`;
+    const c003Ids = new Set(inventarioOpenApi(c003).map(o => o.operacion.operationId));
+    let protegidas = 0; let publicas = 0; let exactas401 = 0; let lecturas003 = 0;
+    for (const doc of [c001, c002, c003]) for (const { metodo, ruta, operacion } of inventarioOpenApi(doc)) {
+      let i = 0; const url = '/api/v1' + ruta.replace(/\{[^}]+\}/g, () => idsDe(++i));
+      const pedido = (http as unknown as Record<string, (u: string) => request.Test>)[metodo]!(url).set('Origin', origen).set('Idempotency-Key', randomUUID().repeat(2));
+      const r = await (['get', 'delete'].includes(metodo) ? pedido : pedido.send({}));
+      if (protegida(operacion)) {
+        protegidas += 1;
+        // Sin credenciales: nunca 404 (ruta ausente de la tabla), 403, 2xx ni 5xx. La validación del contrato precede a la identidad en el middleware (también en la 001):
+        // un cuerpo vacío, una cabecera o una consulta obligatoria ausentes dan 400; el resto, 401.
+        expect([operacion.operationId, [400, 401].includes(r.status)]).toEqual([operacion.operationId, true]);
+        if (r.status === 401) exactas401 += 1;
+        // Las lecturas de la 003 sin entradas obligatorias deben dar exactamente 401; el historial exige `tipo`, que se indica.
+        if (metodo === 'get' && c003Ids.has(operacion.operationId)) {
+          const conConsulta = operacion.operationId === 'consultarHistorialSolicitud003' ? await (http as unknown as Record<string, (u: string) => request.Test>)['get']!(`${url}?tipo=versiones`) : r;
+          expect([operacion.operationId, conConsulta.status]).toEqual([operacion.operationId, 401]);
+          lecturas003 += 1;
+        }
+      }
+      else { publicas += 1; expect([operacion.operationId, r.status < 500]).toEqual([operacion.operationId, true]); }
+    }
+    expect(protegidas + publicas).toBe(58);
+    expect(protegidas).toBeGreaterThanOrEqual(18);
+    expect(lecturas003).toBe(9); // las 9 lecturas (GET) de las 18 operaciones de la 003
+    expect(exactas401).toBeGreaterThanOrEqual(lecturas003);
+  }, 180000);
+
+  test('las 18 operaciones de la 003 están atendidas por controladores REALES: crear y listar una solicitud, y leer cotizaciones con cuentas ficticias', async () => {
+    const ia = async (c: Parameters<typeof iniciarSesion003>[2]) => iniciarSesion003(real, origen, c);
+    const cliente = await ia(datos.clientes.clienteUno); const prestador = await ia(datos.prestadores.beto);
+    const autenticada = (t: request.Test, tk: string) => t.set('Authorization', `Bearer ${tk}`).set('Origin', origen).set('Idempotency-Key', randomUUID());
+    const creada = await autenticada(http.post('/api/v1/solicitudes'), cliente).send({ tipo: 'PUBLICADA' }).expect(201);
+    expect(creada.body).toMatchObject({ estado: 'BORRADOR', tipo: 'PUBLICADA', version: 1, versionTrabajo: 0 });
+    expect((await autenticada(http.get('/api/v1/solicitudes'), cliente).expect(200)).body).toMatchObject({ total: 1, pagina: 1, tamano: 20 });
+    expect((await autenticada(http.get('/api/v1/solicitudes/oportunidades'), prestador).expect(200)).body).toMatchObject({ pagina: 1 });
+    expect((await autenticada(http.get('/api/v1/cotizaciones'), prestador).expect(200)).body).toEqual({ elementos: [], total: 0, pagina: 1, tamano: 20 });
+    expect((await autenticada(http.get(`/api/v1/solicitudes/${creada.body.solicitudId}/cotizaciones`), cliente).expect(200)).body).toEqual({ elementos: [], total: 0, pagina: 1, tamano: 20 });
+    // Un controlador simulado respondería `{}`: los reales validan y devuelven los errores del contrato.
+    expect((await autenticada(http.post('/api/v1/solicitudes'), cliente).send({ tipo: 'OTRA' }).expect(400)).body.codigo).toBe('DATOS_INVALIDOS');
+    expect((await autenticada(http.get('/api/v1/cotizaciones/00000000-0000-4000-8000-000000000999'), prestador).expect(404)).body.codigo).toBe('RECURSO_NO_DISPONIBLE');
+  }, 180000);
+
+  test('la composición con historias y la completa exponen el mismo conjunto de rutas de la 003 y el mismo inventario de operaciones', async () => {
+    const config = await configuracionDePrueba003(base.url);
+    const parcial = await crearAplicacionConHistorias003(config, { prestadores: { almacen: almacenEnMemoria003() }, solicitudes: { almacen: new SolicitudesS3(garage.cliente, garage.bucket, garage.prefijo) }, worker: false });
+    abiertas.push(parcial);
+    expect(rutas(parcial)).toEqual(rutas(real));
+  }, 180000);
 });
 
 describe('no regresión de los arranques anteriores', () => {

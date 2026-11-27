@@ -509,3 +509,53 @@ Capturas 40 a 45 a los tres anchos en `tecnologia/.local/evidencia/003/us4/web-c
 - La selección para comparar vive en memoria de la aplicación: se pierde al recargar la página y entonces se pide volver a elegir (no se persiste ningún dato en el navegador).
 - No se ejecutaron cobertura Jest, k6 ni cargas (fuera de T080–T087), ni T088 ni la composición completa de las 58 operaciones.
 - CI de GitHub Actions: no ejecutada para US4.
+
+
+## 15. Fase 7 · T088 — arranque completo con las 58 operaciones (CP-308, R-27)
+
+**Estado:** T088 completada y marcada `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `600a56f` (CI #7 de 003: SUCCESS, según informó el PO). Los resultados de esta sección son locales; la CI remota no se ha ejecutado para este cambio. No se implementó ninguna tarea posterior (T089–T116).
+
+### 15.1 Qué se hizo
+
+Solo se modificó `tecnologia/backend/test/integration/solicitudes-cotizaciones/arranque-completo-003.spec.ts` (ningún código de producción ni el frontend). Se conservan los casos con controladores simulados, que siguen siendo útiles para los escenarios **negativos** (subconjuntos inválidos, ruta no seleccionada, ruta parametrizada antes que una literal, aplicación sin controladores), y se añadió un bloque con el **ensamblador y el arranque reales**: `crearAplicacionCompleta003` sin subconjuntos ni dobles, con los controladores reales de las tres historias y el almacén real de Garage (prefijo propio de la suite), sobre una base descartable `ayacucho_003_test_*`. También se actualizó el comentario de cabecera, que decía que los controladores aún no existían, y se renombró el caso «faltan operaciones» para reflejar lo que comprueba hoy (sin las opciones de las historias no hay controladores de la 003 y la aplicación no arranca).
+
+Casos del bloque real (6):
+
+1. **Inventario**: `contratoDeOferta` valida 17 + 23 + 18 = 58 (la aplicación completa solo arranca si coincide) y el espejo `contracts/solicitudes-cotizaciones.openapi.json` es **idéntico, byte a byte**, a la fuente aprobada `specs/003-solicitudes-y-cotizaciones/contracts/openapi.json`.
+2. **`verificarRouter`**: el router de Nest coincide exactamente con la unión de las 58 operaciones (sin rutas de más ni de menos; 58 distintas; 18 con `/solicitudes` o `/cotizaciones`).
+3. **Colisiones**: sin `operationId` repetidos, sin método y ruta repetidos y sin rutas equivalentes que solo difieran en el nombre del parámetro; y en el **orden real de registro de Express** cada ruta literal va antes que la parametrizada que podría ocultarla (hay casos reales, p. ej. `solicitudes/oportunidades` frente a `solicitudes/{solicitudId}`).
+4. **Tabla de rutas de `configurarApi`**: se pide cada una de las 58 operaciones sin credenciales. De las 58, 45 son protegidas (Bearer) y 13 públicas. Las protegidas nunca responden 404, 403, 2xx ni 5xx: dan 401 o 400 (la validación del contrato precede a la identidad en el middleware, también en la 001: cuerpo vacío o cabecera obligatoria ausente); en la ejecución 14 dieron 401 y 31 validaron primero con 400. Las 9 lecturas (GET) de la 003 dan exactamente 401, con `tipo` indicado en el historial. Las públicas no dan 5xx.
+5. **Controladores reales** (un simulado respondería `{}`): con cuentas ficticias, crear una solicitud (201 `BORRADOR`), listar «mis solicitudes», oportunidades, «mis cotizaciones» y las cotizaciones de una solicitud (páginas reales con su forma), y los errores reales del contrato (400 `DATOS_INVALIDOS`, 404 `RECURSO_NO_DISPONIBLE`).
+6. **Composición con historias frente a completa**: exponen exactamente el mismo conjunto de rutas.
+
+La no regresión de los arranques base (17 operaciones) y de la 002 (40, sin ninguna de la 003) sigue cubierta por los dos casos finales del mismo archivo, que pasan.
+
+### 15.2 Pruebas (27 de noviembre de 2026, Node 24.15.0, PowerShell)
+
+| Comprobación | Resultado |
+|---|---|
+| `arranque-completo-003.spec.ts` | **20/20** (14 anteriores y 6 nuevos), una sola suite |
+| `tsc`, `eslint --max-warnings=0` y `build` del backend | Sin errores |
+| Jest unitario | 669/669, 41 suites |
+| Arquitectura | 8/8, 3 suites |
+| Contrato 003 | 71/71, 5 suites |
+| Integración 003 completa | 340 aprobadas y 3 `todo`, 21/21 suites |
+| 001 · unitarias (`usuarios-acceso\|fundacion`) | 160/160, 9 suites |
+| 001 · contratos | 126/126, 11 suites |
+| 001 · integración (`--runInBand`) | 129/129, 12 suites, 78 s, sin «did not exit» — **solo en el 3.er intento** (ver 15.3) |
+| 002 · contratos (`prestadores-catalogo`) | 76/76, 7 suites — en la repetición (ver 15.3) |
+| 002 · integración (`test:integration:002`, sin las suites de infraestructura) | 165/165, 17 suites |
+
+### 15.3 Incidencias
+
+1. **Aserciones propias demasiado estrictas** (corregidas en la prueba, sin tocar producción): la primera versión afirmaba «401 siempre» para las operaciones protegidas. Tres ejecuciones fallaron con operaciones que validan primero (`reautenticarSesion`, `eliminarFotografiaPortafolio002` y `consultarHistorialSolicitud003` exigen cuerpo, cabecera o `tipo`) y dieron 400; es el comportamiento documentado del middleware. Se reformuló con el criterio exacto del punto 4 de la sección 15.1. Un umbral posterior («más de la mitad con 401») también era arbitrario y se sustituyó por una condición que sí importa (al menos las 9 lecturas de la 003 con 401 exacto).
+2. **Aborto nativo de Node `0xC0000409`: 3 ocurrencias en esta tarea**, siempre al arrancar y sin salida de Jest: 001 integración (dentro del script de regresión), 002 contratos (ídem) y 001 integración (primera repetición). La repetición de 002 contratos pasó (76/76) y la integración de 001 pasó en el 3.er intento (129/129). **Siguen sin causa identificada** y una repetición verde no equivale a una primera ejecución limpia: las cifras de 001 integración y de 002 contratos de la tabla provienen de repeticiones, no de la primera ejecución. Ninguna cifra procede de una ejecución abortada. Los contenedores de 001 estaban sanos durante los intentos.
+
+### 15.4 Limitaciones y pendientes
+
+- No se ejecutaron Firefox ni WebKit (la matriz de nueve proyectos es de T102) ni Playwright en esta tarea (no hubo cambios de frontend).
+- Las 35 pruebas de infraestructura de 002 (`test:integration:002:infra`) siguen **sin verificar**.
+- Los 3 casos `todo` de `frontera-004.spec.ts` permanecen.
+- El aborto nativo intermitente de Node sigue pendiente de diagnóstico.
+- La regresión con objetos `solicitudes/` en el bucket, la limpieza y respaldo de 002 y CP-307/CP-310 corresponden a T093; el flujo de CI, a T094. Cobertura Jest, k6 y cargas no se ejecutaron.
+- CI de GitHub Actions: no ejecutada para este cambio.
