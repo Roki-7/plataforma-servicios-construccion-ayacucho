@@ -559,3 +559,74 @@ La no regresión de los arranques base (17 operaciones) y de la 002 (40, sin nin
 - El aborto nativo intermitente de Node sigue pendiente de diagnóstico.
 - La regresión con objetos `solicitudes/` en el bucket, la limpieza y respaldo de 002 y CP-307/CP-310 corresponden a T093; el flujo de CI, a T094. Cobertura Jest, k6 y cargas no se ejecutaron.
 - CI de GitHub Actions: no ejecutada para este cambio.
+
+
+## 16. Fase 7 · T089 — contratos REST y seguridad por operación de las 18 operaciones
+
+**Estado:** T089 completada y marcada `[x]`. Sin `git add`, `commit` ni `push`. Base: commit `ac0bfe3` (CI #8 de 003: SUCCESS, según informó el PO). Los resultados de esta sección son locales; la CI remota no se ha ejecutado para este cambio. No se implementó T090 ni ninguna tarea posterior.
+
+### 16.1 Qué se hizo
+
+Se añadió **una sola suite nueva**, `tecnologia/backend/test/contract/solicitudes-cotizaciones/operaciones-003.spec.ts` (24 casos). No se tocó código de producción, ni el contrato, ni el frontend. Justificación de crearla en lugar de ampliar las cuatro suites por historia: esas suites verifican cada historia por separado (y siguen siendo válidas); T089 exige una garantía sobre las **18 operaciones a la vez**, que solo puede darla una matriz construida desde el inventario del contrato.
+
+Mecanismo: cada respuesta REAL (aplicación Nest + PostgreSQL + Garage reales, sin dobles) pasa por un verificador que exige el estado esperado y declarado por la operación, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, los campos `codigo` y `mensaje` de todo error y un cuerpo conforme a su esquema OpenAPI (el de éxito de la operación o el `C003Error4xx/503` declarado), y anota el par (operación, estado) en un **registro de cobertura**. La última prueba exige que cada código declarado por cada operación se haya observado. Una prueba de sensibilidad comprueba que el verificador rechaza un estado no declarado, un cuerpo que incumple su esquema, un 200 donde se esperaba 401 y la falta de `no-store`, y que esos intentos no cuentan como cobertura.
+
+### 16.2 Inventario y cobertura de las 18 operaciones
+
+El contrato aprobado declara exactamente 18 operaciones, todas con `bearerAuth` y con 401 y 503; ninguna es pública. El contrato **no contiene `examples` propios** (0 ocurrencias), así que los ejemplos HTTP se derivan de él: cada petición usa cabeceras, identificadores, consulta y cuerpo válidos según sus esquemas (la suite lo comprueba contra los esquemas de petición) y las respuestas se contrastan con los de respuesta. Códigos observados por operación, entre paréntesis los declarados sin escenario:
+
+| Operación | Códigos declarados, todos observados salvo lo indicado |
+|---|---|
+| `crearSolicitud003` | 201 400 401 403 404 409 413 422 503 |
+| `listarMisSolicitudes003` | 200 400 401 403 503 |
+| `listarOportunidades003` | 200 400 401 403 503 |
+| `obtenerSolicitud003` | 200 400 401 404 503 |
+| `editarSolicitud003` | 200 400 401 403 404 409 413 422 503 |
+| `publicarSolicitud003` | 200 400 401 403 404 409 413 422 503 |
+| `cerrarSolicitud003` | 200 400 401 403 404 409 413 **(422)** 503 |
+| `consultarHistorialSolicitud003` | 200 400 401 404 503 |
+| `cargarArchivoSolicitud003` | 201 400 401 403 404 409 413 422 503 |
+| `obtenerArchivoSolicitud003` | 200 (imagen WebP) 400 401 404 503 |
+| `enviarCotizacion003` | 201 400 401 403 404 409 413 422 503 |
+| `listarCotizacionesDeSolicitud003` | 200 400 401 404 422 503 |
+| `listarMisCotizaciones003` | 200 400 401 403 503 |
+| `obtenerCotizacion003` | 200 400 401 404 503 |
+| `actualizarCotizacion003` | 201 400 401 403 404 409 413 422 503 |
+| `retirarCotizacion003` | 200 400 401 403 404 409 413 **(422)** 503 |
+| `enviarAclaracion003` | 201 400 401 403 404 409 413 422 503 |
+| `listarAclaraciones003` | 200 400 401 404 503 |
+
+**Vacío declarado (2 códigos):** el 422 de `cerrarSolicitud003` y el de `retirarCotizacion003`. El contrato los declara con la plantilla de las mutaciones, pero ninguna regla de esas operaciones los produce (dependen solo de titularidad, estado y versión: 403, 404 y 409). La suite los lista de forma explícita y exige que sigan sin observarse; si una regla futura los produjera, la prueba obligaría a cubrirlos. No se modificó el contrato para ocultarlo. Cobertura: 127 códigos declarados en total (suma de las 18 operaciones), 125 observados con respuesta real validada y 2 justificados.
+
+### 16.3 Seguridad por operación
+
+- **Ninguna es pública.** Con solicitudes **bien formadas y sin sesión** (cabeceras `Origin` e `Idempotency-Key`, identificadores, consulta y cuerpo válidos), las 18 responden exactamente **401 `NO_AUTENTICADO`**, conforme a `C003Error401`, y los recuentos de `solicitudes`, `cotizaciones`, `cotizaciones_aclaraciones`, `solicitudes_archivos`, `avisos_negocio` y `solicitudes_bitacora` no cambian.
+- **Validación de entrada frente a acceso efectivo.** Una solicitud sin sesión **mal formada** puede recibir 400 antes que 401 (antecedente de T088); la suite lo distingue y comprueba que nunca produce 2xx, 403, 404 ni 5xx.
+- **Representativos de autorización** (la matriz exhaustiva PR04 es T090): 403 `SIN_PERMISO` por falta de perfil en nueve operaciones, incluido el dueño que ya no tiene el perfil de cliente al escribir una aclaración; 404 con cuerpo idéntico para un recurso ajeno, inexistente o sin título (solicitud, historial, archivo, cotización, lista y comparación, hilo); 409 por versión, estado (solicitud cerrada, cotización retirada), clave de idempotencia reutilizada y posición ya ocupada; 413 y 422 con sus códigos de dominio.
+- **503**: con las tablas `solicitudes` y `cotizaciones` ausentes un instante en la base efímera de la suite (restituidas en `finally`), las 18 responden 503 `DEPENDENCIA_NO_DISPONIBLE` conforme a `C003Error503`, sin nombres de tablas, SQL ni trazas, y la aplicación se recupera sin estado parcial.
+
+### 16.4 Espejo OpenAPI
+
+`contracts/solicitudes-cotizaciones.openapi.json` es **idéntico byte a byte** a `specs/003-solicitudes-y-cotizaciones/contracts/openapi.json` (misma longitud y `Buffer.compare` = 0, sin normalizar; también comprobado con `cmp` en la terminal). La suite verifica además que un cambio de un solo bit **sí** se detecta. La aplicación registra las 18 operaciones con el método y la ruta del contrato, las mutaciones declaran `Origin`, `Idempotency-Key` y límite de cuerpo, y las lecturas no declaran cabeceras de escritura. `operationId`, métodos, rutas, esquemas, seguridad y códigos del contrato no se modificaron, ni los de 001 y 002.
+
+### 16.5 Pruebas (27 de noviembre de 2026, Node 24.15.0, PowerShell)
+
+| Comprobación | Resultado |
+|---|---|
+| `operaciones-003.spec.ts` | **24/24**, 0 fallidas, 0 omitidas |
+| `tsc`, `eslint --max-warnings=0` y `build` del backend | Sin errores |
+| Contrato 003 completo | 95/95, 6 suites (71 anteriores + 24) |
+| Jest unitario | 669/669, 41 suites |
+| Arquitectura | 8/8, 3 suites |
+| Integración 003 completa | 340 aprobadas, 3 `todo`, 0 fallidas, 21/21 suites |
+
+Comandos: `npm run test:contract -- --testPathPatterns operaciones-003`, `npm run test:contract -- --testPathPatterns solicitudes-cotizaciones`, `npm run test:unit`, `npm run test:architecture`, `npm run test:integration:003`, `npx tsc --noEmit`, `npx eslint . --max-warnings=0` y `npx tsc -p tsconfig.build.json`.
+
+### 16.6 Incidencias y limitaciones
+
+1. **Aborto nativo de Node `0xC0000409`: sin ocurrencias** durante T089 (ninguna ejecución abortó). Sigue **sin causa identificada** y pendiente de diagnóstico; que no haya aparecido ahora no lo resuelve.
+2. Errores de redacción propios de la suite durante su escritura (un import sin usar y líneas residuales de un borrador), corregidos antes de las ejecuciones que se reportan.
+3. No se ejecutaron las regresiones de 001 y 002: T089 no modifica código de producción ni contratos, y su última verificación completa fue la de la sección 15 (T088).
+4. No se ejecutaron Firefox ni WebKit ni Playwright (no hay cambios de interfaz); la matriz de nueve proyectos es de T102.
+5. Siguen pendientes las 35 pruebas de infraestructura de 002, los 3 casos `todo` de `frontera-004.spec.ts`, T090 (matriz PR04), cobertura Jest y k6.
+6. La CI de GitHub Actions no se ha ejecutado para este cambio.
