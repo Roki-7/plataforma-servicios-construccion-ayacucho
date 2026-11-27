@@ -41,6 +41,8 @@
     "test:integration:002": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration --maxWorkers=2 --testPathPatterns prestadores-catalogo --testPathIgnorePatterns \"redis-revision|procedimiento-rf39-aislado|restauracion-portafolio|fotos-cuenta-composicion\"",
     "test:integration:002:infra": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration --runInBand --testPathPatterns \"redis-revision|procedimiento-rf39-aislado|restauracion-portafolio|fotos-cuenta-composicion\"",
     "test:contract": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects contract --runInBand",
+    "solicitudes:limpiar:003": "tsx scripts/solicitudes-limpiar-003.ts",
+    "solicitudes:verificar:003": "tsx scripts/solicitudes-verificar-003.ts",
     "test:integration:003": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration --maxWorkers=2 --testPathPatterns solicitudes-cotizaciones",
     "test:architecture": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects architecture --runInBand",
     "test:coverage:001": "tsx scripts/verificar-cobertura-001.ts"

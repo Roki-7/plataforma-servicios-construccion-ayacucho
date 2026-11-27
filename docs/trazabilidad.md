@@ -346,6 +346,17 @@ Limitaciones conservadas: tres fallos intermitentes de navegador sin causa confi
 La matriz conserva la cadena de cada CA a su FR y suite. El informe contiene la
 versión, el alcance y los resultados. [Matriz de 001](../specs/001-usuarios-y-acceso/test-matrix.md) · [Informe](../specs/001-usuarios-y-acceso/implementation-status.md)
 
+### Solicitudes y cotizaciones 003 · HU07
+
+| HU y requisitos | Atributo y decisiones | Componente y verificación |
+|---|---|---|
+| HU07 · RF12 · FR-301 a FR-306, FR-315, FR-316 y FR-348 | AC04/EQ-04 y AC06/EQ-06 · DA03 y DA09 · ADR-005, ADR-006 y ADR-011 | Dominio de Solicitudes, Catálogo y Prestadores. CA-BOR, CA-SOL y CA-DAT en `validacion-solicitud.spec.ts`, `datos-personales.spec.ts` y `ciclo-solicitudes.spec.ts`. |
+| HU07 · RF13 parcial · FR-307 a FR-312, FR-344 a FR-346 | AC04/EQ-04 · DA11 · ADR-009 y ADR-012 | Solicitudes y registro de avisos. CA-VER, CA-CIE y CA-AVI en `versionado-solicitud.spec.ts` y `ciclo-solicitudes.spec.ts`. |
+| HU07 · RF12 · FR-317 a FR-323, FR-327 a FR-329 y FR-347 | AC04/EQ-04 · DA03 y DA11 · ADR-006 y ADR-011 | Autorización, archivos privados y limpieza. CA-ARC y PR04 en `archivos-solicitud.spec.ts`, `seguridad-solicitudes.spec.ts` y `limpieza-solicitudes.spec.ts`. |
+| HU07 · recorrido web y API REST | AC07/EQ-07 · DA10 · ADR-004 | `solicitudes.spec.ts` valida las nueve operaciones y sus esquemas. `editor.test.tsx` verifica estados y errores en React. `us1.spec.ts` recorre la aplicación HTTPS con Playwright. |
+
+El [informe de implementación 003](../specs/003-solicitudes-y-cotizaciones/implementation-status.md#9-fase-3--us1-hu07-t043t059) recoge los resultados locales, los pendientes y la ubicación de la evidencia.
+
 ## 5. Diagramas y su evidencia
 
 | Diagrama | Documento | Evidencia que aporta |

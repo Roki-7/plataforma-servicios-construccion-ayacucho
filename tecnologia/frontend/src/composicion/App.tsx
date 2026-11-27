@@ -20,7 +20,16 @@ import { usuarios, sesion, recuperacion, perfilWeb, correoWeb, prepararCambioCon
 import { BarraLateral, type EnlaceMenu } from './BarraLateral.js';
 import { PortadaMarca } from '../compartido/Marca.js';
 import { useCuentaSesion } from '../features/usuarios-acceso/presentacion/useCuentaSesion.js';
+import { EditorSolicitud } from '../features/solicitudes-cotizaciones/presentacion/EditorSolicitud.js';
+import { ListaSolicitudes } from '../features/solicitudes-cotizaciones/presentacion/ListaSolicitudes.js';
+import { solicitudesWeb } from './solicitudes-cotizaciones.js';
 import './estilos.css';
+import '../features/solicitudes-cotizaciones/presentacion/solicitudes.css';
+
+const uuidRuta = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
+const detalleSolicitud = new RegExp('^/solicitudes/' + uuidRuta + '$');
+const esRutaSolicitudes = (ruta: string) => ruta === '/solicitudes' || ruta === '/solicitudes/nueva' || detalleSolicitud.test(ruta);
+
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
   const [enlaceVersion, setEnlaceVersion] = useState(0);
@@ -42,7 +51,9 @@ export function App() {
     evento.preventDefault();
     setCorreoInicial('');
     setTrasCierre(false);
-    ir(new URL(evento.currentTarget.href).pathname);
+    const destino = new URL(evento.currentTarget.href).pathname;
+    ir(destino);
+    if (esRutaSolicitudes(destino)) window.scrollTo(0, 0);
   }
 
   const acceso = <Acceso key={cierres} trasCierre={trasCierre} correoInicial={correoInicial} entrar={async (datos) => {
@@ -50,14 +61,17 @@ export function App() {
     await sesion.entrar(datos);
     setCorreoInicial('');
     setTrasCierre(false);
-    // Las pantallas profesionales conservan su destino tras iniciar sesión (la URL no cambia mientras se muestra el acceso). El resto de los recorridos base no cambia.
-    if (location.pathname !== '/confirmar-correo' || !correoWeb.tieneEnlace()) ir(rutasProfesionales.includes(location.pathname) ? location.pathname : '/cuenta');
+    if (location.pathname !== '/confirmar-correo' || !correoWeb.tieneEnlace()) {
+      const destino = location.pathname;
+      ir(rutasProfesionales.includes(destino) || esRutaSolicitudes(destino) ? destino : '/cuenta');
+    }
   }} />;
   const pantallaRecuperacion = recuperacion.tieneEnlace() ? <EstablecerContrasena key={enlaceVersion} establecer={(nueva, confirmacion) => recuperacion.consumir(nueva, confirmacion)} completada={() => { sesion.invalidar(); history.replaceState(null, '', '/acceso'); setRuta('/acceso'); setMensaje('Contraseña actualizada. Inicie sesión con su nueva contraseña.'); }} /> : recuperacion.enlaceInvalido ? <section><h2>Enlace no válido</h2><p>Solicite un enlace nuevo para recuperar el acceso.</p><a href="/recuperar">Solicitar un enlace nuevo</a></section> : <RecuperarAcceso solicitar={(correo) => recuperacion.solicitar(correo)} />;
   const rutaCuenta = ruta === '/cuenta' || ruta === '/habilitar-perfil';
   let contenido: ReactNode;
-  const uuidRuta = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
   const prestadorRuta = new RegExp('^/prestadores/' + uuidRuta + '$').exec(ruta)?.[1]; const servicioRuta = new RegExp('^/servicios/' + uuidRuta + '$').exec(ruta)?.[1];
+  const solicitudRuta = detalleSolicitud.exec(ruta)?.[1];
+  const borradorGuardado = Boolean(solicitudRuta && mensaje === 'Borrador guardado.');
   if (cargando && ruta !== '/buscar' && !prestadorRuta && !servicioRuta) contenido = <p>Comprobando sesión…</p>;
   else if (ruta === '/buscar') contenido = <PantallaBusqueda alVerPrestador={id => ir('/prestadores/' + id)} alVerServicio={id => ir('/servicios/' + id)} />;
   else if (prestadorRuta) contenido = <DetallePrestador key={prestadorRuta} busqueda={busquedaWeb} prestadorId={prestadorRuta} alVerServicio={id => ir('/servicios/' + id)} />;
@@ -68,8 +82,12 @@ export function App() {
     else if (ruta === '/cambiar-contrasena') contenido = <PantallaCambiarContrasena />;
     else if (ruta === '/prestador/perfil') contenido = <RequierePrestador><PantallaPerfilProfesional /></RequierePrestador>;
     else if (ruta === '/prestador/servicios') contenido = <RequierePrestador><PantallaServicios /></RequierePrestador>;
+    else if (ruta === '/solicitudes') contenido = <ListaSolicitudes api={solicitudesWeb} alNavegar={navegar} />;
+    else if (ruta === '/solicitudes/nueva' || solicitudRuta) contenido = <EditorSolicitud key={solicitudRuta ?? 'nueva'} id={solicitudRuta} api={solicitudesWeb} busqueda={busquedaWeb} categorias={categoriasWeb}
+      alNavegar={navegar} mensajeInicial={borradorGuardado ? mensaje : undefined}
+      alCrear={id => { ir('/solicitudes/' + id, 'Borrador guardado.'); window.scrollTo(0, 0); }} />;
     else contenido = <Perfil vista={ruta === '/habilitar-perfil' ? 'perfiles' : 'cuenta'} servicio={perfilWeb} habilitar={usuarios.habilitar} correo={correoWeb} alActualizar={refrescarCuenta} />;
-  } else if (rutaCuenta || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
+  } else if (rutaCuenta || esRutaSolicitudes(ruta) || ['/acceso', '/confirmar-correo', '/cambiar-contrasena', '/prestador/perfil', '/prestador/servicios'].includes(ruta)) {
     contenido = <><PortadaMarca />{rutaCuenta && <EstadoAcceso autenticada={false} comprobando={false} />}{acceso}</>;
   } else {
     contenido = <><PortadaMarca /><Registro registrar={usuarios.registrar} iniciarSesion={correo => { setCorreoInicial(correo); ir('/acceso'); }} /></>;
@@ -77,6 +95,7 @@ export function App() {
 
   const enlaces: EnlaceMenu[] = estado.autenticada
     ? [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/cuenta', texto: 'Mi cuenta', icono: 'cuenta', actual: ruta === '/cuenta' },
+      { href: '/solicitudes', texto: 'Mis solicitudes', icono: 'servicios', actual: esRutaSolicitudes(ruta) },
       { href: '/habilitar-perfil', texto: 'Mis perfiles', icono: 'perfiles', actual: ruta === '/habilitar-perfil' }, { href: '/prestador/perfil', texto: 'Mi perfil profesional', icono: 'profesional', actual: ruta === '/prestador/perfil' },
       { href: '/prestador/servicios', texto: 'Mis servicios', icono: 'servicios', actual: ruta === '/prestador/servicios' }]
     : [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/registro', texto: 'Crear cuenta', icono: 'registro', actual: ruta === '/' || ruta === '/registro' },
@@ -89,7 +108,7 @@ export function App() {
     }} /> : undefined} />
     <main id="contenido" className="app-contenido" tabIndex={-1}>
     <div className="superficie">
-      {mensaje && <p className="aviso" role="status">{mensaje}</p>}
+      {mensaje && !borradorGuardado && <p className="aviso" role="status">{mensaje}</p>}
       {contenido}
     </div>
     </main>

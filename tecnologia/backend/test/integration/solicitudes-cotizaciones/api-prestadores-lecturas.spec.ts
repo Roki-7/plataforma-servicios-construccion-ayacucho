@@ -104,10 +104,20 @@ describe('nombresPublicos', () => {
     expect(r.total).toBe(0);
   });
   test('usa una sola consulta por página, sea cual sea su tamaño (FR-343)', async () => {
-    const perfiles = await Promise.all(Array.from({ length: 50 }, (_, i) => crearPerfil({ nombre: `Prestador ${i}` })));
-    const medicion = async (n: number) => (await contador.contar(() => api.nombresPublicos(perfiles.slice(0, n).map(p => p.id)))).total;
-    expect([await medicion(1), await medicion(10), await medicion(50)]).toEqual([1, 1, 1]);
-    expect((await api.nombresPublicos(perfiles.map(p => p.id))).size).toBe(50);
+    // La preparación usa una conexión y queda fuera de la medición de las lecturas.
+    const perfiles = await db.query(`
+      INSERT INTO prestadores_perfiles (id, cuenta_id, nombre_publico, tipo, experiencia, disponibilidad_declarada, publicable)
+      SELECT gen_random_uuid(), gen_random_uuid(), 'Prestador ' || n, 'TECNICO', 'Experiencia ficticia', true, true
+      FROM generate_series(1, 50) AS serie(n)
+      RETURNING id, nombre_publico
+    `) as { id: string; nombre_publico: string }[];
+    expect(perfiles).toHaveLength(50);
+    for (const tamano of [1, 10, 50]) {
+      const pagina = perfiles.slice(0, tamano);
+      const { resultado, total } = await contador.contar(() => api.nombresPublicos(pagina.map(p => p.id)));
+      expect(total).toBe(1);
+      expect(resultado).toEqual(new Map(pagina.map(p => [p.id, p.nombre_publico])));
+    }
   });
   test('rechaza más de 50 identificadores y los que no son UUID, sin consultar', async () => {
     const r = await contador.contar(async () => {

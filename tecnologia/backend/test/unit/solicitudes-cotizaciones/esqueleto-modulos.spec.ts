@@ -10,17 +10,22 @@ const importaciones = (modulo: string, archivo: string): string[] => [...readFil
 const destino = (modulo: string, archivo: string, ruta: string) => resolve('src/modulos', modulo, archivo, '..', ruta).replaceAll('\\', '/').split('/src/')[1]!;
 
 describe('Solicitudes', () => {
-  test('no importa ningún otro módulo (solo su propio código y lo compartido)', () => {
+  const apisPermitidas = new Set(['modulos/catalogo/api-publica.js', 'modulos/prestadores/api-publica.js', 'modulos/notificaciones/api-publica.js', 'modulos/usuarios-acceso/api-publica.js']);
+  test('solo importa su propio código, lo compartido y la api-publica de Catálogo, Prestadores, Notificaciones y Usuarios y acceso', () => {
     for (const archivo of archivos('solicitudes')) for (const ruta of importaciones('solicitudes', archivo)) {
       const d = destino('solicitudes', archivo, ruta);
-      expect([archivo, ruta, d.startsWith('modulos/solicitudes/') || d.startsWith('compartido/')]).toEqual([archivo, ruta, true]);
+      const permitido = d.startsWith('modulos/solicitudes/') || d.startsWith('compartido/') || apisPermitidas.has(d) || /^composicion\/identidad-002\.js$/.test(d);
+      expect([archivo, ruta, permitido]).toEqual([archivo, ruta, true]);
     }
   });
-  test('su dominio no depende de la aplicación, la infraestructura ni del framework', () => {
+  test('su dominio no depende de otros módulos, de la aplicación, de la infraestructura ni del framework', () => {
     for (const archivo of archivos('solicitudes').filter(f => f.startsWith('dominio/'))) {
       const texto = readFileSync(resolve('src/modulos/solicitudes', archivo), 'utf8');
       expect(texto).not.toMatch(/from\s+['"](?:@nestjs|typeorm|pg|sharp|@aws-sdk)/);
-      for (const ruta of importaciones('solicitudes', archivo)) expect(destino('solicitudes', archivo, ruta)).not.toMatch(/\/(aplicacion|infraestructura|presentacion)\//);
+      for (const ruta of importaciones('solicitudes', archivo)) {
+        const d = destino('solicitudes', archivo, ruta);
+        expect([archivo, ruta, d.startsWith('modulos/solicitudes/dominio/') || d.startsWith('compartido/dominio/')]).toEqual([archivo, ruta, true]);
+      }
     }
   });
   test('su api-publica expone solo contratos de lectura y tipos, sin rutas HTTP ni repositorios', () => {

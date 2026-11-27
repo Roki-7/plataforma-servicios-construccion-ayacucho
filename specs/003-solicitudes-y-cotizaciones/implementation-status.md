@@ -174,3 +174,116 @@ Commit base: `9afa0be` (CI #2 de la Fase 2A: SUCCESS, 2 min 37 s, informado por 
 8. **Esperas de lectura/escritura:** `SolicitudesS3` fija 8 s por llamada y 10 000 000 bytes de lectura máxima.
 9. **Workflow de 003:** ahora ejecuta `db:migrate:003`, `storage:init:003` y `test:seed:003` antes de las pruebas. No se ha ejecutado en GitHub.
 10. **Pendiente para fases posteriores:** casos de uso, repositorios de escritura, controladores y frontend (Fase 3 en adelante). El ensamblador definitivo de 58 operaciones sigue pendiente (T088).
+
+## 9. Fase 3 · US1 HU07 (T043–T059)
+
+Rama `003-solicitudes-y-cotizaciones`, base `694aa65`. Se recuperaron 7 archivos rastreados con modificaciones y 24 archivos nuevos en el backend. Los casos de uso, repositorios, controladores y pruebas de US1 ya tenían avances. Se revisaron contra las tareas y se conservaron. El frontend de solicitudes se añadió durante esta continuación.
+
+| Tareas | Implementación y verificación |
+|---|---|
+| T043–T045, T051–T052 | Versionado de control y trabajo, validación de la solicitud y fechas en America/Lima, avisos de texto libre y detección de datos personales. Pruebas unitarias de versionado, validación y datos personales. Las pruebas recuperadas ya coexistían con la implementación al comenzar la revisión. |
+| T046, T053–T054 | Persistencia de solicitudes en PostgreSQL, paginación determinista con total por ventana, transacciones de cambios, elegibilidad de servicio y avisos atómicos. La suite de ciclo comprueba una escritura sobre un servicio que dejó de ser elegible, reintentos, versiones, idempotencia y cierre. |
+| T047–T048, T055–T056 | Carga privada en tres tiempos, confirmación de la lista final, purga durable, limpieza periódica y control de pendientes, inventario y contadores. Las suites usan PostgreSQL y Garage reales. |
+| T049–T050, T057 | Nueve operaciones HTTP de HU07 con esquemas OpenAPI y matriz de permisos. La composición de validación registra 49 operaciones activas (17 de 001, 23 de 002 y 9 de HU07). El contrato fuente y su espejo conservan las 18 operaciones previstas para 003. |
+| T058–T059 | `/solicitudes`, `/solicitudes/nueva` y `/solicitudes/:id` usan la sesión existente. Se crea un borrador público o dirigido, se completan los datos, se muestran advertencias, se cargan y confirman fotos y se publica. Al editar se puede retirar una foto y consultar su referencia histórica, y al cerrar se conserva el historial. Playwright usa la aplicación real por HTTPS y datos ficticios. |
+
+### 9.1 Correcciones durante la continuación
+
+- Se corrigieron un literal roto en el arranque y la incompatibilidad entre el prefijo de Redis 003 y el adaptador de Catálogo. La composición adapta el prefijo para el adaptador y mantiene la instancia Redis aislada. Las solicitudes se consultan en PostgreSQL.
+- Se inyectó el traductor de errores desde la composición para respetar las dependencias de la aplicación y preservar los conflictos PostgreSQL antes de que la unidad de trabajo revierta la transacción.
+- La carga vuelve a verificar el estado bajo bloqueo antes de dejar un archivo preparado. Si el dueño cierra durante la escritura del objeto, responde 409, libera el cupo y elimina el objeto tardío. Una compensación conserva los archivos ya confirmados por otra operación.
+- El control operativo detecta filas preparadas o confirmadas sin objeto y discrepancias de contadores, además de entradas vencidas, reintentos fallidos y objetos sin fila ni entrada. El reclamo de cada clave empieza al procesarla para aprovechar su arrendamiento de 120 s.
+- La interfaz conserva la identidad visual de WasiMaki y usa el ancho disponible de la aplicación. El selector de archivos conserva su control nativo y el foco visible. Las fotografías se leen con Bearer y la vista previa usa una URL de objeto temporal.
+- Se agregó la CA de validación 003 al almacén de confianza del usuario de Windows para ejecutar Playwright con verificación TLS. Los límites de 24 h, 300 s y 900 s describen caducidad lógica, intervalo de trabajo y umbral de control, respectivamente.
+
+### 9.2 Inventario del árbol de trabajo frente a 694aa65
+
+**Archivos rastreados con cambios**
+
+- Documentación: `docs/trazabilidad.md`, `specs/003-solicitudes-y-cotizaciones/implementation-status.md` y `specs/003-solicitudes-y-cotizaciones/tasks.md`.
+- Backend: `tecnologia/backend/package.json`, `src/composicion/{aplicacion-003,main,oferta-003}.ts`, `src/modulos/solicitudes/dominio/{archivos,errores}.ts` y `test/unit/solicitudes-cotizaciones/esqueleto-modulos.spec.ts`.
+- Frontend: `tecnologia/frontend/src/composicion/App.tsx`.
+
+**Archivos nuevos**
+
+- Backend, scripts y composición: `scripts/solicitudes-limpiar-003.ts`, `scripts/solicitudes-verificar-003.ts` y `src/composicion/solicitudes-003.ts`.
+- Backend, módulo `src/modulos/solicitudes/`: `dominio/{datos-personales,fechas,solicitud,version}.ts`, `aplicacion/{archivos-solicitud,solicitudes}.ts`, `aplicacion/puertos/repositorios.ts`, `infraestructura/archivos/limpieza-solicitudes.ts`, `infraestructura/persistencia/{archivos,solicitudes}.ts` y `presentacion/solicitudes.controller.ts`.
+- Backend, pruebas bajo `test/**/solicitudes-cotizaciones/`: `unit/{datos-personales,validacion-solicitud,versionado-solicitud}.spec.ts`, `integration/{archivos-solicitud,ciclo-solicitudes,limpieza-solicitudes,seguridad-solicitudes}.spec.ts`, `contract/solicitudes.spec.ts` y `soporte/{contrato-003,entorno-http}.ts`.
+- Frontend: `src/composicion/solicitudes-cotizaciones.ts` y, bajo `src/features/solicitudes-cotizaciones/`, `aplicacion/edicion.ts`, `infraestructura/api-solicitudes.ts`, `modelos/contratos.ts`, `presentacion/{EditorSolicitud,Fotografias,Historial,ListaSolicitudes,SeleccionPrestador}.tsx` y `presentacion/solicitudes.css`.
+- Frontend, pruebas: `test/unit/solicitudes-cotizaciones/editor.test.tsx` y `test/e2e/solicitudes-cotizaciones/us1.spec.ts`.
+
+### 9.3 Verificación local del 26 de noviembre de 2026
+
+Node 24.15.0. PostgreSQL 18, Garage, Redis para Catálogo, correo de prueba y Caddy HTTPS del entorno aislado. Evidencia ignorada por Git en `tecnologia/.local/evidencia/003/us1/`.
+
+| Comprobación | Resultado y evidencia |
+|---|---|
+| Jest unitario del backend | 634 aprobadas en 38 suites, con 274 pruebas de 003 en 14 suites. `backend-unit-junit.xml`. |
+| Cobertura Jest unitaria | Dominio de Solicitudes, 162/179 líneas (90,50 %) y 197/224 ramas (87,95 %). Backend global, 1506/3326 líneas (45,28 %) y 1448/3431 ramas (42,20 %). `cobertura/lcov.info`. La cobertura corresponde a unitarias. |
+| Integración real 003 | 280 casos verificados en 15 suites entre la ejecución y la repetición de Prestadores. La serie final aprobó 279/280 y todas las pruebas de HU07. La preparación de 50 perfiles de FR-343 agotó el plazo de conexión de 1,5 s. La suite de Prestadores aprobó 13/13 tras repetir con `synchronous_commit=off` solo para las conexiones de su base temporal ficticia. `backend-integration-junit.xml` y `reintento-prestadores-local/backend-integration-junit.xml`. |
+| Arquitectura PR12 | 8 aprobadas en 3 suites. `backend-architecture-junit.xml`. |
+| OpenAPI 003 | 37 aprobadas en 2 suites, incluidas las nueve operaciones de HU07 y el inventario de arranque. |
+| Contratos completos 001, 002 y 003 | 239 aprobadas en 20 suites, incluidas las 37 de 003. `regresiones-final/backend-contract-junit.xml`. |
+| Regresión ordinaria de integración 001 y 002 | 294 aprobadas en 29 suites. `regresiones-final/backend-integration-junit.xml`. Se repitió tras tiempos de espera y recuperación de PostgreSQL durante ejecuciones simultáneas. La repetición se hizo después de los contratos, con `synchronous_commit=off` limitado a las conexiones ficticias de prueba. |
+| Vitest completo | 185 aprobadas en 20 archivos, con 5 casos nuevos del editor. `frontend-junit.xml`. La repetición se ejecutó con un trabajador y un límite de 15 s por prueba, después de tiempos de espera en ejecuciones concurrentes. |
+| TypeScript, ESLint y build | Aprobados en backend y frontend. |
+| Control operativo de archivos | `solicitudes:verificar:003` salió con código 0 y cero hallazgos sobre la base ficticia. `control-limpieza.txt`. |
+| Playwright sobre la aplicación real | 18 aprobadas en 9 proyectos. Chromium, Firefox y WebKit a 360, 768 y 1366 px. `web-final/playwright-junit.xml` y `web-final/playwright.json`. |
+| Ajuste del selector de distrito | 3 recorridos dirigidos aprobados en Chromium a 360, 768 y 1366 px tras ampliar el campo. `web-ubicacion/playwright-junit.xml`. |
+
+Los recorridos de navegador cubrieron borrador vacío, descripción superior al máximo, rechazo por teléfono en texto, aviso de falta de cobertura, rechazo de una imagen inválida, carga y lectura de una imagen válida, publicación, edición, retirada de una foto, historial, cierre y filtro del listado. Se verificó el foco por Tab y la apertura del historial con Enter. Cada captura comprueba el ancho del documento contra el viewport.
+
+Las 54 capturas de la matriz están en `web-final/capturas/<navegador>-<ancho>/`. Se revisaron visualmente el formulario, la fotografía confirmada, las advertencias de una dirigida, el historial y el listado. Las tres capturas del selector ajustado están en `web-ubicacion/capturas/chromium-<ancho>/06-dirigida.png`.
+
+**Punto de verificación de HU07.** T043–T059 comprobadas y marcadas. La aplicación de validación respondió 200 en `/solicitudes` y `/api/v1/salud` por HTTPS. El árbol de trabajo sigue en `003-solicitudes-y-cotizaciones` sobre `694aa65`.
+
+Se detuvieron los contenedores iniciados para las regresiones de 001 y 002 y se conservaron sus volúmenes. La aplicación de validación 003 quedó disponible por HTTPS en el puerto 8447.
+
+### 9.4 Límites del punto de verificación
+
+- La ejecución de GitHub Actions #3 corresponde a la Fase 2B según lo informado por el Product Owner. Los resultados de esta sección proceden de ejecuciones locales de HU07.
+- Las 35 pruebas de infraestructura de 002 siguen sin verificarse. La matriz PR04 completa, la parte de CA-ARC-04 para prestadores solamente compatibles, la observación con cinco participantes de PR06, el recorrido en celular físico de PR07 y las pruebas de carga y respaldo de 003 corresponden a tareas posteriores.
+- El contrato de edición permite omitir un dato y reemplazarlo por otro valor válido. La interfaz informa cuando se intenta vaciar un dato ya guardado, dado que ese contrato carece de una operación para asignar nulo.
+
+## 10. Revisión para aprobación de HU07
+
+### 10.1 Estabilidad de la integración 003
+
+El JUnit de la ejecución 279/280 identifica el caso `nombresPublicos › usa una sola consulta por página, sea cual sea su tamaño (FR-343)`, en `api-prestadores-lecturas.spec.ts`. El fallo fue `timeout exceeded when trying to connect` de `pg-pool`, a los 1,504 s. La preparación lanzaba 50 inserciones simultáneas contra un pool de seis conexiones con un plazo de adquisición de 1.500 ms.
+
+La preparación usa ahora una sola inserción de 50 perfiles, fuera del contador. El caso conserva la medición de una sentencia para páginas de 1, 10 y 50 perfiles y compara los identificadores y nombres devueltos con los datos persistidos. El cambio se limita al archivo de prueba.
+
+El ajuste del informe anterior se pasó mediante `PGOPTIONS=-c synchronous_commit=off` al proceso de repetición. El cliente `pg` toma esa variable como opciones de inicio de cada conexión del proceso. Con `off`, PostgreSQL puede confirmar al cliente antes de forzar el WAL a disco. Por eso aquella repetición aislada no acreditaba por sí sola la ejecución con las garantías de confirmación predeterminadas. El workflow `validar-003` fija Node 24.15.0, genera la configuración, levanta los servicios de Compose, migra, inicializa Garage, siembra datos ficticios y ejecuta `test:integration:003` con dos trabajadores. Los archivos de configuración de la aplicación, Compose y el workflow conservan sus valores versionados.
+
+Una sonda sobre el PostgreSQL desechable usó la fábrica de conexiones de la aplicación antes y después de abrir una conexión hija con `PGOPTIONS`. Leyó `synchronous_commit=on` (origen `default`) en ambos pools y `off` (origen `client`) solo en la hija. `fsync` y `full_page_writes` se mantuvieron en `on` en las tres lecturas. La evidencia está en `tecnologia/.local/evidencia/003/us1/aprobacion-ci/durabilidad-sesiones.json`. [PostgreSQL 18 · Confirmación síncrona](https://www.postgresql.org/docs/18/runtime-config-wal.html#GUC-SYNCHRONOUS-COMMIT).
+
+**Resultado final del 26 de noviembre de 2026:** `test:integration:003` obtuvo **280/280 casos en 15/15 suites** en una sola ejecución de 108,15 s, con dos trabajadores y `PGOPTIONS` ausente. Se reprodujo localmente el paso de integración del workflow con Node 24.15.0, dependencias instaladas con el lockfile y los servicios e imágenes de Compose sobre volúmenes nuevos. Se verificó la configuración, se aplicaron 20 migraciones, se inicializó el bucket privado y se sembraron datos ficticios. Se usó un nombre de proyecto desechable y el nombre de Garage que esperan los scripts. Se retiraron los volúmenes del ensayo y se restauró la validación 003 original. El job alojado de GitHub Actions queda pendiente de ejecución.
+
+La primera copia de ensayo bajo `.local` no permitió a Jest descubrir las pruebas en Windows. La copia trasladada a `tecnologia/build/ci003-aprobacion` descubrió las 15 suites. El primer ensayo de integración en esa ruta aprobó FR-343 y 252 casos en 14 suites. La suite de archivos quedó sin completar tras cuatro terminaciones del proceso trabajador de Jest. La repetición completa con el mismo comando y volúmenes nuevos aprobó las 15 suites, incluida la de archivos. El informe y la consola finales están en `tecnologia/.local/evidencia/003/us1/aprobacion-ci-repeticion/backend-integration-junit.xml` y `tecnologia/.local/evidencia/003/us1/aprobacion-ci-repeticion/consola.txt`.
+
+### 10.2 Revisión visual y funcional de HU07
+
+Playwright ejecutó los recorridos público y dirigido en Chromium, Firefox y WebKit a 360, 768 y 1366 px. La matriz obtuvo 17/18. El caso público de Firefox a 1366 px agotó el plazo durante el cierre del contexto del navegador y pasó en la repetición aislada (1/1). Los informes están en `tecnologia/.local/evidencia/003/us1/aprobacion-web/playwright-junit.xml` y `tecnologia/.local/evidencia/003/us1/aprobacion-web-firefox/playwright-junit.xml`.
+
+La inspección de las tres capturas representativas confirmó la identidad existente de WasiMaki, formularios legibles, el nombre completo del distrito largo y controles visibles sin superposición. Las comprobaciones de ancho compararon el documento con el viewport. Se verificaron la validación asociada al campo, los estados de guardado, publicación y cierre, el foco visible con Tab, la apertura del historial con Enter y las acciones reales de carga y retiro de fotografías. La revisión se cerró sin cambios de interfaz.
+
+Una comprobación adicional observó el estado de carga del listado, reprodujo un 503 controlado y verificó un reintento real con 200. Sobre la misma fotografía, el titular recibió 200 con `Cache-Control: no-store`, el cliente sin sesión recibió 401 y otra cuenta recibió 404. El borrador ficticio se descartó por la interfaz. Evidencia en `tecnologia/.local/evidencia/003/us1/aprobacion-web/estados-y-privacidad.json`.
+
+| Ancho CSS | Captura desde la raíz del repositorio |
+|---|---|
+| 360 px | `tecnologia/.local/evidencia/003/us1/aprobacion-web/capturas/chromium-360/03-publicada.png` |
+| 768 px | `tecnologia/.local/evidencia/003/us1/aprobacion-web/capturas/chromium-768/06-dirigida.png` |
+| 1366 px | `tecnologia/.local/evidencia/003/us1/aprobacion-web/capturas/chromium-1366/04-cerrada.png` |
+
+### 10.3 CA local de Windows
+
+Se comprobó que `Ayacucho Validacion Local 003 CA` sigue en el almacén personal de raíces de confianza (`CurrentUser\Root`). Su huella es `1AFF0BAF5415118AA464AD297AFCA5DC4F30483C`. Cuando deje de usarse la validación HTTPS de 003, ejecutar con la misma cuenta de Windows. El primer comando comprueba la entrada y el segundo retira únicamente esa huella del almacén del usuario.
+
+```powershell
+certutil.exe -user -store Root 1AFF0BAF5415118AA464AD297AFCA5DC4F30483C
+certutil.exe -user -delstore Root 1AFF0BAF5415118AA464AD297AFCA5DC4F30483C
+```
+
+Para verificar la retirada, repetir la consulta `-store` y comprobar que ya no encuentra esa huella. La confianza se mantuvo durante esta revisión. Los anchos se comprobaron en navegadores de escritorio con viewport configurado. La prueba en un teléfono físico permanece pendiente.
+
+[Microsoft Learn · Certutil y almacenes de certificados](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/certutil#-delstore).

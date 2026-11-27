@@ -26,7 +26,11 @@ export const datosPersonalesEnTexto = (campo: string) => error(422, 'DATOS_PERSO
 export const limiteArchivos = () => error(422, 'LIMITE_ARCHIVOS', 'La solicitud admite hasta 5 archivos y 30 MB en total.');
 export const archivoNoListo = () => error(422, 'ARCHIVO_NO_LISTO', 'El archivo todavía no está listo.');
 export const archivoExpirado = () => error(422, 'ARCHIVO_EXPIRADO', 'El archivo caducó. Cárguelo de nuevo.');
-export const datosInvalidos = (campo: string, motivo: string) => error(400, 'DATOS_INVALIDOS', 'Revise los datos enviados.', [{ campo, motivo }]);
+export function datosInvalidos(detalles: readonly DetalleError[]): ErrorAplicacion;
+export function datosInvalidos(campo: string, motivo: string): ErrorAplicacion;
+export function datosInvalidos(primero: readonly DetalleError[] | string, motivo?: string): ErrorAplicacion {
+  return error(400, 'DATOS_INVALIDOS', 'Revise los datos enviados.', typeof primero === 'string' ? [{ campo: primero, motivo: motivo ?? 'Valor no válido.' }] : primero);
+}
 export const archivoDemasiadoGrande = () => error(413, 'ARCHIVO_DEMASIADO_GRANDE', 'La imagen supera 10 MB.', [{ campo: 'contenidoBase64', motivo: 'La imagen supera 10 MB.' }]);
 export const imagenFormatoNoAdmitido = (motivo: string, campo = 'contenidoBase64') => error(422, 'IMAGEN_FORMATO_NO_ADMITIDO', motivo, [{ campo, motivo }]);
 export const imagenDimensionesNoAdmitidas = () => error(422, 'IMAGEN_DIMENSIONES_NO_ADMITIDAS', 'La imagen supera 4096 píxeles por lado.', [{ campo: 'contenidoBase64', motivo: 'La imagen supera 4096 píxeles de ancho o alto.' }]);
