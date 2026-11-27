@@ -3,7 +3,7 @@ import { ErrorAplicacion } from '../../../compartido/dominio/errores.js';
 import type { CategoriasDeOferta } from '../../catalogo/api-publica.js';
 import type { LecturasDePrestadores, PrestadoresApi } from '../../prestadores/api-publica.js';
 import type { IdentidadAcceso } from '../../usuarios-acceso/api-publica.js';
-import { decidirAcceso } from '../dominio/politica-acceso.js';
+import { coincideConCobertura, decidirAcceso } from '../dominio/politica-acceso.js';
 import type { Solicitud } from '../dominio/solicitud.js';
 import type { EstadoSolicitud } from '../dominio/tipos.js';
 import type { AutoriaDeCotizacion } from './puertos/cotizaciones.js';
@@ -56,7 +56,7 @@ export class OportunidadesServicio {
     const perfil = await this.prestadores.perfilDeCuenta(cuentaId);
     if (!perfil) return false;
     const { categorias, distritos } = await this.cobertura(perfil.prestadorId);
-    return categorias.has(solicitud.categoriaId) && distritos.includes(solicitud.distrito);
+    return coincideConCobertura(solicitud, categorias, distritos);
   }
 
   async decidir(solicitud: Solicitud, identidad: IdentidadAcceso) {

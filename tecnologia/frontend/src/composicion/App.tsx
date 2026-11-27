@@ -24,7 +24,10 @@ import { EditorSolicitud } from '../features/solicitudes-cotizaciones/presentaci
 import { ListaSolicitudes } from '../features/solicitudes-cotizaciones/presentacion/ListaSolicitudes.js';
 import { Oportunidades, SolicitudesRecibidas } from '../features/solicitudes-cotizaciones/presentacion/ListasPrestador.js';
 import { DetalleSolicitudPrestador } from '../features/solicitudes-cotizaciones/presentacion/DetalleSolicitudPrestador.js';
-import { solicitudesWeb } from './solicitudes-cotizaciones.js';
+import { DetalleCotizacion } from '../features/solicitudes-cotizaciones/presentacion/DetalleCotizacion.js';
+import { MisCotizaciones } from '../features/solicitudes-cotizaciones/presentacion/MisCotizaciones.js';
+import { PantallaActualizar, PantallaCotizar } from '../features/solicitudes-cotizaciones/presentacion/PantallasDeCotizacion.js';
+import { cotizacionesWeb, solicitudesWeb } from './solicitudes-cotizaciones.js';
 import './estilos.css';
 import '../features/solicitudes-cotizaciones/presentacion/solicitudes.css';
 
@@ -33,7 +36,12 @@ const detalleSolicitud = new RegExp('^/solicitudes/' + uuidRuta + '$');
 const esRutaSolicitudes = (ruta: string) => ruta === '/solicitudes' || ruta === '/solicitudes/nueva' || detalleSolicitud.test(ruta);
 const detalleSolicitudPrestador = new RegExp('^/prestador/solicitudes/' + uuidRuta + '$');
 /** Recorrido del prestador (HU08): oportunidades, solicitudes recibidas y su detalle de solo lectura. */
-const esRutaPrestadorSolicitudes = (ruta: string) => ruta === '/prestador/oportunidades' || ruta === '/prestador/solicitudes' || detalleSolicitudPrestador.test(ruta);
+const cotizarSolicitud = new RegExp('^/prestador/solicitudes/' + uuidRuta + '/cotizar$');
+const detalleCotizacion = new RegExp('^/prestador/cotizaciones/' + uuidRuta + '$');
+const actualizarCotizacion = new RegExp('^/prestador/cotizaciones/' + uuidRuta + '/actualizar$');
+/** HU10: mis cotizaciones, su detalle, enviar una nueva y actualizar. */
+const esRutaCotizaciones = (ruta: string) => ruta === '/prestador/cotizaciones' || cotizarSolicitud.test(ruta) || detalleCotizacion.test(ruta) || actualizarCotizacion.test(ruta);
+const esRutaPrestadorSolicitudes = (ruta: string) => ruta === '/prestador/oportunidades' || ruta === '/prestador/solicitudes' || detalleSolicitudPrestador.test(ruta) || esRutaCotizaciones(ruta);
 
 export function App() {
   const [ruta, setRuta] = useState(location.pathname); const [estado, setEstado] = useState(sesion.estado()); const [cargando, setCargando] = useState(true); const [mensaje, setMensaje] = useState('');
@@ -77,6 +85,7 @@ export function App() {
   const prestadorRuta = new RegExp('^/prestadores/' + uuidRuta + '$').exec(ruta)?.[1]; const servicioRuta = new RegExp('^/servicios/' + uuidRuta + '$').exec(ruta)?.[1];
   const solicitudRuta = detalleSolicitud.exec(ruta)?.[1];
   const solicitudPrestadorRuta = detalleSolicitudPrestador.exec(ruta)?.[1];
+  const cotizarRuta = cotizarSolicitud.exec(ruta)?.[1]; const cotizacionRuta = detalleCotizacion.exec(ruta)?.[1]; const actualizarRuta = actualizarCotizacion.exec(ruta)?.[1];
   const borradorGuardado = Boolean(solicitudRuta && mensaje === 'Borrador guardado.');
   if (cargando && ruta !== '/buscar' && !prestadorRuta && !servicioRuta) contenido = <p>Comprobando sesión…</p>;
   else if (ruta === '/buscar') contenido = <PantallaBusqueda alVerPrestador={id => ir('/prestadores/' + id)} alVerServicio={id => ir('/servicios/' + id)} />;
@@ -90,7 +99,11 @@ export function App() {
     else if (ruta === '/prestador/servicios') contenido = <RequierePrestador><PantallaServicios /></RequierePrestador>;
     else if (ruta === '/prestador/oportunidades') contenido = <RequierePrestador><Oportunidades api={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} /></RequierePrestador>;
     else if (ruta === '/prestador/solicitudes') contenido = <RequierePrestador><SolicitudesRecibidas api={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} /></RequierePrestador>;
-    else if (solicitudPrestadorRuta) contenido = <RequierePrestador><DetalleSolicitudPrestador key={solicitudPrestadorRuta} api={solicitudesWeb} categorias={categoriasWeb} id={solicitudPrestadorRuta} alNavegar={navegar} /></RequierePrestador>;
+    else if (solicitudPrestadorRuta) contenido = <RequierePrestador><DetalleSolicitudPrestador key={solicitudPrestadorRuta} api={solicitudesWeb} cotizaciones={cotizacionesWeb} categorias={categoriasWeb} id={solicitudPrestadorRuta} alNavegar={navegar} /></RequierePrestador>;
+    else if (ruta === '/prestador/cotizaciones') contenido = <RequierePrestador><MisCotizaciones api={cotizacionesWeb} alNavegar={navegar} /></RequierePrestador>;
+    else if (cotizarRuta) contenido = <RequierePrestador><PantallaCotizar key={cotizarRuta} api={cotizacionesWeb} solicitudes={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} ir={ir} solicitudId={cotizarRuta} /></RequierePrestador>;
+    else if (cotizacionRuta) contenido = <RequierePrestador><DetalleCotizacion key={cotizacionRuta} api={cotizacionesWeb} id={cotizacionRuta} alNavegar={navegar} ir={ir} /></RequierePrestador>;
+    else if (actualizarRuta) contenido = <RequierePrestador><PantallaActualizar key={actualizarRuta} api={cotizacionesWeb} solicitudes={solicitudesWeb} categorias={categoriasWeb} alNavegar={navegar} ir={ir} cotizacionId={actualizarRuta} /></RequierePrestador>;
     else if (ruta === '/solicitudes') contenido = <ListaSolicitudes api={solicitudesWeb} alNavegar={navegar} />;
     else if (ruta === '/solicitudes/nueva' || solicitudRuta) contenido = <EditorSolicitud key={solicitudRuta ?? 'nueva'} id={solicitudRuta} api={solicitudesWeb} busqueda={busquedaWeb} categorias={categoriasWeb}
       alNavegar={navegar} mensajeInicial={borradorGuardado ? mensaje : undefined}
@@ -108,7 +121,8 @@ export function App() {
       { href: '/habilitar-perfil', texto: 'Mis perfiles', icono: 'perfiles', actual: ruta === '/habilitar-perfil' }, { href: '/prestador/perfil', texto: 'Mi perfil profesional', icono: 'profesional', actual: ruta === '/prestador/perfil' },
       { href: '/prestador/servicios', texto: 'Mis servicios', icono: 'servicios', actual: ruta === '/prestador/servicios' },
       { href: '/prestador/oportunidades', texto: 'Oportunidades', icono: 'buscar', actual: ruta === '/prestador/oportunidades' },
-      { href: '/prestador/solicitudes', texto: 'Solicitudes recibidas', icono: 'servicios', actual: ruta === '/prestador/solicitudes' || Boolean(solicitudPrestadorRuta) }]
+      { href: '/prestador/solicitudes', texto: 'Solicitudes recibidas', icono: 'servicios', actual: ruta === '/prestador/solicitudes' || Boolean(solicitudPrestadorRuta) || Boolean(cotizarRuta) },
+      { href: '/prestador/cotizaciones', texto: 'Mis cotizaciones', icono: 'servicios', actual: ruta === '/prestador/cotizaciones' || Boolean(cotizacionRuta) || Boolean(actualizarRuta) }]
     : [{ href: '/buscar', texto: 'Buscar servicios', icono: 'buscar', actual: ruta === '/buscar' }, { href: '/registro', texto: 'Crear cuenta', icono: 'registro', actual: ruta === '/' || ruta === '/registro' },
       { href: '/acceso', texto: 'Acceder', icono: 'acceso', actual: ruta === '/acceso' }];
   return <div className="app">

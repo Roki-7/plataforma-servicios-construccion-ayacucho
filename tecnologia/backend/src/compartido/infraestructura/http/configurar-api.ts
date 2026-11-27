@@ -61,17 +61,27 @@ function responder(res: Response, error: ErrorAplicacion): void {
   if (error.http === 429 && error.reintentarEnSegundos !== undefined) res.setHeader('Retry-After', String(error.reintentarEnSegundos));
   res.status(error.http).json({ codigo: error.codigo, mensaje: error.message, detalles: error.detalles });
 }
-/** Hasta este tamaño declarado se descarta el cuerpo antes de responder; por encima se corta la conexión tras la respuesta. */
+/** Hasta este tamaño declarado se espera el cuerpo antes de responder; por encima se responde de inmediato con `Connection: close`. */
 const DRENAJE_MAXIMO_BYTES = 1_048_576;
 /**
- * 413 anticipado por `Content-Length`. El cuerpo nunca se almacena ni se interpreta. Si la respuesta se enviara con el cuerpo sin leer, Node cerraría el socket
- * con un reinicio (RST) y el cliente perdería el 413 (`ECONNRESET`). Por eso, dentro de un tope acotado, se descarta primero el cuerpo y luego se responde; un
- * `Content-Length` mayor al tope se responde de inmediato con `Connection: close`, sin leer nada, de modo que no se puede forzar a leer cantidades arbitrarias.
+ * Espera máxima a que un cliente que declaró un cuerpo demasiado grande termine de enviarlo. Un cliente que cumple el protocolo lo envía de inmediato; uno que
+ * declara una longitud y no envía nada (el contrato de 001 lo comprueba así) o que envía muy despacio no puede retener la respuesta.
+ */
+const ESPERA_DE_CUERPO_MS = 250;
+/**
+ * 413 anticipado por `Content-Length`. El cuerpo nunca se almacena ni se interpreta. Si la respuesta se enviara con el cuerpo en tránsito sin leer, Node cerraría el
+ * socket con un reinicio (RST) y el cliente perdería el 413 (`ECONNRESET`, comprobado con Node 24). Por eso, dentro de un tope acotado, se descarta el cuerpo y se
+ * responde al terminar de recibirlo o, como máximo, tras `ESPERA_DE_CUERPO_MS`. Un `Content-Length` mayor al tope se responde de inmediato con `Connection: close`,
+ * sin leer nada, de modo que no se puede forzar a leer cantidades arbitrarias ni retener la conexión.
  */
 function rechazarCuerpoGrande(req: Request, res: Response): void {
   const error = new ErrorAplicacion(413, 'CUERPO_DEMASIADO_GRANDE', 'El cuerpo supera el límite permitido.');
   if (Number(req.headers['content-length']) > DRENAJE_MAXIMO_BYTES) { res.setHeader('Connection', 'close'); responder(res, error); req.resume(); return; }
-  req.once('end', () => { if (!res.headersSent) responder(res, error); });
+  const responderUnaVez = () => { clearTimeout(espera); if (!res.headersSent) responder(res, error); };
+  const espera = setTimeout(responderUnaVez, ESPERA_DE_CUERPO_MS);
+  espera.unref();
+  req.once('end', responderUnaVez);
+  req.once('close', () => clearTimeout(espera));
   req.resume();
 }
 function unicodeValido(valor: unknown): boolean {

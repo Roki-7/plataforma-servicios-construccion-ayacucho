@@ -4,6 +4,8 @@ import type { CategoriasWeb, OpcionCategoria } from '../../prestadores-catalogo/
 import { ErrorApi } from '../../usuarios-acceso/aplicacion/puertos.js';
 import { etiquetaTipo, etiquetasTitulo, mensajePrestador, periodo } from '../aplicacion/oportunidades.js';
 import type { ApiSolicitudes, SolicitudVisible } from '../modelos/contratos.js';
+import type { ApiCotizaciones } from '../modelos/cotizaciones.js';
+import { PanelCotizacion } from './PanelCotizacion.js';
 import { VistaFoto } from './Fotografias.js';
 import { Historial } from './Historial.js';
 import { estadosSolicitud, nombreDistrito } from './ListaSolicitudes.js';
@@ -12,8 +14,8 @@ import { estadosSolicitud, nombreDistrito } from './ListaSolicitudes.js';
  * Vista de solo lectura para un prestador. El servidor decide qué se muestra (títulos y política de fotografías); aquí solo se presenta lo recibido.
  * La respuesta no trae datos del cliente, de modo que la pantalla no puede mostrarlos.
  */
-export function DetalleSolicitudPrestador({ api, categorias, id, alNavegar }: {
-  api: ApiSolicitudes; categorias: CategoriasWeb; id: string; alNavegar: MouseEventHandler<HTMLAnchorElement>;
+export function DetalleSolicitudPrestador({ api, cotizaciones, categorias, id, alNavegar }: {
+  api: ApiSolicitudes; cotizaciones?: ApiCotizaciones; categorias: CategoriasWeb; id: string; alNavegar: MouseEventHandler<HTMLAnchorElement>;
 }) {
   const [solicitud, setSolicitud] = useState<SolicitudVisible>();
   const [error, setError] = useState<{ mensaje: string; propia: boolean }>();
@@ -78,6 +80,7 @@ export function DetalleSolicitudPrestador({ api, categorias, id, alNavegar }: {
             <div><dt>Fecha</dt><dd>{periodo(solicitud.fechaDesde, solicitud.fechaHasta)}</dd></div>
           </dl>
         </section>
+        {cotizaciones && <PanelCotizacion api={cotizaciones} solicitud={solicitud} alNavegar={alNavegar} />}
         {verVersiones && puedeVerVersiones && <Historial api={api} id={solicitud.solicitudId} version={solicitud.versionTrabajo} categorias={opciones} />}
       </div>
       <div className="sol-lateral">

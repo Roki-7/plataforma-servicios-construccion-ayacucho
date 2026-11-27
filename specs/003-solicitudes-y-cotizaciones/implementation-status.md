@@ -353,3 +353,104 @@ Capturas de las siete pantallas a los tres anchos en `tecnologia/.local/evidenci
 - El «presupuesto de sentencias» (CP-306) se verificó con el contador de pruebas de integración para oportunidades y recibidas; la carga con k6 queda para la fase de calidad.
 - La «cobertura de CA-ARC-04 para prestadores solo compatibles» queda cubierta por las pruebas HTTP de `solicitudes-prestador.spec.ts`.
 - CI de GitHub Actions: no ejecutada para estos cambios.
+
+
+## 12. Fase 5 · US3 HU10 (T068–T079)
+
+**Rango exacto:** T068–T072 (pruebas primero), T073–T077 (backend), T078 (web) y T079 (punto de verificación). Las 12 quedan marcadas `[x]`. Sin `git add`, `commit` ni `push`. El resultado de GitHub Actions de US2 **no** se ha verificado en esta sesión y no se afirma.
+
+### 12.1 Funcionalidad entregada
+
+- **Dominio** (`cotizaciones/dominio/cotizacion.ts`): datos obligatorios por tipo (estimada: alcance, vigencia y precio o forma de cálculo; definitiva: además precio, plazo y condiciones de pago), precio en céntimos (entero > 0, hasta 2^53 − 1), vigencia futura, estado efectivo con la prioridad RETIRADA > VENCIDA > PENDIENTE_REVISION > VIGENTE, indicadores y motivos de no aceptabilidad. No produce estados de la 004.
+- **Persistencia** (`RepositorioCotizacionesPostgres`): versiones inmutables, `FOR UPDATE` por identificador, listado paginado con total por ventana (una sentencia) y unicidad de la posición no retirada por el índice parcial (`COTIZACION_EXISTENTE`).
+- **Casos de uso** (`CotizacionesServicio`): enviar, actualizar, retirar, mis cotizaciones y detalle, con idempotencia, reintento acotado y el orden de bloqueos del plan (idempotencia → revisión de Catálogo → solicitud `FOR SHARE` → cotización `FOR UPDATE`).
+- **API**: `enviarCotizacion003`, `listarMisCotizaciones003`, `obtenerCotizacion003`, `actualizarCotizacion003` y `retirarCotizacion003`, registradas junto a HU07 y HU08. El listado de cotizaciones de una solicitud, las aclaraciones y la comparación son de HU11 y no se implementaron. No se usa `nombresPublicos`: `prestadorNombrePublico` se añadirá en HU11 tras comprobar el título del cliente.
+- **Política única de acceso**: `coincideConCobertura` y `tituloParaCotizar` en `solicitudes/dominio/politica-acceso.ts`; las usan Oportunidades (HU08) y Cotizaciones. Cotizaciones solo importa `solicitudes/api-publica`; sus demás dependencias son puertos que conecta `composicion/cotizaciones-003.ts`.
+- **Frontera con la 004** (solo lectura): `ApiCotizacionesVigentes.obtenerVigente(cotizacionId, versionCotizacion, tx)` con `motivosNoAceptable`, y `ApiSolicitudes.validarClienteYDisponibilidad(solicitudId, actorCuentaId, tx)`. No existe selección, aceptación ni contratación; el contrato futuro de la 004 queda escrito como 3 pruebas `todo`.
+- **Web** (`/prestador/solicitudes/{id}` con el panel «Tu cotización», `/prestador/solicitudes/{id}/cotizar`, `/prestador/cotizaciones`, `/prestador/cotizaciones/{id}` y `/actualizar`): formulario por tipo con requisitos dinámicos, importe en soles convertido a céntimos sin coma flotante, vigencia como fecha de Lima, errores junto al campo con foco en el primero, prevención de doble envío, clave de idempotencia reutilizada en reintentos, conservación de lo escrito, estados «Vigente», «Vencida», «Requiere revisión» y «Retirada» con su explicación y sin afirmar que se avisó a nadie, versiones anteriores y retiro con confirmación. El transporte HTTP se extrajo a `infraestructura/transporte.ts` sin cambiar su comportamiento.
+
+### 12.2 Reglas verificadas (PostgreSQL y Garage reales)
+
+Compatible o destinatario cotiza; no compatible, sin servicio publicado, no destinatario y borrador ajeno reciben el mismo 404 que un identificador inexistente y no se crea nada; sin sesión 401; sin perfil de prestador 403; la propia solicitud, 422 `COTIZACION_PROPIA`; versión de trabajo anterior, 409 `SOLICITUD_MODIFICADA`; solicitud cerrada, 409 `SOLICITUD_NO_ABIERTA` (envío, actualización y retiro); un cambio relevante deja la cotización pendiente de revisión y un cambio de privacidad no; vencida sigue ocupando la posición; retirar es terminal y reenviar crea otra identidad con las versiones anteriores intactas; perder la compatibilidad no impide leer, actualizar ni retirar; retirar sin los otros títulos quita el acceso a la solicitud y conserva la lectura de la cotización; servicio retirado tras publicar una dirigida (CA-SOL-08); avisos registrados una sola vez por interesado (CA-AVI-04); idempotencia con la misma clave y con otros datos; ninguna respuesta incluye cuentas, correos ni contacto. Concurrencia (4 rondas por pareja): dos envíos del mismo prestador, cierre/envío, edición/envío, retiro/actualización, retiro/reenvío, misma clave a la vez (5 peticiones) y una mezcla de 9 operaciones, sin bloqueos y sin dos posiciones no retiradas.
+
+### 12.3 Pruebas (26–27 de noviembre de 2026, Node 24.15.0, PowerShell)
+
+| Comprobación | Resultado |
+|---|---|
+| `tsc`, `eslint --max-warnings=0` y `build` del backend | Sin errores |
+| Jest unitario | 650/650, 39 suites (16 casos nuevos del dominio) |
+| Arquitectura | 8/8, 3 suites |
+| Contrato 003 | 56/56, 4 suites (16 casos nuevos) |
+| Integración 003 completa | 320 aprobadas y 3 `todo`, 20/20 suites, una sola ejecución de 121 s (31 casos nuevos: ciclo 19, concurrencia 7, frontera 5) |
+| `tsc`, `eslint` y `npm run build` del frontend | Sin errores |
+| Vitest | 223/223, 23 archivos (31 casos nuevos), con 1 trabajador y 15 s por prueba. Con los valores por defecto, la primera ejecución tuvo 3 timeouts en pruebas de 002 (`navegacion-compuesta` y `selector-y-navegacion`, 5–7 s); no son de US3 |
+| Playwright `us3.spec.ts`, Chromium a 360, 768 y 1366 px | 9/9 sobre la aplicación real (HTTPS 8447), repetido tras el ajuste visual |
+
+### 12.4 Evidencia visual
+
+Capturas 20 a 33 a los tres anchos en `tecnologia/.local/evidencia/003/us3/web-chromium/capturas/chromium-{360,768,1366}/` (formulario, errores, detalle vigente, requiere revisión, actualizar, versiones, mis cotizaciones, confirmar retiro, retirada, vencida, solicitud cerrada, sin cambios, sin título y cotización ajena). Cada captura comprueba que el documento no excede el viewport. Revisadas a ojo: formulario con errores (360), requiere revisión (1366) y mis cotizaciones (768 y 360).
+
+### 12.5 Incidencias y correcciones
+
+1. **Bloqueo con JOIN** (hallada por la prueba de concurrencia): `SELECT … JOIN … FOR UPDATE OF c` volvía a evaluar el JOIN con la versión vigente anterior tras esperar el bloqueo y devolvía 0 filas (404 falso al actualizar y retirar a la vez). Se separó el bloqueo (`FOR UPDATE` solo de la fila) de la lectura de la versión vigente.
+2. **TypeORM no devuelve las filas de un `UPDATE … RETURNING`**: se leyó la versión antes de actualizar (la fila ya está bloqueada).
+3. **Arquitectura**: la prueba de US1 exige que `solicitudes/api-publica.ts` no mencione repositorios y `dependency-cruiser` rechaza ciclos. `ApiSolicitudes` vive en `solicitudes/aplicacion/api-solicitudes.ts` y la conecta la composición, sin debilitar ninguna prueba.
+4. **Prueba propia**: un servicio retirado es de solo lectura; CA-SOL-08 usa a Darío para no contaminar los demás casos.
+5. **Defecto visual** (revisión de capturas): una estimada sin precio mostraba «No indicado» como titular y las tarjetas no distinguían los trabajos. Ahora dice «Precio por definir», muestra la forma de cálculo y un extracto del alcance.
+6. **Aborto nativo de Node** (`0xC0000409`) en una ejecución del contrato 003 tras dos suites aprobadas; dos repeticiones completas dieron 56/56. Una repetición satisfactoria **no** equivale a una primera ejecución limpia: queda como intermitencia del anfitrión sin causa identificada.
+7. **Entorno**: Docker Desktop estaba apagado. Se arrancó, se iniciaron los 5 contenedores de la validación 003 (`docker start`, sin tocar volúmenes) y se relanzaron el API (3004) y Vite (5177).
+
+### 12.6 Limitaciones y verificaciones pendientes
+
+- Firefox y WebKit no se ejecutaron (no instalados): la matriz de nueve proyectos es de T102.
+- Las 35 pruebas de infraestructura de 002 siguen **sin verificar**; no se ejecutaron los contratos ni la regresión de 001 y 002.
+- No se ejecutaron cobertura Jest, k6 ni cargas (fuera de US3).
+- El contrato no ofrece una consulta de «mi cotización de esta solicitud»: la web recorre «mis cotizaciones» hasta 10 páginas para encontrarla.
+- CI de GitHub Actions: no ejecutada para US3; el resultado de US2 no se ha verificado.
+
+
+## 13. Corrección de la regresión de 001 en la CI de US2 (commit `2398681`)
+
+**Estado de la CI remota: NO aprobada.** El trabajo «Regresión de compatibilidad con 001 y 002» del commit `2398681` terminó cancelado. Hasta que haya una nueva ejecución satisfactoria en GitHub Actions no se declara aprobado. Lo que sigue son resultados locales.
+
+### 13.1 Causa identificada (reproducida)
+
+La causa fue **mi corrección del 413 de la sección 11.6 (incidencia 3)**, no la infraestructura ni una prueba inestable. Esa corrección hacía que el rechazo anticipado por `Content-Length` esperase el evento `end` del cuerpo antes de responder, para evitar `ECONNRESET` en la prueba de 003. El contrato de 001 (`test/contract/usuarios-acceso/openapi.spec.ts`, `X-08 … límites de transporte`) comprueba el límite enviando `Content-Length: máximo + 1` **sin cuerpo**, porque «el límite de cabecera se decide antes de leer el stream». El `end` nunca llegaba: la petición quedaba sin respuesta hasta el timeout de 45 s de cada caso parametrizado, los recursos abiertos provocaban el timeout de 30 s de `afterAll` y el aviso «Jest did not exit one second after the test run has completed», y el trabajo se cancelaba por duración. Eran 126 pruebas de contrato de 001: 15 fallidas y 111 aprobadas en la CI, el mismo total que hoy.
+
+**Evidencia.** Con Node 24.15.0 y la infraestructura local de 001 (PostgreSQL 54329 sembrado), la ejecución de `usuarios-acceso/openapi` con el código de US2 **no terminó en 240 s** y hubo que detener el proceso. Con la corrección, la misma suite aprobó 20/20 con código de salida 0.
+
+### 13.2 Corrección
+
+Archivo de producción modificado: `tecnologia/backend/src/compartido/infraestructura/http/configurar-api.ts` (función `rechazarCuerpoGrande`).
+
+- Hasta 1 MiB declarado: se descarta el cuerpo (nunca se almacena ni interpreta) y se responde al terminar de recibirlo **o, como máximo, tras 250 ms** (`ESPERA_DE_CUERPO_MS`). Un cliente que cumple el protocolo termina antes; uno que declara una longitud y no envía nada, o que envía muy despacio, no puede retener la respuesta. El temporizador es `unref` y se cancela al terminar o cerrarse la petición, de modo que no deja recursos abiertos.
+- Por encima de 1 MiB: respuesta inmediata con `Connection: close`, sin leer nada.
+- No se subió ningún timeout de Jest, no se usó `--forceExit`, no se cambió la versión de Node, no se modificó ninguna respuesta ni se retiró ninguna prueba. El límite de 250 ms está justificado arriba: es una espera acotada de cortesía, no una holgura de pruebas.
+
+Archivo de prueba modificado: `test/integration/solicitudes-cotizaciones/frontera-004.spec.ts`. Durante la verificación apareció una **intermitencia propia de US3** (1 de cada 16): una consulta de «cotización inexistente» sustituía el último carácter de un UUID por `0`, y si ya era `0` consultaba la misma cotización. Se usa ahora `randomUUID()`.
+
+### 13.3 Pruebas (27 de noviembre de 2026, Node 24.15.0 del toolchain, equivalentes al workflow)
+
+| Comprobación | Resultado |
+|---|---|
+| 001 · unitarias (`usuarios-acceso\|fundacion`) | 160/160, 9 suites |
+| 001 · contratos | **126/126, 11 suites**, salida 0 (antes de la corrección: no terminaba) |
+| 001 · integración (`--runInBand`) | 129/129, 12 suites, 85 s, salida 0, sin aviso de «did not exit» |
+| 002 · contratos (`prestadores-catalogo`) | 76/76, 7 suites |
+| 002 · integración (`test:integration:002`, sin las suites de infraestructura) | 165/165, 17 suites |
+| 003 · 413 de `solicitudes.spec.ts` (3 repeticiones) | 21/21 en las 3 |
+| 003 · `tsc`, `eslint --max-warnings=0`, `build` | Sin errores |
+| 003 · unitarias | 650/650, 39 suites |
+| 003 · arquitectura | 8/8, 3 suites |
+| 003 · contratos | 56/56, 4 suites |
+| 003 · integración | 320 aprobadas y 3 `todo`, 20/20 suites (la ejecución previa a corregir la intermitencia de `frontera-004` tuvo 1 fallo y 319) |
+
+El workflow `solicitudes-cotizaciones.yml` no se modificó: ejecuta exactamente las mismas órdenes que se reprodujeron (`test:unit`, `test:contract` y `test:integration --runInBand` con el patrón `usuarios-acceso|fundacion`) y la causa era determinista, no dependía de la infraestructura de GitHub.
+
+### 13.4 Limitaciones y estado pendiente
+
+- La CI remota sigue sin una ejecución satisfactoria de este cambio: pendiente de publicar y ejecutar.
+- Las **35 pruebas de infraestructura de 002** (`test:integration:002:infra`) siguen **sin verificar**; esta verificación cubrió el contrato y la integración de 002, no esas suites.
+- Los **3 casos `todo`** de `frontera-004.spec.ts` son el contrato futuro de la 004 (E2), escrito y no simulado.
+- Las pruebas de **Firefox y WebKit** siguen sin ejecutarse; la matriz de nueve proyectos corresponde a T102.
+- Un aborto nativo de Node (`0xC0000409`) ocurrió en dos ejecuciones locales de Jest sin relación con las suites (la repetición exacta pasó). Sigue sin causa identificada; no lo ocultan las demás pruebas, pero tampoco se atribuye a este cambio.

@@ -1,7 +1,7 @@
 import type { ContextoTransaccion } from '../../../../compartido/aplicacion/transaccion.js';
 import type { UnidadDeTrabajoPostgres } from '../../../../compartido/infraestructura/postgres/unidad-de-trabajo.js';
 import type {
-  BloqueoDeFila, EntradaGuardada, NuevaBitacora, NuevaVersion, PaginaDeFilas, RepositorioSolicitudes, ResumenDeFila, VersionGuardada,
+  BloqueoDeFila, EntradaGuardada, NuevaBitacora, NuevaVersion, PaginaDeFilas, RepositorioSolicitudes, ResumenDeFila, ResumenParaOtrosModulos, VersionGuardada,
 } from '../../aplicacion/puertos/repositorios.js';
 import type { Solicitud } from '../../dominio/solicitud.js';
 import type { EstadoSolicitud } from '../../dominio/tipos.js';
@@ -38,6 +38,20 @@ export class RepositorioSolicitudesPostgres implements RepositorioSolicitudes {
     const cierre = bloqueo && tx ? (bloqueo === 'actualizacion' ? ' FOR UPDATE' : ' FOR SHARE') : '';
     const filas = await this.ejecutor(tx).query(`SELECT ${columnas} FROM solicitudes WHERE id = $1::uuid${cierre}`, [id]) as Fila[];
     return filas[0] ? aSolicitud(filas[0]) : null;
+  }
+
+  async resumenes(ids: readonly string[], tx?: ContextoTransaccion): Promise<readonly ResumenParaOtrosModulos[]> {
+    const validos = [...new Set(ids.filter(i => uuid.test(i)))];
+    if (!validos.length) return [];
+    const filas = await this.ejecutor(tx).query(`SELECT id, tipo, estado, version_trabajo, categoria_id, distrito_codigo, prestador_id FROM solicitudes WHERE id = ANY($1::uuid[])`, [validos]) as
+      { id: string; tipo: Solicitud['tipo']; estado: Solicitud['estado']; version_trabajo: number; categoria_id: string | null; distrito_codigo: string | null; prestador_id: string | null }[];
+    return filas.map(f => ({ solicitudId: f.id, tipo: f.tipo, estado: f.estado, versionTrabajo: f.version_trabajo, categoriaId: f.categoria_id, distritoCodigo: f.distrito_codigo, prestadorId: f.prestador_id }));
+  }
+
+  async clienteDe(id: string, tx?: ContextoTransaccion): Promise<string | null> {
+    if (!uuid.test(id)) return null;
+    const filas = await this.ejecutor(tx).query(`SELECT cliente_cuenta_id FROM solicitudes WHERE id = $1::uuid`, [id]) as { cliente_cuenta_id: string }[];
+    return filas[0]?.cliente_cuenta_id ?? null;
   }
 
   async crear(tx: ContextoTransaccion, s: Solicitud): Promise<void> {

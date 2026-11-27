@@ -2,6 +2,8 @@ import type { ContextoTransaccion } from '../../compartido/aplicacion/transaccio
 import type { EstadoSolicitud, TipoSolicitud } from './dominio/tipos.js';
 
 export type { EstadoSolicitud, TipoSolicitud } from './dominio/tipos.js';
+/** Reglas puras de acceso que Cotizaciones reutiliza para no repetir la política (FR-324, FR-333, FR-335). */
+export { coincideConCobertura, tituloParaCotizar } from './dominio/politica-acceso.js';
 
 /**
  * Datos mínimos de una solicitud que otros módulos pueden leer. Nunca incluye la cuenta del cliente, la descripción, las medidas, los archivos ni datos
@@ -33,4 +35,19 @@ export interface SolicitudesApi {
   bloquearCompartido(solicitudId: string, tx: ContextoTransaccion): Promise<ResumenDeSolicitud | null>;
   /** Valida que la cuenta sea la del cliente dueño de la solicitud, sin revelar quién lo es. `false` si no existe. */
   esClienteDe(solicitudId: string, cuentaId: string, tx?: ContextoTransaccion): Promise<boolean>;
+  /**
+   * Solo lectura, para la 004 (E2). Comprueba que la cuenta sea el cliente dueño y que la solicitud esté disponible para contratar (ABIERTA), con los motivos.
+   * Para quien no es el dueño no revela nada más que `NO_ES_EL_CLIENTE`. No cambia ningún estado ni produce selección o contratación.
+   */
+  validarClienteYDisponibilidad(solicitudId: string, actorCuentaId: string, tx?: ContextoTransaccion): Promise<ValidacionDeClienteYDisponibilidad>;
 }
+
+export type MotivoDeNoDisponibilidad = 'SOLICITUD_INEXISTENTE' | 'NO_ES_EL_CLIENTE' | 'SOLICITUD_NO_ABIERTA';
+export interface ValidacionDeClienteYDisponibilidad {
+  readonly esCliente: boolean;
+  readonly disponible: boolean;
+  /** Versión de trabajo vigente; `null` si el actor no es el cliente dueño. */
+  readonly versionTrabajo: number | null;
+  readonly motivos: readonly MotivoDeNoDisponibilidad[];
+}
+// La implementación (`ApiSolicitudes`) vive en `aplicacion/api-solicitudes.ts` y la conecta la composición: reexportarla desde aquí crearía un ciclo.

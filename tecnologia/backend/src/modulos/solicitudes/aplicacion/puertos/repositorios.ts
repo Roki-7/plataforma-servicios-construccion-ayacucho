@@ -12,6 +12,10 @@ export interface ResumenDeFila {
   /** Solo con `rol=prestador`: es destinataria de una dirigida. */
   readonly esDestinatario: boolean;
 }
+export interface ResumenParaOtrosModulos {
+  readonly solicitudId: string; readonly tipo: TipoSolicitud; readonly estado: EstadoSolicitud; readonly versionTrabajo: number;
+  readonly categoriaId: string | null; readonly distritoCodigo: string | null; readonly prestadorId: string | null;
+}
 export interface OportunidadDeFila {
   readonly solicitudId: string; readonly tipo: TipoSolicitud; readonly categoriaId: string; readonly distrito: string;
   readonly fechaDesde: string; readonly fechaHasta: string | null; readonly descripcionCorta: string;
@@ -41,6 +45,10 @@ export interface RepositorioSolicitudes {
   guardar(tx: ContextoTransaccion, solicitud: Solicitud): Promise<void>;
   insertarVersion(tx: ContextoTransaccion, version: NuevaVersion): Promise<void>;
   insertarBitacora(tx: ContextoTransaccion, entrada: NuevaBitacora): Promise<void>;
+  /** Lectura masiva (UNA sentencia) de los campos que otros módulos pueden conocer. Omite las inexistentes. */
+  resumenes(ids: readonly string[], tx?: ContextoTransaccion): Promise<readonly ResumenParaOtrosModulos[]>;
+  /** Cuenta del cliente dueño, o `null` si la solicitud no existe. */
+  clienteDe(id: string, tx?: ContextoTransaccion): Promise<string | null>;
   listarComoCliente(cuentaId: string, estado: EstadoSolicitud | undefined, pagina: number, tamano: number): Promise<PaginaDeFilas<ResumenDeFila>>;
   versiones(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeFilas<VersionGuardada>>;
   bitacora(solicitudId: string, pagina: number, tamano: number): Promise<PaginaDeFilas<EntradaGuardada>>;

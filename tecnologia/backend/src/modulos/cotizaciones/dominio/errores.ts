@@ -15,6 +15,7 @@ export const restriccionesDeCotizaciones = {
 
 const error = (http: number, codigo: string, mensaje: string, detalles: readonly DetalleError[] = []) => new ErrorAplicacion(http, codigo, mensaje, detalles);
 
+export const datosInvalidos = (campo: string, motivo: string) => error(400, 'DATOS_INVALIDOS', 'Revise los datos enviados.', [{ campo, motivo }]);
 export const recursoNoDisponible = () => error(404, 'RECURSO_NO_DISPONIBLE', 'El recurso no está disponible.');
 export const versionDesactualizada = () => error(409, 'VERSION_DESACTUALIZADA', 'La cotización cambió desde que la consultó. Vuelva a cargarla.');
 export const conflictoConcurrente = () => error(409, 'CONFLICTO_CONCURRENTE', 'Hubo un conflicto con otra operación simultánea. Intente de nuevo.');

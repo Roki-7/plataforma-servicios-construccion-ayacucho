@@ -61,6 +61,11 @@ export async function montarUs1(opciones: OpcionesUs1 = {}) {
       cerrarSolicitud: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`${api}/${id}/cierre`), tk, clave).send(cuerpo),
       historial: (tk: string | undefined, id: string, consulta: string) => lectura(http.get(`${api}/${id}/historial${consulta}`), tk),
       cargar: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`${api}/${id}/archivos`), tk, clave).send(cuerpo),
+      cotizar: (tk: string | undefined, solicitudId: string, cuerpo: object, clave?: string) => escritura(http.post(`${api}/${solicitudId}/cotizaciones`), tk, clave).send(cuerpo),
+      actualizarCotizacion: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`/api/v1/cotizaciones/${id}/versiones`), tk, clave).send(cuerpo),
+      retirarCotizacion: (tk: string | undefined, id: string, cuerpo: object, clave?: string) => escritura(http.post(`/api/v1/cotizaciones/${id}/retiro`), tk, clave).send(cuerpo),
+      misCotizaciones: (tk: string | undefined, consulta = '') => lectura(http.get(`/api/v1/cotizaciones${consulta}`), tk),
+      cotizacion: (tk: string | undefined, id: string) => lectura(http.get(`/api/v1/cotizaciones/${id}`), tk),
       archivo: (tk: string | undefined, id: string, archivoId: string) => lectura(http.get(`${api}/${id}/archivos/${archivoId}`), tk).buffer(true).parse((res, cb) => { const trozos: Buffer[] = []; res.on('data', (t: Buffer) => trozos.push(t)); res.on('end', () => { const bytes = Buffer.concat(trozos); cb(null, /json/.test(String(res.headers['content-type'] ?? '')) ? JSON.parse(bytes.toString('utf8')) : bytes); }); }),
     };
   } catch (error) { await cerrar(); throw error; }
@@ -93,3 +98,14 @@ export async function jpegDeTamano(bytes: number): Promise<{ tipoMime: string; c
   if (salida.length !== bytes) throw new Error('No se pudo construir la imagen del tamaño pedido.');
   return { tipoMime: 'image/jpeg', contenidoBase64: salida.toString('base64') };
 }
+
+/** Cuerpo válido de una cotización estimada. La vigencia es lejana para no depender del reloj. */
+export const cuerpoEstimada = (versionTrabajoSolicitud: number, extra: object = {}) => ({
+  versionTrabajoSolicitud, tipo: 'ESTIMADA', alcance: 'Levantar el muro de ladrillo con acabado en cemento pulido.', formaCalculo: 'S/ 85 por metro cuadrado',
+  vigenteHasta: '2031-12-31T00:00:00.000Z', ...extra,
+});
+/** Cuerpo válido de una cotización definitiva. */
+export const cuerpoDefinitiva = (versionTrabajoSolicitud: number, extra: object = {}) => ({
+  versionTrabajoSolicitud, tipo: 'DEFINITIVA', alcance: 'Levantar el muro de ladrillo con acabado en cemento pulido.', precioCentimos: 250000, plazoDias: 6,
+  condicionesPago: '50 % al iniciar y 50 % al entregar.', vigenteHasta: '2031-12-31T00:00:00.000Z', ...extra,
+});

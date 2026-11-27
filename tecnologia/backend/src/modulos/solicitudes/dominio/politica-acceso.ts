@@ -71,3 +71,20 @@ export function decidirAcceso(entrada: EntradaDeAcceso): DecisionDeAcceso {
     fotografias, puedeVerVersiones: destinatario || autor, puedeVerBitacora: false,
   };
 }
+
+/**
+ * Compatibilidad (título b, FR-333): la categoría de la solicitud pertenece al conjunto de categorías cubiertas del prestador y su distrito está entre sus
+ * zonas. Función pura: quien llama aporta el conjunto de categorías (Catálogo) y las zonas (Prestadores). La especialidad declarada nunca concede acceso.
+ */
+export function coincideConCobertura(solicitud: { readonly categoriaId: string | null; readonly distrito: string | null },
+  categoriasCubiertas: ReadonlySet<string>, distritosDelPrestador: readonly string[]): boolean {
+  return solicitud.categoriaId !== null && solicitud.distrito !== null && categoriasCubiertas.has(solicitud.categoriaId) && distritosDelPrestador.includes(solicitud.distrito);
+}
+
+/**
+ * Título para ENVIAR una cotización (FR-335): destinatario de una dirigida, o compatible con una publicada. No mira el estado: una solicitud cerrada con título
+ * produce el conflicto `SOLICITUD_NO_ABIERTA`, y sin título el recurso inexistente. El título (c), autor, solo permite actualizar o retirar (FR-326).
+ */
+export function tituloParaCotizar(e: { readonly tipo: TipoSolicitud; readonly esDestinatario: boolean; readonly coincideConCobertura: boolean }): boolean {
+  return e.tipo === 'DIRIGIDA' ? e.esDestinatario : e.coincideConCobertura;
+}
