@@ -634,7 +634,7 @@ Comandos: `npm run test:contract -- --testPathPatterns operaciones-003`, `npm ru
 
 ## 17. Fase 7 · T090 — matriz de seguridad PR04 de punta a punta (CA-SEG-01, CP-303)
 
-**Estado:** T090 completada y marcada `[x]` con evidencia **local**. Sin `git add`, `commit` ni `push`. Base: commit `d068435` (T089; CI #9 de 003: SUCCESS, según informó el PO). Historial remoto: T088 → #8 aprobada; T089 → #9 aprobada; **solo T090 está pendiente de su propia ejecución remota**. **La CI remota no se ha ejecutado para este cambio**: el resultado de GitHub Actions para T090 está pendiente y no se declara verde. No se implementó ninguna tarea posterior (T091–T116). No se modificó código de producción, contratos, políticas ni frontend.
+**Estado.** T090 completada y marcada `[x]`. El PO confirmó GitHub Actions **#10 aprobada** para el commit `a951972`. La tarea partió del commit `d068435` (T089, CI #9 aprobada) y añadió la matriz de seguridad.
 
 ### 17.1 Qué se hizo
 Un único archivo nuevo: `tecnologia/backend/test/integration/solicitudes-cotizaciones/seguridad-end-to-end.spec.ts` (346 casos). Aplicación completa real (Nest + PostgreSQL efímero `ayacucho_003_test_*` + Garage con prefijo propio), cuentas ficticias, controladores y rutas reales. Reutiliza `montarUs1` y el soporte existente; no repite la verificación de contrato de T089 (aquí se verifica **quién** puede hacer **qué**).
@@ -655,28 +655,29 @@ Listados (oportunidades, «mis solicitudes» de ambos roles, «mis cotizaciones�
 CA-SEG-01 y CP-303 se declaran cubiertos **por la combinación identidad × operación definida arriba (320/320 celdas, 18/18 operaciones)**; no se deriva de líneas ni de número de pruebas. Otros estados no incluidos como celdas propias (p. ej. solicitud cerrada con todas las identidades) se cubren con el bloque de estados, no con celdas.
 
 ### 17.6 CI
-El flujo `.github/workflows/solicitudes-cotizaciones.yml` ejecuta `test:integration:003` (`--testPathPatterns solicitudes-cotizaciones`). `jest --listTests` con ese patrón selecciona 22 suites, **incluida** la nueva; no hubo que cambiar el flujo. Resultado remoto: pendiente de publicación por el PO.
+El flujo `.github/workflows/solicitudes-cotizaciones.yml` ejecuta `test:integration:003` (`--testPathPatterns solicitudes-cotizaciones`). Al cerrar T090, `jest --listTests` con ese patrón seleccionó 22 suites, incluida la matriz PR04.
 
 ### 17.7 Pruebas locales (27 de noviembre de 2026, Node 24.15.0)
 | Comprobación | Resultado |
 |---|---|
-| `seguridad-end-to-end.spec.ts` (con `seguridad-solicitudes`) | 349/349 la última ejecución aislada; suite nueva: 346 casos aprobados |
+| `solicitudes-cotizaciones/seguridad-end-to-end.spec.ts` | 346/346 para la matriz de 003 |
+| Filtro por nombre `seguridad-end-to-end` | 349/349 en dos suites (346 de 003 y 3 de `prestadores-catalogo/seguridad-end-to-end.spec.ts`, de 002) |
 | `tsc`, `eslint --max-warnings=0`, `build` | Sin errores |
 | Unitarias | 669/669, 41 suites |
 | Arquitectura | 8/8, 3 suites |
 | Contrato 003 | 95/95, 6 suites |
 | Integración 003 | **686 aprobadas**, 3 `todo`, 0 fallidas, 22/22 suites (en la **repetición**; ver 17.8) |
-Regresiones 001/002: no se ejecutaron, porque no se tocó código de producción ni compartido.
+Se ejecutaron las 3 pruebas de seguridad de 002 al usar el filtro por nombre. Quedaron pendientes las regresiones completas de 001/002.
 
 ### 17.8 Incidencias y riesgos
 1. **Primera ejecución completa de integración 003: 2 fallos en `seguridad-solicitudes.spec.ts`** (suite anterior, T050): un caso agotó los 30 s de Jest y el siguiente recibió 503. No son fallos de política: coinciden con la ejecución en paralelo (2 workers) junto a la suite nueva, que es pesada (~80 s). La repetición pasó (22/22). **La cifra de 686 proviene de la repetición, no de la primera ejecución**; la causa es una hipótesis de carga, sin diagnóstico confirmado. Riesgo: en la CI (2 workers) puede repetirse; si ocurre, conviene reducir el coste de la suite nueva o ampliar el plazo de esa prueba concreta (decisión del PO).
 2. Errores de expectativa propios corregidos sin tocar producción: historial de versiones del compatible (404 por CA-HIS-01), el `ETag` débil de Express (no es metadato de S3) y la paginación del dueño (más de 50 solicitudes con los escenarios).
 3. **Aborto nativo `0xC0000409`: sin ocurrencias** en T090. Sigue sin causa identificada.
 4. Sin vulnerabilidades detectadas; no se hicieron correcciones de producción.
-5. Pendientes que se mantienen: 35 pruebas de infraestructura de 002, 3 casos `todo` de `frontera-004`, Firefox/WebKit, cobertura Jest, k6, dos 422 declarados sin escenario (`cerrarSolicitud003`, `retirarCotizacion003`), y CI remota de T088–T090.
+5. Pendientes al cierre local de T090: 35 pruebas de infraestructura de 002, 3 casos `todo` de `frontera-004`, Firefox/WebKit, cobertura Jest, k6 y dos 422 declarados sin escenario (`cerrarSolicitud003`, `retirarCotizacion003`).
 
 ### 17.9 Verificación acotada de estabilidad (27 de noviembre de 2026)
-**Comando de la CI** (`.github/workflows/solicitudes-cotizaciones.yml`, línea 104): `npm --prefix tecnologia/backend run test:integration:003` = `jest --selectProjects integration --maxWorkers=2 --testPathPatterns solicitudes-cotizaciones`, en `ubuntu-24.04`. La suite T090 está **incluida realmente**: `--listTests` con ese patrón lista 22 archivos, entre ellos `seguridad-end-to-end.spec.ts`, y las repeticiones la ejecutaron. El resultado remoto de T090 sigue pendiente.
+Las repeticiones usaron el comando de CI `npm --prefix tecnologia/backend run test:integration:003`, que selecciona la integración de 003 con dos workers.
 **Repeticiones locales con el mismo comando** (Node 24.15.0, evidencia separada en `tecnologia/.local/evidencia/003/t090/estabilidad-integracion-rep{1,2,3}.txt`):
 | Ejecución | Resultado | Duración | Suite T090 | `seguridad-solicitudes` | Aviso «worker failed to exit» |
 |---|---|---|---|---|---|
@@ -686,8 +687,24 @@ Regresiones 001/002: no se ejecutaron, porque no se tocó código de producción
 | Rep. 2 | 22/22, 686 + 3 `todo` | 416 s | 183 s | 30,0 s | sí |
 | Rep. 3 | 22/22, 686 + 3 `todo` | 249 s | 156 s | 25,1 s | no |
 | Sin la suite T090 (21 suites) | 21/21, 340 + 3 `todo` | 333 s | — | — | no |
-Además: la suite T090 sola con `--detectOpenHandles` pasa (349/349 con `seguridad-solicitudes`) y no detecta manejadores abiertos.
+
+La ejecución con `--detectOpenHandles` aprobó las dos suites homónimas de 003 y 002 (349/349) sin informar manejadores abiertos. [Registro local](../../tecnologia/.local/evidencia/003/t090/estabilidad-openhandles-t090.txt).
+
 **Diagnóstico.** Los fallos del incidente no se repitieron en 4 ejecuciones completas consecutivas (3 + la repetición), pero **eso no demuestra ausencia de intermitencia**. Hay una variabilidad grande de duración (249–416 s) y `seguridad-solicitudes` llegó a 30 s en la repetición 2 (el límite de Jest por prueba es 30 s para casos individuales; esa cifra es de la suite entera), lo que es coherente con la hipótesis de competencia por CPU/E/S entre los dos workers, **no confirmada**. El aviso «worker failed to exit gracefully» apareció en el incidente y en 2 de 3 repeticiones; no apareció en la ejecución sin T090 ni con `--detectOpenHandles`. No se pudo atribuir a una suite concreta; queda como **riesgo abierto** y no se modificó nada. No se cambió código ni tiempos límite: no hubo fallos que corregir.
+
+### 17.10 Selección para la demostración de AC04 en PowerShell
+
+En la preparación del Sprint 2, Jest abrió 56 suites (48 aprobadas, 4 fallidas y 4 omitidas). El registro de npm (`2026-11-27T17_57_00_472Z-debug-0.log`) muestra que `--testPathPatterns` llegó a npm sin el separador de argumentos. `--listTests` confirmó que la integración sin filtro selecciona 56 archivos y que el filtro por nombre `seguridad-end-to-end` selecciona las dos suites homónimas.
+
+El informe JUnit de esa corrida registra 346/346 en T090. En 002 agotaron el límite de 30 s el `afterAll` de `seguridad-end-to-end.spec.ts` y una prueba de `fundamentos-http.spec.ts`. También fallaron dos aserciones de `unicidad-concurrencia.spec.ts` (002) y una de `registro.spec.ts` (001). Se guardaron los recuentos y las respuestas 409 que coincidieron con lo esperado en Registro. Los códigos HTTP inesperados siguen sin confirmar. [Informe JUnit local](../../tecnologia/.local/evidencia/001/backend-integration-junit.xml).
+
+Desde `tecnologia\backend`, con Node 24.15.0 en el `PATH`, este comando lista exclusivamente la suite PR04 de 003:
+
+```powershell
+node --experimental-vm-modules .\node_modules\jest\bin\jest.js --selectProjects integration --runInBand --runTestsByPath test/integration/solicitudes-cotizaciones/seguridad-end-to-end.spec.ts --listTests
+```
+
+Para la demostración en vivo, quitar `--listTests`. La salida esperada es una suite con 346 pruebas aprobadas.
 
 
 ## 18. Fase 7 · T091 — errores, concurrencia e integridad de datos (CA-ERR-01 a 03)
@@ -816,3 +833,61 @@ Integración, regresiones 001/002, Playwright, k6 y cobertura: no ejecutados (no
 2. Dos fallos propios al escribir las pruebas, corregidos antes de las ejecuciones reportadas: el ciclo de módulos `catalogo ↔ prestadores` (ajeno a 003) hacía fallar una comprobación demasiado amplia, que se acotó a los ciclos que pasan por los módulos 003; y las aristas hacia `composicion` se acotaron al único archivo permitido.
 3. La suite de arquitectura tarda unos 120 s en la ejecución completa (cada análisis recorre todo `src`); vigilar si crece.
 4. Pendientes que se mantienen: 35 pruebas de infraestructura de 002, 3 `todo` de `frontera-004`, avisos «worker failed to exit» intermitentes, Firefox/WebKit, cobertura Jest, k6, dos 422 declarados sin escenario y la CI remota de T092 (y la verificación del trabajo «Validación 003» de la CI #11).
+
+## 20. Fase 7 · T093 — regresión y aislamiento del almacenamiento
+
+**Estado.** Completada con evidencia local del 27 de noviembre de 2026 sobre `6a23edb`, rama `003-solicitudes-y-cotizaciones`. Los apartados 20.1 a 20.3 registran el intento preliminar. El Product Owner autorizó continuar con el criterio de legibilidad del checklist pendiente. La documentación de T090 ya tenía cambios locales al inicio.
+
+### 20.1 Entorno y ejecución
+
+- Los cinco contenedores de 003 estaban activos. Los de 001 y 002 estaban detenidos. El proxy detenido de 002 conserva un ID de red anterior al de la red vigente. Las suites de backend no necesitan ese proxy. Había unos 790 MiB de RAM libre en la inspección inicial.
+- Se usó Node 24.15.0 y Jest desde `tecnologia/backend`. El primer intento se detuvo antes de cargar las suites porque la identidad aislada de Windows no podía acceder a la caché nativa de SWC. La repetición se ejecutó con acceso a la caché del usuario, una suite a la vez mediante `--runInBand`.
+- La base del comando fue `node --experimental-vm-modules .\node_modules\jest\bin\jest.js --selectProjects <unit|contract> --runInBand`. Los filtros de PowerShell fueron `'--testPathPatterns=usuarios-acceso|fundacion'`, `'--testPathPatterns=prestadores-catalogo'` y `'--testPathPatterns=solicitudes-cotizaciones'`. En el intento de contratos 002 se añadió `'--testPathIgnorePatterns=regresion-001-002\.spec\.ts'`. Para comprobar el ensamblado de OpenAPI se usó `--selectProjects contract --runInBand --runTestsByPath test/contract/solicitudes-cotizaciones/composicion-contratos.spec.ts`.
+
+### 20.2 Resultados
+
+| Comprobación | Evidencia local |
+|---|---|
+| Unitarias de 001, 002 y 003 | 001: 160/160 en 9 suites. 002: 184/184 en 13 suites. 003: 309/309 en 17 suites. |
+| Contrato 001 | 5 aprobadas en la suite de fundación. 121 fallidas en otras 10 suites por conexión rechazada a PostgreSQL en `54329`. |
+| Contrato 002 con el filtro indicado | 10 aprobadas en la suite de composición. 64 fallidas en otras 5 suites por conexión rechazada a PostgreSQL en `54330`. |
+| Contrato 003 | El primer intento se interrumpió. El contrato de composición por ruta exacta aprobó 17/17 en una suite y verificó las 58 operaciones. |
+
+El filtro de contratos incluyó suites que crean bases mediante sus fixtures. Se interrumpió la ejecución de 003 y quedó la base temporal `ayacucho_003_test_9b7654b191f2459092964cfc643e9cf9`. El recuento de bases con ese prefijo pasó de 36 a 37. La base nueva y las preexistentes se conservaron. Los logs y JUnit están en `tecnologia/.local/evidencia/003/t093`.
+
+### 20.3 CP-307 y CP-310
+
+- **CP-307 parcial.** Consulta de solo lectura con `node --import tsx --input-type=module -`, el cliente S3 local de 003 y solicitudes `GET`/`HEAD` a Garage. El bucket tenía objetos `solicitudes/`. El listado anónimo y el `HEAD` anónimo de un objeto devolvieron 403. El `HEAD` firmado devolvió 200. El adaptador de portafolio rechazó la lectura de la clave antes de llamar a S3, comprobada con un cliente de prueba sin acceso a la red. Registro en `almacenamiento-solo-lectura.json`.
+- **CP-310 pendiente.** En el mismo origen HTTPS con 003 activa, `GET /api/v1/salud` y `GET /api/v1/categorias` devolvieron 200, y `GET /api/v1/solicitudes/oportunidades` sin sesión devolvió 401. Faltan las regresiones de integración completas y la suite de aislamiento.
+- **Limpieza y respaldo de 002 pendientes en este primer intento.** El arnés previsto para integración y respaldo elimina bases creadas durante sus pruebas. El ensayo de restauración también puede limpiar residuos de ensayos previos en sus recursos dedicados. Se solicitó autorización para la limpieza de recursos ficticios nuevos.
+
+### 20.4 Continuación autorizada y control de recursos
+
+El Product Owner autorizó que el arnés retire únicamente bases y objetos ficticios nuevos de esta corrida. Se guardó el inventario con nombres y OID de PostgreSQL, y claves, tamaños y ETag de Garage. En 003 había 41 bases en total, incluidas las 37 `ayacucho_003_test_*`, y 249 objetos en el bucket. [Inventario inicial de 003](../../tecnologia/.local/evidencia/003/t093/corrida-1795812359227-d6e6c635/inicio-003.json).
+
+Se inició cada grupo de contenedores existente por separado tras comprobar la salud de los servicios. Una configuración local de Jest registró las creaciones y retiradas efectivas. Solo admitió retirar bases y objetos que la misma suite había registrado como nuevos y que estaban ausentes del inventario inicial. Para impedir errores de selección, el lanzador corregido compara los archivos esperados con la salida de `--listTests` antes de ejecutar. El proxy de 002 no interviene en estas suites.
+
+**Evidencia integrada.** Se amplió `aislamiento-almacenamiento.spec.ts`. Dentro de la composición completa de 003 y con un objeto real `solicitudes/`, 001 conserva la sesión y el perfil, 002 conserva el catálogo y el perfil profesional y 003 responde al prestador autenticado. El respaldo de portafolio usa la instantánea real de PostgreSQL y `pg_dump` sobre la base descartable. Copia solo la foto de portafolio. Cuando un inventario de prueba incluye la referencia de solicitudes, se rechaza y el objeto conserva los mismos bytes. Las aserciones previas de acceso anónimo, aislamiento por prefijo y limpieza de 002 se ejecutaron en la misma suite.
+
+| Comprobación de la continuación | Resultado |
+|---|---|
+| Contrato 001 | 126/126, 11 suites. |
+| Integración 001 | 129/129, 12 suites. |
+| Contrato 002 | 76/76, 7 suites verificadas por archivo. |
+| Integración ordinaria 002 | 165/165, 17 suites, incluido respaldo con PostgreSQL y Garage reales (10/10). Los 16 casos de portafolio se verificaron en bloques y con los casos de privacidad por separado. |
+| Infraestructura 002 | 35/35, 4 suites. RF39 9/9, Redis aislado 5/5, restauración coordinada 20/20 y fotografías de cuenta en la composición integrada 1/1. |
+| Aislamiento ampliado de 003 (CP-307 y compatibilidad en la composición completa) | 13/13, 1 suite. |
+| Limpieza y arranque de 003 | 41/41, 2 suites. |
+| Calidad del cambio de pruebas | `tsc --noEmit` y ESLint del archivo modificado aprobaron. |
+
+**CP-307 y CP-310 aprobados.** La prueba sobre la composición completa ejercitó los accesos de 001, 002 y 003 con objetos `solicitudes/` en el mismo bucket. Las regresiones de cada funcionalidad se ejecutaron también en sus propios entornos. El respaldo y la restauración de 002 se ejercitaron en bases y prefijos descartables, además del ensayo con PostgreSQL, Redis y Garage dedicados.
+
+### 20.5 Incidencias y cierre de inventario
+
+- Se registraron abortos nativos de Node (`0xC0000409`) en contratos de 002 y en portafolio. Los resultados aprobados provienen de reintentos por ruta exacta. Portafolio se verificó en cuatro bloques y tres casos de privacidad separados. Los reintentos de portafolio usaron dos hilos de libuv para los bloques y uno para los casos individuales. La causa del aborto sigue sin confirmarse.
+- PowerShell concatenó dos argumentos de una invocación de integración 002. El filtro ordinario seleccionó tres suites optativas que quedaron omitidas y el lanzamiento de Redis abrió el conjunto general de integración. Se detuvo este último y el control bloqueó las creaciones fuera del inventario. Se descartaron esos resultados para el cierre y se contrastó `--listTests` con la selección de cada reintento.
+- El control de recursos inicialmente bloqueó retiradas idempotentes de bases u objetos que nunca se habían creado. Se ajustó para comprobar la ausencia antes de aceptar esos casos. El ensayo descartable también empezó con la identidad de Garage sin aprovisionar. La CLI confirmó que los dos buckets preexistentes estaban vacíos. El arnés oficial creó una identidad ficticia y le asignó acceso a ambos buckets. La identidad queda disponible en ese entorno.
+- Se registraron 140 bases nuevas y 140 retiradas confirmadas. Se registraron 270 objetos nuevos y 269 eliminaciones confirmadas. El objeto restante en el registro no aparece en el inventario final y carece de recibo individual de eliminación. El cierre de recursos tras los abortos eliminó 11 bases y 32 objetos con creación acreditada en la corrida, coincidencia de OID o ETag y ausencia en el inventario inicial. Esas retiradas ya están incluidas en los totales.
+- Se confirmaron las 37 bases preexistentes `ayacucho_003_test_*` por nombre y OID. Los inventarios finales de bases y objetos de los cinco perfiles coinciden con los iniciales. No quedaron bases u objetos nuevos en esos inventarios. Los servicios temporales iniciados para las pruebas volvieron al estado detenido y la infraestructura 003 quedó activa. [Conciliación](../../tecnologia/.local/evidencia/003/t093/corrida-1795812359227-d6e6c635/reconciliacion.json) · [Inventario final de 003](../../tecnologia/.local/evidencia/003/t093/corrida-1795812359227-d6e6c635/fin-003-verificacion.json).
+
+Los comandos de Jest y la selección verificada quedaron en `comando.txt` y `seleccion.txt` de cada ejecución, junto con los JUnit. El directorio local `tecnologia/.local/evidencia/003/t093/corrida-1795812359227-d6e6c635` conserva también el lanzador, el inventario y el registro de operaciones.

@@ -4,10 +4,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
+import request from 'supertest';
 import type { DataSource } from 'typeorm';
+import { crearAplicacionCompleta003 } from '../../../src/composicion/aplicacion-003.js';
 import { persistencia003 } from '../../../src/composicion/persistencia.js';
 import { persistenciaOferta002 } from '../../../src/composicion/oferta-002.js';
 import { aplicarMigraciones003, persistenciaOferta003 } from '../../../src/composicion/migraciones-003.js';
+import { OrigenPostgresDocker } from '../../../src/composicion/respaldo-002.js';
 import { UnidadDeTrabajoPostgres } from '../../../src/compartido/infraestructura/postgres/unidad-de-trabajo.js';
 import { SolicitudesS3 } from '../../../src/modulos/solicitudes/infraestructura/archivos/solicitudes-s3.js';
 import { PortafolioS3 } from '../../../src/modulos/prestadores/infraestructura/archivos/portafolio-s3.js';
@@ -17,6 +20,8 @@ import { FotografiasS3 } from '../../../src/modulos/usuarios-acceso/infraestruct
 import { limpiarTemporales } from '../../../src/modulos/usuarios-acceso/infraestructura/almacenamiento/limpiar-temporales.js';
 import { baseAislada003 } from '../../soporte/solicitudes-cotizaciones/postgres.js';
 import { almacenamientoAislado003 } from '../../soporte/solicitudes-cotizaciones/almacenamiento.js';
+import { iniciarSesion003, sembrarDatos003 } from '../../soporte/solicitudes-cotizaciones/datos.js';
+import { configuracionDePrueba003 } from '../../soporte/solicitudes-cotizaciones/entorno.js';
 import { leerConfiguracion003, recursos003 } from '../../../scripts/entorno-003.js';
 
 /**
@@ -127,7 +132,8 @@ describe('adaptador de solicitudes sobre el bucket real', () => {
 
 describe('los adaptadores de 001 y 002 no ven los objetos de solicitudes/', () => {
   let solicitud: string;
-  beforeAll(async () => { solicitud = `solicitudes/${uuid()}/${uuid()}`; await poner(solicitud); });
+  let contenidoSolicitud: Uint8Array;
+  beforeAll(async () => { solicitud = `solicitudes/${uuid()}/${uuid()}`; contenidoSolicitud = await poner(solicitud); });
 
   test('el portafolio de 002 (portafolio/ y su variante de pruebas) no lee, lista ni borra objetos solicitudes/', async () => {
     for (const prefijo of ['portafolio/', `pruebas/${uuid()}/portafolio/`]) {
@@ -172,22 +178,51 @@ describe('los adaptadores de 001 y 002 no ven los objetos de solicitudes/', () =
   });
   test('el respaldo de 002 con solicitudes/ presentes en el bucket es COMPLETO y no copia ni lee objetos ajenos; un inventario que nombrara uno se rechaza', async () => {
     const prefijoPortafolio = `pruebas/${uuid()}/portafolio/`; const portafolio = new PortafolioS3(cliente, bucket, prefijoPortafolio);
-    const propio = portafolio.claveNueva(uuid()); const bytes = new Uint8Array(randomBytes(32)); await portafolio.guardar(propio, bytes); aBorrar.push(propio);
+    const prestador = uuid(); const trabajo = uuid(); const propio = portafolio.claveNueva(prestador);
+    const bytes = randomBytes(32); await portafolio.guardar(propio, bytes); aBorrar.push(propio);
+    await db.query("INSERT INTO prestadores_perfiles(id,cuenta_id,nombre_publico,tipo,experiencia,disponibilidad_declarada) VALUES($1,$2,'Prestador ficticio','TECNICO','Experiencia ficticia',true)", [prestador, uuid()]);
+    await db.query("INSERT INTO prestadores_trabajos(id,prestador_id,titulo,descripcion) VALUES($1,$2,'Trabajo ficticio','Descripción ficticia')", [trabajo, prestador]);
+    await db.query("INSERT INTO prestadores_fotografias(id,trabajo_id,objeto_clave,mime,bytes,ancho,alto,checksum) VALUES($1,$2,$3,'image/webp',$4,64,48,decode($5,'hex'))",
+      [uuid(), trabajo, propio, bytes.length, sha256(bytes)]);
     const referencia = (clave: string, b: Uint8Array) => ({ clave, bytes: b.length, mime: 'image/webp', sha256: sha256(b) });
-    const origen = (fotografias: ReturnType<typeof referencia>[]) => ({
+    const origenAlterado = (fotografias: ReturnType<typeof referencia>[]) => ({
       abrirInstantanea: async (): Promise<InstantaneaPortafolio> => ({ snapshotId: 'instantanea', corteUtc: new Date().toISOString(), postgresMayor: 18, migraciones: [], fotografias, preparaciones: 0, purgas: 0, cerrar: async () => undefined }),
       volcar: async () => new Uint8Array([1, 2, 3]),
     });
     const claves = clavesDeRespaldo(randomBytes(32).toString('base64'));
-    const respaldar = (fotografias: ReturnType<typeof referencia>[]) => respaldarPortafolio({ origen: origen(fotografias), almacen: portafolio, claves, directorio, aplicacion: 'prueba',
-      origenLogico: { baseLogica: 'prueba', bucket, prefijo: prefijoPortafolio, espacioRedis: 'ayacucho:prueba' } });
-    const manifiesto = await respaldar([referencia(propio, bytes)]);
-    expect(manifiesto).toMatchObject({ estado: 'COMPLETO', conteos: { objetosCopiados: 1 } });
+    const respaldar = (origen: Parameters<typeof respaldarPortafolio>[0]['origen']) => respaldarPortafolio({ origen, almacen: portafolio, claves, directorio, aplicacion: 'prueba',
+      origenLogico: { baseLogica: base.nombre, bucket, prefijo: prefijoPortafolio, espacioRedis: 'ayacucho:prueba' } });
+    const manifiesto = await respaldar(new OrigenPostgresDocker(base.url, 'ayacucho-003-validacion-postgres-1'));
+    expect(manifiesto).toMatchObject({ estado: 'COMPLETO', conteos: { fotografiasVigentes: 1, objetosCopiados: 1 } });
     expect(manifiesto.objetos.map(o => o.clave)).toEqual([propio]);
-    const hostil = await respaldar([referencia(solicitud, new Uint8Array([1]))]).catch((e: unknown) => e);
-    expect(hostil).toMatchObject({ codigo: 'OBJETO_AUSENTE', manifiesto: { estado: 'INCOMPLETO' } });
-    expect(await existe(solicitud)).toBe(true);
-  });
+    await expect(respaldar(origenAlterado([referencia(solicitud, contenidoSolicitud)])))
+      .rejects.toMatchObject({ codigo: 'OBJETO_AUSENTE', manifiesto: { estado: 'INCOMPLETO' } });
+    expect(Buffer.from(await new SolicitudesS3(cliente, bucket).leer(solicitud))).toEqual(Buffer.from(contenidoSolicitud));
+  }, 120000);
+
+  test('la composición completa conserva el acceso de 001 y 002 con un objeto solicitudes/ presente en Garage', async () => {
+    const config = await configuracionDePrueba003(base.url);
+    const solicitudes = new SolicitudesS3(cliente, bucket);
+    const portafolio = new PortafolioS3(cliente, bucket, `pruebas/${uuid()}/portafolio/`);
+    const app = await crearAplicacionCompleta003(config, { prestadores: { almacen: portafolio }, solicitudes: { almacen: solicitudes }, worker: false });
+    try {
+      const datos = await sembrarDatos003(app, config.origen);
+      const tokenCliente = await iniciarSesion003(app, config.origen, datos.clientes.clienteUno);
+      const tokenPrestador = await iniciarSesion003(app, config.origen, datos.prestadores.beto);
+      const http = request(app.app.getHttpServer());
+      const perfil = await http.get('/api/v1/perfil').set('Authorization', `Bearer ${tokenCliente}`).expect(200);
+      expect(perfil.body).toMatchObject({ cuentaId: datos.clientes.clienteUno.cuentaId, perfiles: ['cliente'] });
+      await http.get('/api/v1/perfil').expect(401);
+      const catalogo = await http.get('/api/v1/categorias').expect(200);
+      expect(catalogo.body.categorias.length).toBeGreaterThan(0);
+      const perfilProfesional = await http.get('/api/v1/prestadores/perfil').set('Authorization', `Bearer ${tokenPrestador}`).expect(200);
+      expect(perfilProfesional.body).toMatchObject({ prestadorId: datos.prestadores.beto.prestadorId });
+      await http.get('/api/v1/solicitudes/oportunidades').set('Authorization', `Bearer ${tokenPrestador}`).expect(200);
+      expect(Buffer.from(await solicitudes.leer(solicitud))).toEqual(Buffer.from(contenidoSolicitud));
+    } finally {
+      await app.app.close();
+    }
+  }, 120000);
 });
 
 describe('inventario del bucket tras las pruebas', () => {
